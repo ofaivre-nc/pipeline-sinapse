@@ -1,0 +1,1164 @@
+{
+  "type": "doc",
+  "content": [
+    {
+      "type": "layoutSection",
+      "marks": [
+        {
+          "type": "breakout",
+          "attrs": {
+            "mode": "wide",
+            "width": 1784
+          }
+        }
+      ],
+      "content": [
+        {
+          "type": "layoutColumn",
+          "attrs": {
+            "width": 50.0
+          },
+          "content": [
+            {
+              "type": "panel",
+              "attrs": {
+                "panelType": "info"
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "Quartier",
+                      "type": "text",
+                      "marks": [
+                        {
+                          "type": "strong"
+                        }
+                      ]
+                    },
+                    {
+                      "text": ": Q-ADMIN",
+                      "type": "text"
+                    },
+                    {
+                      "type": "hardBreak"
+                    },
+                    {
+                      "text": "Service fonctionnel",
+                      "type": "text",
+                      "marks": [
+                        {
+                          "type": "strong"
+                        }
+                      ]
+                    },
+                    {
+                      "text": ": SF-COMPTE",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "Lien vers la tâche de test ",
+                      "type": "text",
+                      "marks": [
+                        {
+                          "type": "link",
+                          "attrs": {
+                            "href": "https://sinapse-gie-nc.atlassian.net/browse/REC-35"
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "text": " ",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "layoutColumn",
+          "attrs": {
+            "width": 25.0
+          },
+          "content": [
+            {
+              "type": "paragraph",
+              "marks": [
+                {
+                  "type": "alignment",
+                  "attrs": {
+                    "align": "end"
+                  }
+                }
+              ],
+              "content": [
+                {
+                  "text": "Fréquence d’exécution:",
+                  "type": "text",
+                  "marks": [
+                    {
+                      "type": "strong"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "layoutColumn",
+          "attrs": {
+            "width": 25.0
+          },
+          "content": [
+            {
+              "type": "bodiedExtension",
+              "attrs": {
+                "layout": "default",
+                "extensionType": "com.atlassian.confluence.macro.core",
+                "extensionKey": "multiexcerpt-macro",
+                "parameters": {
+                  "macroParams": {
+                    "hidden": {
+                      "value": "false"
+                    },
+                    "name": {
+                      "value": "frequence"
+                    },
+                    "fallback": {
+                      "value": "false"
+                    }
+                  },
+                  "macroMetadata": {
+                    "macroId": {
+                      "value": "a1347690-1ea6-4d1f-94ad-cf8d7bdce540"
+                    },
+                    "schemaVersion": {
+                      "value": "1"
+                    },
+                    "placeholder": [
+                      {
+                        "type": "icon",
+                        "data": {
+                          "url": "https://raw.githubusercontent.com/fuegokit/appfire-design-systems-brand-svg/main/single-color-brand-icons/af-logo-multi-excerpt-24.svg"
+                        }
+                      }
+                    ],
+                    "title": "MultiExcerpt"
+                  }
+                },
+                "localId": "f63b5456-ac61-4e3d-a524-09137c966e3e"
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "Tous les soirs",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "blockCard",
+      "attrs": {
+        "layout": "full-width",
+        "datasource": {
+          "id": "d8b75300-dfda-4519-b6cd-e49abbd50401",
+          "parameters": {
+            "cloudId": "99359240-063d-4460-995d-cfa34c572c7d",
+            "jql": "(id in linkedIssues(REC-35,\"réfère\") or \"Specs[URL Field]\" = \"https://sinapse-gie-nc.atlassian.net/wiki/spaces/SINAPSE/pages/5275664\") and (issuetype in (Bug, Sub-task, Story) and (status != Closed or (status = closed and  (\"Etat du cas d'utilisation[Dropdown]\" in (\"A écrire\",\"A vérifier\",\"MAJ nécessaire\") or \"Etat de la fiche de test[Dropdown]\" in (\"A écrire\",\"A vérifier\",\"MAJ nécessaire\")))))    "
+          },
+          "views": [
+            {
+              "type": "table",
+              "properties": {
+                "columns": [
+                  {
+                    "key": "issuetype"
+                  },
+                  {
+                    "key": "issuekey"
+                  },
+                  {
+                    "key": "summary"
+                  },
+                  {
+                    "key": "status"
+                  },
+                  {
+                    "key": "resolution"
+                  },
+                  {
+                    "key": "customfield_10061"
+                  },
+                  {
+                    "key": "customfield_10060"
+                  },
+                  {
+                    "key": "fixVersions"
+                  },
+                  {
+                    "key": "customfield_10058"
+                  },
+                  {
+                    "key": "key"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "localId": "c1558835-1f2b-440e-903e-3c86623cfbf1",
+        "url": "https://sinapse-gie-nc.atlassian.net/issues/?jql=%28id+in+linkedIssues%28REC-35%2C%22r%C3%A9f%C3%A8re%22%29+or+%22Specs%5BURL+Field%5D%22+%3D+%22https%3A%2F%2Fsinapse-gie-nc.atlassian.net%2Fwiki%2Fspaces%2FSINAPSE%2Fpages%2F5275664%22%29+and+%28issuetype+in+%28Bug%2C+Sub-task%2C+Story%29+and+%28status+%21%3D+Closed+or+%28status+%3D+closed+and++%28%22Etat+du+cas+d%27utilisation%5BDropdown%5D%22+in+%28%22A+%C3%A9crire%22%2C%22A+v%C3%A9rifier%22%2C%22MAJ+n%C3%A9cessaire%22%29+or+%22Etat+de+la+fiche+de+test%5BDropdown%5D%22+in+%28%22A+%C3%A9crire%22%2C%22A+v%C3%A9rifier%22%2C%22MAJ+n%C3%A9cessaire%22%29%29%29%29%29++++"
+      }
+    },
+    {
+      "type": "expand",
+      "attrs": {
+        "title": "EVOLUTIONS"
+      },
+      "marks": [
+        {
+          "type": "breakout",
+          "attrs": {
+            "mode": "wide",
+            "width": 1800
+          }
+        }
+      ],
+      "content": [
+        {
+          "type": "table",
+          "attrs": {
+            "layout": "default",
+            "width": 760.0,
+            "localId": "aa101e80-7cd5-41ff-8796-3fa609fa4514"
+          },
+          "marks": [
+            {
+              "type": "fragment",
+              "attrs": {
+                "name": "Table 2",
+                "localId": "ade6d228-5e52-4a51-8715-f2389a5cf660"
+              }
+            }
+          ],
+          "content": [
+            {
+              "type": "tableRow",
+              "content": [
+                {
+                  "type": "tableHeader",
+                  "attrs": {
+                    "colspan": 1,
+                    "rowspan": 1,
+                    "colwidth": [
+                      172.0
+                    ]
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "text": "Version",
+                          "type": "text",
+                          "marks": [
+                            {
+                              "type": "strong"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "tableHeader",
+                  "attrs": {
+                    "colspan": 1,
+                    "rowspan": 1,
+                    "colwidth": [
+                      936.0
+                    ]
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "text": "Description de la mise à jour",
+                          "type": "text",
+                          "marks": [
+                            {
+                              "type": "strong"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "tableHeader",
+                  "attrs": {
+                    "colspan": 1,
+                    "rowspan": 1,
+                    "colwidth": [
+                      107.0
+                    ]
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "text": "Ref JIRA",
+                          "type": "text",
+                          "marks": [
+                            {
+                              "type": "strong"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "tableHeader",
+                  "attrs": {
+                    "colspan": 1,
+                    "rowspan": 1,
+                    "colwidth": [
+                      117.0
+                    ]
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "text": "Date",
+                          "type": "text",
+                          "marks": [
+                            {
+                              "type": "strong"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableRow",
+              "content": [
+                {
+                  "type": "tableCell",
+                  "attrs": {
+                    "colspan": 1,
+                    "rowspan": 1,
+                    "colwidth": [
+                      172.0
+                    ]
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "text": "1",
+                          "type": "text"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "tableCell",
+                  "attrs": {
+                    "colspan": 1,
+                    "rowspan": 1,
+                    "colwidth": [
+                      936.0
+                    ]
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "text": "Initialisation de la spécification",
+                          "type": "text"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "tableCell",
+                  "attrs": {
+                    "colspan": 1,
+                    "rowspan": 1,
+                    "colwidth": [
+                      107.0
+                    ]
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "text": "REC-34",
+                          "type": "text",
+                          "marks": [
+                            {
+                              "type": "link",
+                              "attrs": {
+                                "href": "https://sinapse-gie-nc.atlassian.net/browse/REC-34"
+                              }
+                            }
+                          ]
+                        },
+                        {
+                          "text": " ",
+                          "type": "text"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "tableCell",
+                  "attrs": {
+                    "colspan": 1,
+                    "rowspan": 1,
+                    "colwidth": [
+                      117.0
+                    ]
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableRow",
+              "content": [
+                {
+                  "type": "tableCell",
+                  "attrs": {
+                    "colspan": 1,
+                    "rowspan": 1,
+                    "colwidth": [
+                      172.0
+                    ]
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph"
+                    }
+                  ]
+                },
+                {
+                  "type": "tableCell",
+                  "attrs": {
+                    "colspan": 1,
+                    "rowspan": 1,
+                    "colwidth": [
+                      936.0
+                    ]
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph"
+                    }
+                  ]
+                },
+                {
+                  "type": "tableCell",
+                  "attrs": {
+                    "colspan": 1,
+                    "rowspan": 1,
+                    "colwidth": [
+                      107.0
+                    ]
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph"
+                    }
+                  ]
+                },
+                {
+                  "type": "tableCell",
+                  "attrs": {
+                    "colspan": 1,
+                    "rowspan": 1,
+                    "colwidth": [
+                      117.0
+                    ]
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "paragraph"
+    },
+    {
+      "type": "extension",
+      "attrs": {
+        "layout": "wide",
+        "extensionType": "com.atlassian.confluence.macro.core",
+        "extensionKey": "toc",
+        "parameters": {
+          "macroParams": {
+            "minLevel": {
+              "value": "1"
+            },
+            "maxLevel": {
+              "value": "6"
+            },
+            "include": {
+              "value": ""
+            },
+            "outline": {
+              "value": "false"
+            },
+            "indent": {
+              "value": ""
+            },
+            "style": {
+              "value": "decimal"
+            },
+            "exclude": {
+              "value": ""
+            },
+            "type": {
+              "value": "list"
+            },
+            "printable": {
+              "value": "true"
+            },
+            "class": {
+              "value": ""
+            }
+          },
+          "macroMetadata": {
+            "macroId": {
+              "value": "d7f9ba34-76cd-42c8-b2d3-6ce504decb75"
+            },
+            "schemaVersion": {
+              "value": "1"
+            },
+            "title": "Table of Contents"
+          }
+        },
+        "localId": "75def40c-2dc2-40a9-b7e8-1442f18f9582"
+      },
+      "marks": [
+        {
+          "type": "fragment",
+          "attrs": {
+            "name": "Extension 4",
+            "localId": "3024fd8b-0c52-422d-95bf-6e044565eba5"
+          }
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "attrs": {
+        "level": 1
+      },
+      "content": [
+        {
+          "text": "Description",
+          "type": "text"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "text": "Job permettant de mettre à jour automatiquement les numéros de téléphone des utilisateurs à partir de l’annuaire LDAP de la CAFAT.",
+          "type": "text"
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "attrs": {
+        "level": 1
+      },
+      "content": [
+        {
+          "text": "Fonctionnement nominal",
+          "type": "text"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "attrs": {
+        "layout": "center",
+        "width": 1800.0,
+        "localId": "b70981f2-ebf2-4580-ae9c-f487c4b85e60"
+      },
+      "marks": [
+        {
+          "type": "fragment",
+          "attrs": {
+            "name": "Table 3",
+            "localId": "44ec46c2-2938-4480-9637-3ef1ce426806"
+          }
+        }
+      ],
+      "content": [
+        {
+          "type": "tableRow",
+          "content": [
+            {
+              "type": "tableHeader",
+              "attrs": {
+                "colspan": 1,
+                "rowspan": 1,
+                "colwidth": [
+                  49.0
+                ]
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "N°",
+                      "type": "text",
+                      "marks": [
+                        {
+                          "type": "strong"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableHeader",
+              "attrs": {
+                "colspan": 1,
+                "rowspan": 1,
+                "colwidth": [
+                  483.0
+                ]
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "Activité élémentaire",
+                      "type": "text",
+                      "marks": [
+                        {
+                          "type": "strong"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableHeader",
+              "attrs": {
+                "colspan": 1,
+                "rowspan": 1,
+                "colwidth": [
+                  1267.0
+                ]
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "Description",
+                      "type": "text",
+                      "marks": [
+                        {
+                          "type": "strong"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "tableRow",
+          "content": [
+            {
+              "type": "tableCell",
+              "attrs": {
+                "colspan": 1,
+                "rowspan": 1,
+                "colwidth": [
+                  49.0
+                ]
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "1",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableCell",
+              "attrs": {
+                "colspan": 1,
+                "rowspan": 1,
+                "colwidth": [
+                  483.0
+                ]
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "Liste des comptes utilisateurs à mettre à jour",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableCell",
+              "attrs": {
+                "colspan": 1,
+                "rowspan": 1,
+                "colwidth": [
+                  1267.0
+                ]
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "cf règle n°1",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "tableRow",
+          "content": [
+            {
+              "type": "tableCell",
+              "attrs": {
+                "colspan": 1,
+                "rowspan": 1,
+                "colwidth": [
+                  49.0
+                ]
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "2",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableCell",
+              "attrs": {
+                "colspan": 1,
+                "rowspan": 1,
+                "colwidth": [
+                  483.0
+                ]
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "Mise à jour de chaque compte utilisateur",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableCell",
+              "attrs": {
+                "colspan": 1,
+                "rowspan": 1,
+                "colwidth": [
+                  1267.0
+                ]
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "cf règle n°2",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "attrs": {
+        "level": 1
+      },
+      "content": [
+        {
+          "text": "Règles",
+          "type": "text"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "attrs": {
+        "layout": "center",
+        "width": 1800.0,
+        "localId": "12d01234-5cdc-4576-a13f-c084a0b6d5d7"
+      },
+      "content": [
+        {
+          "type": "tableRow",
+          "content": [
+            {
+              "type": "tableHeader",
+              "attrs": {
+                "colspan": 1,
+                "rowspan": 1,
+                "colwidth": [
+                  60.0
+                ]
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "N°",
+                      "type": "text",
+                      "marks": [
+                        {
+                          "type": "strong"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableHeader",
+              "attrs": {
+                "colspan": 1,
+                "rowspan": 1,
+                "colwidth": [
+                  1740.0
+                ]
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "Description",
+                      "type": "text",
+                      "marks": [
+                        {
+                          "type": "strong"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "tableRow",
+          "content": [
+            {
+              "type": "tableCell",
+              "attrs": {
+                "colspan": 1,
+                "rowspan": 1,
+                "colwidth": [
+                  60.0
+                ]
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "1",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableCell",
+              "attrs": {
+                "colspan": 1,
+                "rowspan": 1,
+                "colwidth": [
+                  1740.0
+                ]
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "Liste des comptes utilisateurs à mettre à jour",
+                      "type": "text",
+                      "marks": [
+                        {
+                          "type": "underline"
+                        },
+                        {
+                          "type": "strong"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "Le système liste l’ensemble des COMPTE.USER dont COMPTE.USER.Mail = *@cafat.nc",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "tableRow",
+          "content": [
+            {
+              "type": "tableCell",
+              "attrs": {
+                "colspan": 1,
+                "rowspan": 1,
+                "colwidth": [
+                  60.0
+                ]
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "2",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableCell",
+              "attrs": {
+                "colspan": 1,
+                "rowspan": 1,
+                "colwidth": [
+                  1740.0
+                ]
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "Règle concernant la mise à jour à faire",
+                      "type": "text",
+                      "marks": [
+                        {
+                          "type": "underline"
+                        },
+                        {
+                          "type": "strong"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "Pour chaque compte utilisateur de la liste définie en règle n°1, le système récupère dans l’annuaire LDAP de la CAFAT le ",
+                      "type": "text"
+                    },
+                    {
+                      "text": "n° de tel externe",
+                      "type": "text",
+                      "marks": [
+                        {
+                          "type": "underline"
+                        }
+                      ]
+                    },
+                    {
+                      "text": " et le ",
+                      "type": "text"
+                    },
+                    {
+                      "text": "n° de poste interne",
+                      "type": "text",
+                      "marks": [
+                        {
+                          "type": "underline"
+                        }
+                      ]
+                    },
+                    {
+                      "text": " associé au compte dont le mail = COMPTE.USER.Mail, de façon à mettre à jour le compte utilisateur de la façon suivante:",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "type": "bulletList",
+                  "content": [
+                    {
+                      "type": "listItem",
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "content": [
+                            {
+                              "text": "COMPTE.USER.TelExterne = ",
+                              "type": "text"
+                            },
+                            {
+                              "text": "n° de tel externe",
+                              "type": "text",
+                              "marks": [
+                                {
+                                  "type": "underline"
+                                }
+                              ]
+                            },
+                            {
+                              "text": " formaté de la façon suivante: xx.xx.xx",
+                              "type": "text"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "listItem",
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "content": [
+                            {
+                              "text": "COMPTE.USER.TelInterne = ",
+                              "type": "text"
+                            },
+                            {
+                              "text": "n° de poste interne",
+                              "type": "text",
+                              "marks": [
+                                {
+                                  "type": "underline"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "paragraph"
+    }
+  ],
+  "version": 1
+}

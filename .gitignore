@@ -1,0 +1,21 @@
+# Secrets et configuration locale — jamais versionnes
+config.ini
+pipeline/config.ini
+CLAUDE.local.md
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+
+# Sorties du recensement ADF (etape 0d) — volumineuses, regenerables
+recensement/
+
+# Windows / editeurs
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/

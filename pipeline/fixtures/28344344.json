@@ -1,0 +1,1701 @@
+{
+  "type": "doc",
+  "content": [
+    {
+      "type": "layoutSection",
+      "attrs": {
+        "localId": "abdbb650-37d9-4aca-967d-0ed086e3f584"
+      },
+      "marks": [
+        {
+          "type": "breakout",
+          "attrs": {
+            "mode": "wide",
+            "width": 1784
+          }
+        }
+      ],
+      "content": [
+        {
+          "type": "layoutColumn",
+          "attrs": {
+            "width": 50.0,
+            "localId": "ed2e7ba6-1e7f-4033-b481-73b2020f8378"
+          },
+          "content": [
+            {
+              "type": "panel",
+              "attrs": {
+                "panelType": "info",
+                "localId": "551d9551-2ee1-4b7e-bf4c-986dd1a9e922"
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "localId": "46d2cba6-7d64-4345-83b0-26f44d366a87"
+                  },
+                  "content": [
+                    {
+                      "text": "Quartier",
+                      "type": "text",
+                      "marks": [
+                        {
+                          "type": "strong"
+                        }
+                      ]
+                    },
+                    {
+                      "text": ": Q-SERV",
+                      "type": "text"
+                    },
+                    {
+                      "type": "hardBreak"
+                    },
+                    {
+                      "text": "Service fonctionnel",
+                      "type": "text",
+                      "marks": [
+                        {
+                          "type": "strong"
+                        }
+                      ]
+                    },
+                    {
+                      "text": ": SF-NOTE",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "localId": "f204b0dd-89db-4c81-ba09-70c0fe684646"
+                  },
+                  "content": [
+                    {
+                      "text": "Lien vers la tâche de test ",
+                      "type": "text",
+                      "marks": [
+                        {
+                          "type": "link",
+                          "attrs": {
+                            "href": "https://sinapse-gie-nc.atlassian.net/browse/REC-97"
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "text": " ",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "layoutColumn",
+          "attrs": {
+            "width": 25.0,
+            "localId": "8caf87b9-7316-4c31-bfdd-bc8e42ef620b"
+          },
+          "content": [
+            {
+              "type": "paragraph",
+              "attrs": {
+                "localId": "1b16df12-4e26-4e51-9377-2edf48be68fe"
+              },
+              "marks": [
+                {
+                  "type": "alignment",
+                  "attrs": {
+                    "align": "end"
+                  }
+                }
+              ],
+              "content": [
+                {
+                  "text": "Habilitation",
+                  "type": "text",
+                  "marks": [
+                    {
+                      "type": "strong"
+                    }
+                  ]
+                },
+                {
+                  "text": ":",
+                  "type": "text"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "layoutColumn",
+          "attrs": {
+            "width": 25.0,
+            "localId": "f4691521-b607-4007-a31e-c6b84d4329ba"
+          },
+          "content": [
+            {
+              "type": "bodiedExtension",
+              "attrs": {
+                "layout": "default",
+                "extensionType": "com.atlassian.confluence.macro.core",
+                "extensionKey": "multiexcerpt-macro",
+                "parameters": {
+                  "macroParams": {
+                    "hidden": {
+                      "value": "false"
+                    },
+                    "name": {
+                      "value": "habilitation"
+                    },
+                    "fallback": {
+                      "value": "false"
+                    }
+                  },
+                  "macroMetadata": {
+                    "macroId": {
+                      "value": "861745b1-9e42-401e-973b-a8b9652b543e"
+                    },
+                    "schemaVersion": {
+                      "value": "1"
+                    },
+                    "placeholder": [
+                      {
+                        "type": "icon",
+                        "data": {
+                          "url": "https://raw.githubusercontent.com/fuegokit/appfire-design-systems-brand-svg/main/single-color-brand-icons/af-logo-multi-excerpt-24.svg"
+                        }
+                      }
+                    ],
+                    "title": "MultiExcerpt"
+                  }
+                },
+                "localId": "ce13daaf-905e-4c3c-91bc-5d8b2d6bae0a"
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "localId": "27171112-2a6a-412b-abae-2ab0e693c975"
+                  },
+                  "content": [
+                    {
+                      "text": "HAB-NOTE-GERER",
+                      "type": "text",
+                      "marks": [
+                        {
+                          "type": "backgroundColor",
+                          "attrs": {
+                            "color": "#fedec8"
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "blockCard",
+      "attrs": {
+        "layout": "full-width",
+        "datasource": {
+          "id": "d8b75300-dfda-4519-b6cd-e49abbd50401",
+          "parameters": {
+            "cloudId": "99359240-063d-4460-995d-cfa34c572c7d",
+            "jql": "(id in linkedIssues(REC-97,\"réfère\") or \"Specs[URL Field]\" = \"https://sinapse-gie-nc.atlassian.net/wiki/spaces/SINAPSE/pages/28344344\") and (issuetype in (Bug, Sub-task, Story) and (status != Closed or (status = closed and  (\"Etat du cas d'utilisation[Dropdown]\" in (\"A écrire\",\"A vérifier\",\"MAJ nécessaire\") or \"Etat de la fiche de test[Dropdown]\" in (\"A écrire\",\"A vérifier\",\"MAJ nécessaire\")))))    "
+          },
+          "views": [
+            {
+              "type": "table",
+              "properties": {
+                "columns": [
+                  {
+                    "key": "issuetype"
+                  },
+                  {
+                    "key": "issuekey"
+                  },
+                  {
+                    "key": "summary"
+                  },
+                  {
+                    "key": "status"
+                  },
+                  {
+                    "key": "resolution"
+                  },
+                  {
+                    "key": "customfield_10061"
+                  },
+                  {
+                    "key": "customfield_10060"
+                  },
+                  {
+                    "key": "fixVersions"
+                  },
+                  {
+                    "key": "customfield_10058"
+                  },
+                  {
+                    "key": "key"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "localId": "c1558835-1f2b-440e-903e-3c86623cfbf1",
+        "url": "https://sinapse-gie-nc.atlassian.net/issues/?jql=%28id+in+linkedIssues%28REC-97%2C%22r%C3%A9f%C3%A8re%22%29+or+%22Specs%5BURL+Field%5D%22+%3D+%22https%3A%2F%2Fsinapse-gie-nc.atlassian.net%2Fwiki%2Fspaces%2FSINAPSE%2Fpages%2F28344344%22%29+and+%28issuetype+in+%28Bug%2C+Sub-task%2C+Story%29+and+%28status+%21%3D+Closed+or+%28status+%3D+closed+and++%28%22Etat+du+cas+d%27utilisation%5BDropdown%5D%22+in+%28%22A+%C3%A9crire%22%2C%22A+v%C3%A9rifier%22%2C%22MAJ+n%C3%A9cessaire%22%29+or+%22Etat+de+la+fiche+de+test%5BDropdown%5D%22+in+%28%22A+%C3%A9crire%22%2C%22A+v%C3%A9rifier%22%2C%22MAJ+n%C3%A9cessaire%22%29%29%29%29%29++++"
+      }
+    },
+    {
+      "type": "expand",
+      "attrs": {
+        "title": "EVOLUTIONS",
+        "localId": "ea50d7a6-203a-4385-9b51-8970af3075dd"
+      },
+      "marks": [
+        {
+          "type": "breakout",
+          "attrs": {
+            "mode": "wide",
+            "width": 1800
+          }
+        }
+      ],
+      "content": [
+        {
+          "type": "table",
+          "attrs": {
+            "layout": "default",
+            "width": 760.0,
+            "localId": "aa101e80-7cd5-41ff-8796-3fa609fa4514"
+          },
+          "marks": [
+            {
+              "type": "fragment",
+              "attrs": {
+                "name": "Table 2",
+                "localId": "ade6d228-5e52-4a51-8715-f2389a5cf660"
+              }
+            }
+          ],
+          "content": [
+            {
+              "type": "tableRow",
+              "attrs": {
+                "localId": "36ab4de9-dbbf-450f-8e56-0ae696d44379"
+              },
+              "content": [
+                {
+                  "type": "tableHeader",
+                  "attrs": {
+                    "colspan": 1,
+                    "rowspan": 1,
+                    "colwidth": [
+                      241.0
+                    ],
+                    "localId": "c5ff0c52-5cd8-41fe-aa08-37c58de6b097"
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "attrs": {
+                        "localId": "a0384612-5ed3-445b-aaba-aa5752e752a0"
+                      },
+                      "content": [
+                        {
+                          "text": "Version",
+                          "type": "text",
+                          "marks": [
+                            {
+                              "type": "strong"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "tableHeader",
+                  "attrs": {
+                    "colspan": 1,
+                    "rowspan": 1,
+                    "colwidth": [
+                      866.0
+                    ],
+                    "localId": "1beda2cb-e6a7-412c-9eff-4e7c4f19b84c"
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "attrs": {
+                        "localId": "380d16a9-32b2-42be-b15f-44191c5afc42"
+                      },
+                      "content": [
+                        {
+                          "text": "Description de la mise à jour",
+                          "type": "text",
+                          "marks": [
+                            {
+                              "type": "strong"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "tableHeader",
+                  "attrs": {
+                    "colspan": 1,
+                    "rowspan": 1,
+                    "colwidth": [
+                      81.0
+                    ],
+                    "localId": "ee35c48c-3d56-4b03-b850-9c8f00d9e4eb"
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "attrs": {
+                        "localId": "a7de7c2e-8b81-4fa1-af0a-591ec2b27a33"
+                      },
+                      "content": [
+                        {
+                          "text": "Ref JIRA",
+                          "type": "text",
+                          "marks": [
+                            {
+                              "type": "strong"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "tableHeader",
+                  "attrs": {
+                    "colspan": 1,
+                    "rowspan": 1,
+                    "colwidth": [
+                      84.0
+                    ],
+                    "localId": "dcd7b5b7-f308-4580-b66f-bd6754ed17b7"
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "attrs": {
+                        "localId": "b0b83853-0ea8-4392-971a-7658ba324544"
+                      },
+                      "content": [
+                        {
+                          "text": "Date",
+                          "type": "text",
+                          "marks": [
+                            {
+                              "type": "strong"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableRow",
+              "attrs": {
+                "localId": "66ac3ee7-14f7-4f75-86c2-4ea5d2f54d21"
+              },
+              "content": [
+                {
+                  "type": "tableCell",
+                  "attrs": {
+                    "colspan": 1,
+                    "rowspan": 1,
+                    "colwidth": [
+                      241.0
+                    ],
+                    "localId": "ff96cbcd-7971-4e47-a71b-e4b53b864653"
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "attrs": {
+                        "localId": "53f6d6d9-3426-4b6b-bdd6-56f023c76e05"
+                      },
+                      "content": [
+                        {
+                          "text": "1",
+                          "type": "text"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "tableCell",
+                  "attrs": {
+                    "colspan": 1,
+                    "rowspan": 1,
+                    "colwidth": [
+                      866.0
+                    ],
+                    "localId": "c7076b5c-d005-4663-8593-bee6ca4b2ac5"
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "attrs": {
+                        "localId": "3dd0ec1b-b595-4944-ad4f-d3280c9ba62b"
+                      },
+                      "content": [
+                        {
+                          "text": "Initialisation de la spécification",
+                          "type": "text"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "tableCell",
+                  "attrs": {
+                    "colspan": 1,
+                    "rowspan": 1,
+                    "colwidth": [
+                      81.0
+                    ],
+                    "localId": "46450336-6fe6-434d-977d-bde728531359"
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "attrs": {
+                        "localId": "41548ef4-01e5-49bd-8895-811d36cfba00"
+                      },
+                      "content": [
+                        {
+                          "text": "REC-96",
+                          "type": "text",
+                          "marks": [
+                            {
+                              "type": "link",
+                              "attrs": {
+                                "href": "https://sinapse-gie-nc.atlassian.net/browse/REC-96"
+                              }
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "tableCell",
+                  "attrs": {
+                    "colspan": 1,
+                    "rowspan": 1,
+                    "colwidth": [
+                      84.0
+                    ],
+                    "localId": "e8e27a4f-b4cb-4aaf-bbd9-371af6aab115"
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "attrs": {
+                        "localId": "9efca46c-7359-4dfb-9439-5b4a69d768b9"
+                      },
+                      "content": [
+                        {
+                          "text": "07/08/2025",
+                          "type": "text"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "attrs": {
+        "localId": "2320f778-facf-4f7c-8785-89d23a749779"
+      }
+    },
+    {
+      "type": "extension",
+      "attrs": {
+        "layout": "wide",
+        "extensionType": "com.atlassian.confluence.macro.core",
+        "extensionKey": "toc",
+        "parameters": {
+          "macroParams": {
+            "maxLevel": {
+              "value": "6"
+            },
+            "minLevel": {
+              "value": "1"
+            },
+            "include": {
+              "value": ""
+            },
+            "outline": {
+              "value": "false"
+            },
+            "indent": {
+              "value": ""
+            },
+            "style": {
+              "value": "decimal"
+            },
+            "exclude": {
+              "value": ""
+            },
+            "type": {
+              "value": "list"
+            },
+            "printable": {
+              "value": "true"
+            },
+            "class": {
+              "value": ""
+            }
+          },
+          "macroMetadata": {
+            "macroId": {
+              "value": "d7f9ba34-76cd-42c8-b2d3-6ce504decb75"
+            },
+            "schemaVersion": {
+              "value": "1"
+            },
+            "title": "Sommaire"
+          }
+        },
+        "localId": "75def40c-2dc2-40a9-b7e8-1442f18f9582"
+      },
+      "marks": [
+        {
+          "type": "fragment",
+          "attrs": {
+            "name": "Extension 4",
+            "localId": "3024fd8b-0c52-422d-95bf-6e044565eba5"
+          }
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "attrs": {
+        "level": 1,
+        "localId": "06b552aa-14b8-475b-904d-7f45b9ed37c6"
+      },
+      "content": [
+        {
+          "text": "Description",
+          "type": "text"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "attrs": {
+        "localId": "4b7df580-3864-43d9-aea6-199577b9f39c"
+      },
+      "content": [
+        {
+          "text": "Fonction permettant de modifier une note existante sur une personne.",
+          "type": "text"
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "attrs": {
+        "level": 1,
+        "localId": "9f6af1ff-1adc-45fd-8124-8b157f6ff5ca"
+      },
+      "content": [
+        {
+          "text": "Fonctionnement nominal",
+          "type": "text"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "attrs": {
+        "layout": "center",
+        "width": 1800.0,
+        "localId": "b70981f2-ebf2-4580-ae9c-f487c4b85e60"
+      },
+      "marks": [
+        {
+          "type": "fragment",
+          "attrs": {
+            "name": "Table 3",
+            "localId": "44ec46c2-2938-4480-9637-3ef1ce426806"
+          }
+        }
+      ],
+      "content": [
+        {
+          "type": "tableRow",
+          "attrs": {
+            "localId": "61f4a3a2-3009-41de-bb74-20d0fc2efab0"
+          },
+          "content": [
+            {
+              "type": "tableHeader",
+              "attrs": {
+                "colspan": 1,
+                "rowspan": 1,
+                "colwidth": [
+                  49.0
+                ],
+                "localId": "2f28fcd0-a0be-4aab-b8d9-4b7b00322206"
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "localId": "dbfcf89a-5359-4367-9225-c6311c235291"
+                  },
+                  "content": [
+                    {
+                      "text": "N°",
+                      "type": "text",
+                      "marks": [
+                        {
+                          "type": "strong"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableHeader",
+              "attrs": {
+                "colspan": 1,
+                "rowspan": 1,
+                "colwidth": [
+                  578.0
+                ],
+                "localId": "3a51ef34-26fc-46c8-a678-416be2dcd376"
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "localId": "a5d7c0ed-986a-4f01-9dcc-0e536d359984"
+                  },
+                  "content": [
+                    {
+                      "text": "Activité élémentaire",
+                      "type": "text",
+                      "marks": [
+                        {
+                          "type": "strong"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableHeader",
+              "attrs": {
+                "colspan": 1,
+                "rowspan": 1,
+                "colwidth": [
+                  1172.0
+                ],
+                "localId": "3c062770-c58d-4405-9769-f787be7beed4"
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "localId": "8856b2f2-7b22-47f8-8f5f-925447607cd6"
+                  },
+                  "content": [
+                    {
+                      "text": "Description",
+                      "type": "text",
+                      "marks": [
+                        {
+                          "type": "strong"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "tableRow",
+          "attrs": {
+            "localId": "90a0946e-b4e7-4969-8781-e5bf650f0a64"
+          },
+          "content": [
+            {
+              "type": "tableCell",
+              "attrs": {
+                "colspan": 1,
+                "rowspan": 1,
+                "colwidth": [
+                  49.0
+                ],
+                "localId": "63bcbc70-ee05-4d0c-b8d4-65b5d1cf6a1c"
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "localId": "aaafbff7-c0b2-4e15-8943-433e228e1709"
+                  },
+                  "content": [
+                    {
+                      "text": "1",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableCell",
+              "attrs": {
+                "colspan": 1,
+                "rowspan": 1,
+                "colwidth": [
+                  578.0
+                ],
+                "localId": "c787fb40-cc58-44d0-884c-0fa1a6b89e63"
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "localId": "37a69f04-1808-4d30-adf8-d4740f9af462"
+                  },
+                  "content": [
+                    {
+                      "text": "Ouvrir la vue des notes de la personne. désiré",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableCell",
+              "attrs": {
+                "colspan": 1,
+                "rowspan": 1,
+                "colwidth": [
+                  1172.0
+                ],
+                "localId": "0a1a883d-8648-4794-9916-4a1631ec09a1"
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "localId": "706821d2-8e03-482d-bb6e-f64bc0607fea"
+                  },
+                  "content": [
+                    {
+                      "text": "Voir le fonctionnement défini sur ",
+                      "type": "text"
+                    },
+                    {
+                      "type": "inlineCard",
+                      "attrs": {
+                        "localId": "d1a6c0f2-bf17-4223-a858-d741cf816987",
+                        "url": "https://sinapse-gie-nc.atlassian.net/wiki/spaces/SINAPSE/pages/27787265"
+                      }
+                    },
+                    {
+                      "text": " ",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "tableRow",
+          "attrs": {
+            "localId": "a34f1c06-6245-430e-8686-efb05c68875a"
+          },
+          "content": [
+            {
+              "type": "tableCell",
+              "attrs": {
+                "colspan": 1,
+                "rowspan": 1,
+                "colwidth": [
+                  49.0
+                ],
+                "localId": "e247ce87-b08d-4555-ae68-f8da04d9a3a9"
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "localId": "0cc4813d-2ddf-436e-8ba6-323947facda6"
+                  },
+                  "content": [
+                    {
+                      "text": "2",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableCell",
+              "attrs": {
+                "colspan": 1,
+                "rowspan": 1,
+                "colwidth": [
+                  578.0
+                ],
+                "localId": "52afbc08-ffe9-4c9a-9ac5-66c81b2e3fe0"
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "localId": "70715b34-f2b7-4aea-ba3c-5983a2879bed"
+                  },
+                  "content": [
+                    {
+                      "text": "Modifier la note",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableCell",
+              "attrs": {
+                "colspan": 1,
+                "rowspan": 1,
+                "colwidth": [
+                  1172.0
+                ],
+                "localId": "8195394d-fcd1-4463-a12a-bf70d190544e"
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "localId": "0b67e592-981e-4d00-b352-491242438539"
+                  },
+                  "content": [
+                    {
+                      "text": "L’utilisateur sélectionne la note qu’il veut modifier, puis il clique sur le bouton “Modifier note”.",
+                      "type": "text"
+                    },
+                    {
+                      "type": "hardBreak"
+                    },
+                    {
+                      "text": "Le système ouvre l’assistant de saisie de note pré-renseigné, l’utilisateur peut modifier la note, ",
+                      "type": "text"
+                    },
+                    {
+                      "text": "associer ou supprimer un document",
+                      "type": "text",
+                      "marks": [
+                        {
+                          "type": "backgroundColor",
+                          "attrs": {
+                            "color": "#fedec8"
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "text": ", puis il valide la modification.",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "attrs": {
+        "level": 1,
+        "localId": "f66fb636-07ff-404a-affa-6f04bb902581"
+      },
+      "content": [
+        {
+          "text": "IHM",
+          "type": "text"
+        }
+      ]
+    },
+    {
+      "type": "syncBlock",
+      "attrs": {
+        "resourceId": "confluence-page/28344321/fb607b8e-c344-4322-93eb-6e86a5304bc8",
+        "localId": "495b88f2-b0e1-43ca-a83f-f4e5bb599a8b"
+      },
+      "marks": [
+        {
+          "type": "breakout",
+          "attrs": {
+            "mode": "wide",
+            "width": 1800
+          }
+        }
+      ]
+    },
+    {
+      "type": "syncBlock",
+      "attrs": {
+        "resourceId": "confluence-page/28344321/2342b419-9e51-43bd-81f4-c45e0ca27d9b",
+        "localId": "09da6dfd-2460-4695-9817-2e3a8ce2922f"
+      },
+      "marks": [
+        {
+          "type": "breakout",
+          "attrs": {
+            "mode": "wide",
+            "width": 1800
+          }
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "attrs": {
+        "level": 1,
+        "localId": "40d407c3-d2a9-40cc-a094-b477538f3ffa"
+      },
+      "content": [
+        {
+          "text": "Règles",
+          "type": "text"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "attrs": {
+        "layout": "center",
+        "width": 1800.0,
+        "localId": "12d01234-5cdc-4576-a13f-c084a0b6d5d7"
+      },
+      "content": [
+        {
+          "type": "tableRow",
+          "attrs": {
+            "localId": "74ea4dec-4a07-4668-83b2-4c5d81755e9d"
+          },
+          "content": [
+            {
+              "type": "tableHeader",
+              "attrs": {
+                "colspan": 1,
+                "rowspan": 1,
+                "colwidth": [
+                  60.0
+                ],
+                "localId": "912984f7-f1cd-44cb-a444-6a40f205436e"
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "localId": "c9a63b38-4415-4b8f-bc2a-512dcc55fe02"
+                  },
+                  "content": [
+                    {
+                      "text": "N°",
+                      "type": "text",
+                      "marks": [
+                        {
+                          "type": "strong"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableHeader",
+              "attrs": {
+                "colspan": 1,
+                "rowspan": 1,
+                "colwidth": [
+                  1740.0
+                ],
+                "localId": "a77667b7-2466-43ec-bbf8-94bc8dfb3a33"
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "localId": "0eb0d63a-2b9a-4060-a84b-30127747ff87"
+                  },
+                  "content": [
+                    {
+                      "text": "Description",
+                      "type": "text",
+                      "marks": [
+                        {
+                          "type": "strong"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "tableRow",
+          "attrs": {
+            "localId": "fc19a011e8dc"
+          },
+          "content": [
+            {
+              "type": "tableCell",
+              "attrs": {
+                "colspan": 1,
+                "rowspan": 1,
+                "colwidth": [
+                  60.0
+                ],
+                "localId": "36fba858fa5b"
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "localId": "3441e6b6d747"
+                  },
+                  "content": [
+                    {
+                      "text": "1",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableCell",
+              "attrs": {
+                "colspan": 1,
+                "rowspan": 1,
+                "colwidth": [
+                  1740.0
+                ],
+                "localId": "e7530d62493e"
+              },
+              "content": [
+                {
+                  "type": "extension",
+                  "attrs": {
+                    "layout": "default",
+                    "extensionType": "com.atlassian.confluence.macro.core",
+                    "extensionKey": "multiexcerpt-fast-include-block-macro",
+                    "parameters": {
+                      "macroParams": {
+                        "macro_uuid": {
+                          "value": "99868f9c-3f05-4ac5-b670-cc33b8e99ec8"
+                        },
+                        "name": {
+                          "value": "RG-NOTE-TYPENOTE-RECHERCHE-LIMITATION&period;ONGLET&period;HABILITATIONS"
+                        },
+                        "templateData": {
+                          "value": "eJyLjgUAARUAuQ=="
+                        },
+                        "page": {
+                          "value": "SF-NOTE: Règles de gestion consolidées"
+                        },
+                        "addpanel": {
+                          "value": "true"
+                        }
+                      },
+                      "macroMetadata": {
+                        "macroId": {
+                          "value": "4521a3c8-438f-4c30-86aa-7328911e34d2"
+                        },
+                        "schemaVersion": {
+                          "value": "1"
+                        },
+                        "placeholder": [
+                          {
+                            "type": "icon",
+                            "data": {
+                              "url": "https://raw.githubusercontent.com/fuegokit/appfire-design-systems-brand-svg/main/single-color-brand-icons/af-logo-multi-excerpt-24.svg"
+                            }
+                          }
+                        ],
+                        "title": "MultiExcerpt Include (Advanced)"
+                      }
+                    },
+                    "localId": "16fa791d-4c2f-4a44-9818-ca33bd091bc7"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "tableRow",
+          "attrs": {
+            "localId": "2461d7db4b35"
+          },
+          "content": [
+            {
+              "type": "tableCell",
+              "attrs": {
+                "colspan": 1,
+                "rowspan": 1,
+                "colwidth": [
+                  60.0
+                ],
+                "localId": "f64089ae-9c91-46dc-9dd3-c3e2f208d9c7"
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "localId": "4be4e4dcf1ea"
+                  },
+                  "content": [
+                    {
+                      "text": "2",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableCell",
+              "attrs": {
+                "colspan": 1,
+                "rowspan": 1,
+                "colwidth": [
+                  1740.0
+                ],
+                "localId": "7f1938f3-8de4-4c7b-8f67-24f477a95198"
+              },
+              "content": [
+                {
+                  "type": "extension",
+                  "attrs": {
+                    "layout": "default",
+                    "extensionType": "com.atlassian.confluence.macro.core",
+                    "extensionKey": "multiexcerpt-fast-include-block-macro",
+                    "parameters": {
+                      "macroParams": {
+                        "macro_uuid": {
+                          "value": "99868f9c-3f05-4ac5-b670-cc33b8e99ec8"
+                        },
+                        "name": {
+                          "value": "RG-NOTE-MODIFICATION"
+                        },
+                        "templateData": {
+                          "value": "eJyLjgUAARUAuQ=="
+                        },
+                        "page": {
+                          "value": "SF-NOTE: Règles de gestion consolidées"
+                        },
+                        "addpanel": {
+                          "value": "true"
+                        }
+                      },
+                      "macroMetadata": {
+                        "macroId": {
+                          "value": "8855fb66-c71c-4fc3-854a-ba54e6fb377c"
+                        },
+                        "schemaVersion": {
+                          "value": "1"
+                        },
+                        "placeholder": [
+                          {
+                            "type": "icon",
+                            "data": {
+                              "url": "https://raw.githubusercontent.com/fuegokit/appfire-design-systems-brand-svg/main/single-color-brand-icons/af-logo-multi-excerpt-24.svg"
+                            }
+                          }
+                        ],
+                        "title": "MultiExcerpt Include (Advanced)"
+                      }
+                    },
+                    "localId": "61042ca4-4d26-4e8b-b736-13a7a4e69c42"
+                  }
+                },
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "localId": "e6b6634f00d1"
+                  },
+                  "content": [
+                    {
+                      "text": "En retour à la demande de modification, le système doit",
+                      "type": "text"
+                    }
+                  ]
+                },
+                {
+                  "type": "extension",
+                  "attrs": {
+                    "extensionType": "com.atlassian.confluence.migration",
+                    "extensionKey": "nested-table",
+                    "text": "",
+                    "parameters": {
+                      "adf": "{\"type\":\"doc\",\"content\":[{\"type\":\"table\",\"attrs\":{\"layout\":\"align-start\",\"width\":1800.0,\"localId\":\"233f3d09-9d68-4a06-af0a-f95556791c4d\"},\"content\":[{\"type\":\"tableRow\",\"attrs\":{\"localId\":\"d4cb9338-8189-4c14-a348-458ab682e477\"},\"content\":[{\"type\":\"tableHeader\",\"attrs\":{\"colspan\":1,\"rowspan\":1,\"colwidth\":[256.0],\"localId\":\"95f509b5-09c1-4ac0-b5f2-8a074248cf34\"},\"content\":[{\"type\":\"paragraph\",\"attrs\":{\"localId\":\"5b5834871997\"},\"content\":[{\"text\":\"Code retour\",\"type\":\"text\"}]}]},{\"type\":\"tableHeader\",\"attrs\":{\"colspan\":1,\"rowspan\":1,\"colwidth\":[998.0],\"localId\":\"11986667-9df1-4d13-bfb9-aebf3a1b94a4\"},\"content\":[{\"type\":\"paragraph\",\"attrs\":{\"localId\":\"abe96dbfa45f\"},\"content\":[{\"text\":\"Traitement\",\"type\":\"text\"}]}]}]},{\"type\":\"tableRow\",\"attrs\":{\"localId\":\"062b9574-b6cc-4206-85c1-300cb9592a36\"},\"content\":[{\"type\":\"tableCell\",\"attrs\":{\"colspan\":1,\"rowspan\":1,\"colwidth\":[256.0],\"localId\":\"80f3da47-ad3a-40e6-9ead-26f8135583b8\"},\"content\":[{\"type\":\"paragraph\",\"attrs\":{\"localId\":\"3bea77f0ff03\"},\"content\":[{\"text\":\"HTTP 200 (succès)\",\"type\":\"text\"}]}]},{\"type\":\"tableCell\",\"attrs\":{\"colspan\":1,\"rowspan\":1,\"colwidth\":[998.0],\"localId\":\"9f538470-f8dc-442c-a1f2-121788325324\"},\"content\":[{\"type\":\"bulletList\",\"attrs\":{\"localId\":\"ea2fe26c-9ca4-46c3-b4c1-290c1b5ee5e1\"},\"content\":[{\"type\":\"listItem\",\"attrs\":{\"localId\":\"4aaabd24-1311-49aa-905a-033dc43da8c0\"},\"content\":[{\"type\":\"paragraph\",\"attrs\":{\"localId\":\"f752b9c93470\"},\"content\":[{\"text\":\"Le système ferme l’assistant\",\"type\":\"text\"}]}]},{\"type\":\"listItem\",\"attrs\":{\"localId\":\"5b56f8d5ae9f\"},\"content\":[{\"type\":\"paragraph\",\"attrs\":{\"localId\":\"c2a3ab093225\"},\"content\":[{\"text\":\"L’assistant (\",\"type\":\"text\"},{\"type\":\"inlineCard\",\"attrs\":{\"localId\":\"b9f1bb1f-5927-4063-961f-416a25423587\",\"url\":\"https://sinapse-gie-nc.atlassian.net/wiki/spaces/SINAPSE/pages/27787265\"}},{\"text\":\"  ) est mis à jour.\",\"type\":\"text\"}]}]}]}]}]},{\"type\":\"tableRow\",\"attrs\":{\"localId\":\"2e71fb3c1af0\"},\"content\":[{\"type\":\"tableCell\",\"attrs\":{\"colspan\":1,\"rowspan\":1,\"colwidth\":[256.0],\"localId\":\"9aa1341e-b902-4cdb-adf2-3d9722addfa7\"},\"content\":[{\"type\":\"paragraph\",\"attrs\":{\"localId\":\"b1f67c4409a7\"},\"content\":[{\"text\":\"HTTP 404 (not found)\",\"type\":\"text\"}]}]},{\"type\":\"tableCell\",\"attrs\":{\"colspan\":1,\"rowspan\":1,\"colwidth\":[998.0],\"localId\":\"c5a2887eba6f\"},\"content\":[{\"type\":\"bulletList\",\"attrs\":{\"localId\":\"71ce7002-b8f9-4268-b740-53d447533b53\"},\"content\":[{\"type\":\"listItem\",\"attrs\":{\"localId\":\"47e49af7-e810-46ba-ae51-49666007267c\"},\"content\":[{\"type\":\"paragraph\",\"attrs\":{\"localId\":\"35e34d56c9dd\"},\"content\":[{\"text\":\"Le système affiche un message d’erreur: “Modification impossible. La note est introuvable ou déjà supprimée.“\",\"type\":\"text\"}]}]},{\"type\":\"listItem\",\"attrs\":{\"localId\":\"289b2c680abe\"},\"content\":[{\"type\":\"paragraph\",\"attrs\":{\"localId\":\"7db0277f3a8f\"},\"content\":[{\"text\":\"L'’assistant de modification se ferme\",\"type\":\"text\"}]}]},{\"type\":\"listItem\",\"attrs\":{\"localId\":\"2911e596-87d0-4b05-a023-308963a597cb\"},\"content\":[{\"type\":\"paragraph\",\"attrs\":{\"localId\":\"17fb6e768c43\"},\"content\":[{\"text\":\"L’assistant (\",\"type\":\"text\"},{\"type\":\"inlineCard\",\"attrs\":{\"localId\":\"d40263cb-5017-47f3-a8d7-3096ca7970fb\",\"url\":\"https://sinapse-gie-nc.atlassian.net/wiki/spaces/SINAPSE/pages/27787265\"}},{\"text\":\"  ) est mis à jour.\",\"type\":\"text\"}]}]}]}]}]},{\"type\":\"tableRow\",\"attrs\":{\"localId\":\"93d16668-c6f6-4f8d-b96b-27f7ae8e4595\"},\"content\":[{\"type\":\"tableCell\",\"attrs\":{\"colspan\":1,\"rowspan\":1,\"colwidth\":[256.0],\"localId\":\"e7a21837-8fb9-4506-95e8-e9cd42ab2ca3\"},\"content\":[{\"type\":\"paragraph\",\"attrs\":{\"localId\":\"c6cb889770ff\"},\"content\":[{\"text\":\"HTTP 404 NOTE-VAL-002\",\"type\":\"text\"}]}]},{\"type\":\"tableCell\",\"attrs\":{\"colspan\":1,\"rowspan\":1,\"colwidth\":[998.0],\"localId\":\"7aa57cf2-b6db-458c-8323-605aa0f4487c\"},\"content\":[{\"type\":\"bulletList\",\"attrs\":{\"localId\":\"71e0f391b79c\"},\"content\":[{\"type\":\"listItem\",\"attrs\":{\"localId\":\"4e7123d2ea2b\"},\"content\":[{\"type\":\"paragraph\",\"attrs\":{\"localId\":\"273b251f85b5\"},\"content\":[{\"text\":\"Le système affiche un message d’erreur: \\\"Modification impossible. Type de note introuvable.\\\"\",\"type\":\"text\"}]}]},{\"type\":\"listItem\",\"attrs\":{\"localId\":\"5851f7d5fdac\"},\"content\":[{\"type\":\"paragraph\",\"attrs\":{\"localId\":\"d5957e3cf913\"},\"content\":[{\"text\":\"L’assistant \",\"type\":\"text\"},{\"type\":\"inlineCard\",\"attrs\":{\"localId\":\"3f97aafc93e6\",\"url\":\"https://sinapse-gie-nc.atlassian.net/wiki/spaces/SINAPSE/pages/28344344\"}},{\"text\":\" est mis à jour\",\"type\":\"text\"}]}]}]}]}]},{\"type\":\"tableRow\",\"attrs\":{\"localId\":\"533a11683b18\"},\"content\":[{\"type\":\"tableCell\",\"attrs\":{\"colspan\":1,\"rowspan\":1,\"colwidth\":[256.0],\"localId\":\"1057b2cc-3b35-436b-9fa0-0de5b7ec53c8\"},\"content\":[{\"type\":\"paragraph\",\"attrs\":{\"localId\":\"ada28fe32b3f\"},\"content\":[{\"text\":\"HTTP 403 NOTE-VAL-003\",\"type\":\"text\"}]}]},{\"type\":\"tableCell\",\"attrs\":{\"colspan\":1,\"rowspan\":1,\"colwidth\":[998.0],\"localId\":\"4b7b50b9-c583-4e3e-8896-6b938e93029c\"},\"content\":[{\"type\":\"bulletList\",\"attrs\":{\"localId\":\"e143e7c55395\"},\"content\":[{\"type\":\"listItem\",\"attrs\":{\"localId\":\"b8bfa31fa2c1\"},\"content\":[{\"type\":\"paragraph\",\"attrs\":{\"localId\":\"c957a70b6b59\"},\"content\":[{\"text\":\"Le système affiche un message d’erreur: “Modification impossible. Habilitation insuffisante pour ce type de note.\\\"\",\"type\":\"text\",\"marks\":[{\"type\":\"backgroundColor\",\"attrs\":{\"color\":\"#f8e6a0\"}}]}]}]},{\"type\":\"listItem\",\"attrs\":{\"localId\":\"1a7e8c9b658f\"},\"content\":[{\"type\":\"paragraph\",\"attrs\":{\"localId\":\"bcbe38d16971\"},\"content\":[{\"text\":\"L’assistant \",\"type\":\"text\",\"marks\":[{\"type\":\"backgroundColor\",\"attrs\":{\"color\":\"#f8e6a0\"}}]},{\"type\":\"inlineCard\",\"attrs\":{\"localId\":\"d81f2f90-b095-4aa3-a6db-0606ced924c9\",\"url\":\"https://sinapse-gie-nc.atlassian.net/wiki/spaces/SINAPSE/pages/28344344\"}},{\"text\":\" est mis à jour\",\"type\":\"text\",\"marks\":[{\"type\":\"backgroundColor\",\"attrs\":{\"color\":\"#f8e6a0\"}}]}]}]}]}]}]},{\"type\":\"tableRow\",\"attrs\":{\"localId\":\"ddab0e31-d543-4a96-abdf-38194cf53fd4\"},\"content\":[{\"type\":\"tableCell\",\"attrs\":{\"colspan\":1,\"rowspan\":1,\"colwidth\":[256.0],\"localId\":\"ee619992-275e-4de3-adf0-b025fb178e4a\"},\"content\":[{\"type\":\"paragraph\",\"attrs\":{\"localId\":\"3aa5009f6e64\"},\"content\":[{\"text\":\"HTTP 404 NOTE-VAL-004\",\"type\":\"text\",\"marks\":[{\"type\":\"backgroundColor\",\"attrs\":{\"color\":\"#fedec8\"}}]}]}]},{\"type\":\"tableCell\",\"attrs\":{\"colspan\":1,\"rowspan\":1,\"colwidth\":[998.0],\"localId\":\"4fca9e15-e69c-49a8-b4c8-6b8927780f48\"},\"content\":[{\"type\":\"paragraph\",\"attrs\":{\"localId\":\"20669d83a7eb\"},\"content\":[{\"text\":\"Le système affiche un message\",\"type\":\"text\",\"marks\":[{\"type\":\"backgroundColor\",\"attrs\":{\"color\":\"#fedec8\"}}]},{\"text\":\" d’erreur: “Modification impossible. Document introuvable : {idDoc}\\\"\",\"type\":\"text\",\"marks\":[{\"type\":\"backgroundColor\",\"attrs\":{\"color\":\"#f8e6a0\"}}]}]}]}]},{\"type\":\"tableRow\",\"attrs\":{\"localId\":\"15c934e4-3fbe-4325-9f69-d9ceb24568e0\"},\"content\":[{\"type\":\"tableCell\",\"attrs\":{\"colspan\":1,\"rowspan\":1,\"colwidth\":[256.0],\"localId\":\"46e9a4f2-a164-4b66-91f0-9915a4172de1\"},\"content\":[{\"type\":\"paragraph\",\"attrs\":{\"localId\":\"f9db31eaabef\"},\"content\":[{\"text\":\"HTTP 409 NOTE-OPT-001\",\"type\":\"text\"}]}]},{\"type\":\"tableCell\",\"attrs\":{\"colspan\":1,\"rowspan\":1,\"colwidth\":[998.0],\"localId\":\"12e97ec8-6aaa-4405-baaa-138203c1d5be\"},\"content\":[{\"type\":\"bulletList\",\"attrs\":{\"localId\":\"977d87408b50\"},\"content\":[{\"type\":\"listItem\",\"attrs\":{\"localId\":\"ffe83e83eed4\"},\"content\":[{\"type\":\"paragraph\",\"attrs\":{\"localId\":\"f1c3c615a163\"},\"content\":[{\"text\":\"Le système affiche un message d’erreur: Modification impossible. La note a été modifiée en base. Veuillez recharger et procéder de nouveau à la modification.”\",\"type\":\"text\"}]}]},{\"type\":\"listItem\",\"attrs\":{\"localId\":\"98a67cda-48b5-492c-9764-349f054acc4f\"},\"content\":[{\"type\":\"paragraph\",\"attrs\":{\"localId\":\"bf1d33172c58\"},\"content\":[{\"text\":\"L'assistant de modification se ferme\",\"type\":\"text\"}]}]},{\"type\":\"listItem\",\"attrs\":{\"localId\":\"96fe2c10-4426-4448-a83a-6986f883bd4f\"},\"content\":[{\"type\":\"paragraph\",\"attrs\":{\"localId\":\"f355ebfbba65\"},\"content\":[{\"text\":\"L’assistant (\",\"type\":\"text\"},{\"type\":\"inlineCard\",\"attrs\":{\"localId\":\"efe6df3a-fe9e-40b7-a41b-e51fd5287e23\",\"url\":\"https://sinapse-gie-nc.atlassian.net/wiki/spaces/SINAPSE/pages/27787265\"}},{\"text\":\"  ) est mis à jour.\",\"type\":\"text\"}]}]}]}]}]},{\"type\":\"tableRow\",\"attrs\":{\"localId\":\"4b6879eafa53\"},\"content\":[{\"type\":\"tableCell\",\"attrs\":{\"colspan\":1,\"rowspan\":1,\"colwidth\":[256.0],\"localId\":\"c48dc05e-a700-4619-bd6e-1c5acdbb7a13\"},\"content\":[{\"type\":\"paragraph\",\"attrs\":{\"localId\":\"05adbb0d3f91\"},\"content\":[{\"text\":\"HTTP 409 NOTE-BUS-002\",\"type\":\"text\",\"marks\":[{\"type\":\"annotation\",\"attrs\":{\"annotationType\":\"inlineComment\",\"id\":\"261be494-018a-465a-a929-7dc4d730d7ce\"}}]}]}]},{\"type\":\"tableCell\",\"attrs\":{\"colspan\":1,\"rowspan\":1,\"colwidth\":[998.0],\"localId\":\"dff201d2063f\"},\"content\":[{\"type\":\"bulletList\",\"attrs\":{\"localId\":\"023ecffdb26e\"},\"content\":[{\"type\":\"listItem\",\"attrs\":{\"localId\":\"818351e8e193\"},\"content\":[{\"type\":\"paragraph\",\"attrs\":{\"localId\":\"bcedd416-f211-428a-8e7a-2baff077efad\"},\"content\":[{\"text\":\"Le système affiche un message d’erreur: “Modification impossible. Habilitation insuffisante pour modifier une note.\\\"\",\"type\":\"text\",\"marks\":[{\"type\":\"annotation\",\"attrs\":{\"annotationType\":\"inlineComment\",\"id\":\"261be494-018a-465a-a929-7dc4d730d7ce\"}}]}]}]},{\"type\":\"listItem\",\"attrs\":{\"localId\":\"018d750efbca\"},\"content\":[{\"type\":\"paragraph\",\"attrs\":{\"localId\":\"bf94ffda6663\"},\"content\":[{\"text\":\"L'assistant \",\"type\":\"text\"},{\"type\":\"inlineCard\",\"attrs\":{\"localId\":\"08b9016d-2b10-4af5-946b-24bb42a828f7\",\"url\":\"https://sinapse-gie-nc.atlassian.net/wiki/spaces/SINAPSE/pages/28344344\"}},{\"text\":\"  se ferme\",\"type\":\"text\"}]}]},{\"type\":\"listItem\",\"attrs\":{\"localId\":\"735ecd9e4748\"},\"content\":[{\"type\":\"paragraph\",\"attrs\":{\"localId\":\"55a85957faa0\"},\"content\":[{\"text\":\"L’assistant (\",\"type\":\"text\",\"marks\":[{\"type\":\"annotation\",\"attrs\":{\"annotationType\":\"inlineComment\",\"id\":\"261be494-018a-465a-a929-7dc4d730d7ce\"}}]},{\"type\":\"inlineCard\",\"attrs\":{\"localId\":\"6fc6e6dc-f8f6-4247-9e1c-3944a53312d1\",\"url\":\"https://sinapse-gie-nc.atlassian.net/wiki/spaces/SINAPSE/pages/27787265\"},\"marks\":[{\"type\":\"annotation\",\"attrs\":{\"annotationType\":\"inlineComment\",\"id\":\"261be494-018a-465a-a929-7dc4d730d7ce\"}}]},{\"text\":\"  ) est mis à jour.\",\"type\":\"text\",\"marks\":[{\"type\":\"annotation\",\"attrs\":{\"annotationType\":\"inlineComment\",\"id\":\"261be494-018a-465a-a929-7dc4d730d7ce\"}}]}]}]}]}]}]},{\"type\":\"tableRow\",\"attrs\":{\"localId\":\"c25a326fed78\"},\"content\":[{\"type\":\"tableCell\",\"attrs\":{\"colspan\":1,\"rowspan\":1,\"colwidth\":[256.0],\"localId\":\"c161d50108fd\"},\"content\":[{\"type\":\"paragraph\",\"attrs\":{\"localId\":\"ebe039e4f030\"},\"content\":[{\"text\":\"HTTP 409 NOTE-BUS-003\",\"type\":\"text\",\"marks\":[{\"type\":\"annotation\",\"attrs\":{\"annotationType\":\"inlineComment\",\"id\":\"261be494-018a-465a-a929-7dc4d730d7ce\"}}]}]}]},{\"type\":\"tableCell\",\"attrs\":{\"colspan\":1,\"rowspan\":1,\"colwidth\":[998.0],\"localId\":\"a8acd6fff456\"},\"content\":[{\"type\":\"bulletList\",\"attrs\":{\"localId\":\"e4d7e7049c26\"},\"content\":[{\"type\":\"listItem\",\"attrs\":{\"localId\":\"cfc92a7f3ead\"},\"content\":[{\"type\":\"paragraph\",\"attrs\":{\"localId\":\"bd15c9dcb570\"},\"content\":[{\"text\":\"Le système affiche un message d’erreur: \\\"Modification impossible. . Seul l’auteur de création peut effectuer cette opération.\\\") si \",\"type\":\"text\",\"marks\":[{\"type\":\"annotation\",\"attrs\":{\"annotationType\":\"inlineComment\",\"id\":\"261be494-018a-465a-a929-7dc4d730d7ce\"}}]},{\"text\":\"auteurCreation\",\"type\":\"text\",\"marks\":[{\"type\":\"annotation\",\"attrs\":{\"annotationType\":\"inlineComment\",\"id\":\"261be494-018a-465a-a929-7dc4d730d7ce\"}},{\"type\":\"code\"}]},{\"text\":\" <> \",\"type\":\"text\",\"marks\":[{\"type\":\"annotation\",\"attrs\":{\"annotationType\":\"inlineComment\",\"id\":\"261be494-018a-465a-a929-7dc4d730d7ce\"}}]},{\"text\":\"COMPTE.USER.login \",\"type\":\"text\",\"marks\":[{\"type\":\"annotation\",\"attrs\":{\"annotationType\":\"inlineComment\",\"id\":\"261be494-018a-465a-a929-7dc4d730d7ce\"}},{\"type\":\"backgroundColor\",\"attrs\":{\"color\":\"#c6edfb\"}}]},{\"text\":\"de l’utilisateur qui a fait la modification \",\"type\":\"text\",\"marks\":[{\"type\":\"annotation\",\"attrs\":{\"annotationType\":\"inlineComment\",\"id\":\"261be494-018a-465a-a929-7dc4d730d7ce\"}}]},{\"text\":\" (champ DTO à préciser)\",\"type\":\"text\",\"marks\":[{\"type\":\"annotation\",\"attrs\":{\"annotationType\":\"inlineComment\",\"id\":\"261be494-018a-465a-a929-7dc4d730d7ce\"}},{\"type\":\"backgroundColor\",\"attrs\":{\"color\":\"#c6edfb\"}}]}]}]},{\"type\":\"listItem\",\"attrs\":{\"localId\":\"8927fe13e477\"},\"content\":[{\"type\":\"paragraph\",\"attrs\":{\"localId\":\"c4b66bac9f64\"},\"content\":[{\"text\":\"L'assistant de modification se ferme\",\"type\":\"text\",\"marks\":[{\"type\":\"backgroundColor\",\"attrs\":{\"color\":\"#f8e6a0\"}}]}]}]},{\"type\":\"listItem\",\"attrs\":{\"localId\":\"4243ac185999\"},\"content\":[{\"type\":\"paragraph\",\"attrs\":{\"localId\":\"165003576b3e\"},\"content\":[{\"text\":\"L’assistant (\",\"type\":\"text\",\"marks\":[{\"type\":\"annotation\",\"attrs\":{\"annotationType\":\"inlineComment\",\"id\":\"261be494-018a-465a-a929-7dc4d730d7ce\"}}]},{\"type\":\"inlineCard\",\"attrs\":{\"localId\":\"432a5a99-181b-4661-bb4f-e051aa6c6693\",\"url\":\"https://sinapse-gie-nc.atlassian.net/wiki/spaces/SINAPSE/pages/27787265\"},\"marks\":[{\"type\":\"annotation\",\"attrs\":{\"annotationType\":\"inlineComment\",\"id\":\"261be494-018a-465a-a929-7dc4d730d7ce\"}}]},{\"text\":\"  ) est mis à jour.\",\"type\":\"text\",\"marks\":[{\"type\":\"annotation\",\"attrs\":{\"annotationType\":\"inlineComment\",\"id\":\"261be494-018a-465a-a929-7dc4d730d7ce\"}}]}]}]}]}]}]}]}],\"version\":1}",
+                      "reason": "Il est impossible de créer ou de modifier un tableau dans une cellule de tableau dans le nouvel éditeur.",
+                      "cxhtml": "<table data-table-width=\"1800\" data-layout=\"align-start\" ac:local-id=\"233f3d09-9d68-4a06-af0a-f95556791c4d\"><colgroup><col style=\"width: 256.0px;\" /><col style=\"width: 998.0px;\" /></colgroup><tbody><tr ac:local-id=\"d4cb9338-8189-4c14-a348-458ab682e477\"><th ac:local-id=\"95f509b5-09c1-4ac0-b5f2-8a074248cf34\"><p local-id=\"5b5834871997\">Code retour</p></th><th ac:local-id=\"11986667-9df1-4d13-bfb9-aebf3a1b94a4\"><p local-id=\"abe96dbfa45f\">Traitement</p></th></tr><tr ac:local-id=\"062b9574-b6cc-4206-85c1-300cb9592a36\"><td ac:local-id=\"80f3da47-ad3a-40e6-9ead-26f8135583b8\"><p local-id=\"3bea77f0ff03\">HTTP 200 (succès)</p></td><td ac:local-id=\"9f538470-f8dc-442c-a1f2-121788325324\"><ul local-id=\"ea2fe26c-9ca4-46c3-b4c1-290c1b5ee5e1\"><li local-id=\"4aaabd24-1311-49aa-905a-033dc43da8c0\"><p local-id=\"f752b9c93470\">Le système ferme l’assistant</p></li><li local-id=\"5b56f8d5ae9f\"><p local-id=\"c2a3ab093225\">L’assistant (<ac:link ac:local-id=\"b9f1bb1f-5927-4063-961f-416a25423587\" ac:card-appearance=\"inline\"><ri:page ri:content-title=\"CU-NOTE-CONSULTER\" ri:version-at-save=\"133\" /><ac:link-body>CU-NOTE-CONSULTER</ac:link-body></ac:link>  ) est mis à jour.</p></li></ul></td></tr><tr ac:local-id=\"2e71fb3c1af0\"><td ac:local-id=\"9aa1341e-b902-4cdb-adf2-3d9722addfa7\"><p local-id=\"b1f67c4409a7\">HTTP 404 (not found)</p></td><td ac:local-id=\"c5a2887eba6f\"><ul local-id=\"71ce7002-b8f9-4268-b740-53d447533b53\"><li local-id=\"47e49af7-e810-46ba-ae51-49666007267c\"><p local-id=\"35e34d56c9dd\">Le système affiche un message d’erreur: “Modification impossible. La note est introuvable ou déjà supprimée.“</p></li><li local-id=\"289b2c680abe\"><p local-id=\"7db0277f3a8f\">L&apos;’assistant de modification se ferme</p></li><li local-id=\"2911e596-87d0-4b05-a023-308963a597cb\"><p local-id=\"17fb6e768c43\">L’assistant (<ac:link ac:local-id=\"d40263cb-5017-47f3-a8d7-3096ca7970fb\" ac:card-appearance=\"inline\"><ri:page ri:content-title=\"CU-NOTE-CONSULTER\" ri:version-at-save=\"133\" /><ac:link-body>CU-NOTE-CONSULTER</ac:link-body></ac:link>  ) est mis à jour.</p></li></ul></td></tr><tr ac:local-id=\"93d16668-c6f6-4f8d-b96b-27f7ae8e4595\"><td ac:local-id=\"e7a21837-8fb9-4506-95e8-e9cd42ab2ca3\"><p local-id=\"c6cb889770ff\">HTTP 404 NOTE-VAL-002</p></td><td ac:local-id=\"7aa57cf2-b6db-458c-8323-605aa0f4487c\"><ul local-id=\"71e0f391b79c\"><li local-id=\"4e7123d2ea2b\"><p local-id=\"273b251f85b5\">Le système affiche un message d’erreur: &quot;Modification impossible. Type de note introuvable.&quot;</p></li><li local-id=\"5851f7d5fdac\"><p local-id=\"d5957e3cf913\">L’assistant <ac:link ac:local-id=\"3f97aafc93e6\" ac:card-appearance=\"inline\"><ac:link-body>CU-NOTE-MODIFIER</ac:link-body></ac:link> est mis à jour</p></li></ul></td></tr><tr ac:local-id=\"533a11683b18\"><td ac:local-id=\"1057b2cc-3b35-436b-9fa0-0de5b7ec53c8\"><p local-id=\"ada28fe32b3f\">HTTP 403 NOTE-VAL-003</p></td><td ac:local-id=\"4b7b50b9-c583-4e3e-8896-6b938e93029c\"><ul local-id=\"e143e7c55395\"><li local-id=\"b8bfa31fa2c1\"><p local-id=\"c957a70b6b59\"><span style=\"background-color: rgb(248,230,160);\">Le système affiche un message d’erreur: “Modification impossible. Habilitation insuffisante pour ce type de note.&quot;</span></p></li><li local-id=\"1a7e8c9b658f\"><p local-id=\"bcbe38d16971\"><span style=\"background-color: rgb(248,230,160);\">L’assistant </span><ac:link ac:local-id=\"d81f2f90-b095-4aa3-a6db-0606ced924c9\" ac:card-appearance=\"inline\"><ac:link-body>CU-NOTE-MODIFIER</ac:link-body></ac:link><span style=\"background-color: rgb(248,230,160);\"> est mis à jour</span></p></li></ul></td></tr><tr ac:local-id=\"ddab0e31-d543-4a96-abdf-38194cf53fd4\"><td ac:local-id=\"ee619992-275e-4de3-adf0-b025fb178e4a\"><p local-id=\"3aa5009f6e64\"><span style=\"background-color: rgb(254,222,200);\">HTTP 404 NOTE-VAL-004</span></p></td><td ac:local-id=\"4fca9e15-e69c-49a8-b4c8-6b8927780f48\"><p local-id=\"20669d83a7eb\"><span style=\"background-color: rgb(254,222,200);\">Le système affiche un message</span><span style=\"background-color: rgb(248,230,160);\"> d’erreur: “Modification impossible. Document introuvable : {idDoc}&quot;</span></p></td></tr><tr ac:local-id=\"15c934e4-3fbe-4325-9f69-d9ceb24568e0\"><td ac:local-id=\"46e9a4f2-a164-4b66-91f0-9915a4172de1\"><p local-id=\"f9db31eaabef\">HTTP 409 NOTE-OPT-001</p></td><td ac:local-id=\"12e97ec8-6aaa-4405-baaa-138203c1d5be\"><ul local-id=\"977d87408b50\"><li local-id=\"ffe83e83eed4\"><p local-id=\"f1c3c615a163\">Le système affiche un message d’erreur: Modification impossible. La note a été modifiée en base. Veuillez recharger et procéder de nouveau à la modification.”</p></li><li local-id=\"98a67cda-48b5-492c-9764-349f054acc4f\"><p local-id=\"bf1d33172c58\">L&apos;assistant de modification se ferme</p></li><li local-id=\"96fe2c10-4426-4448-a83a-6986f883bd4f\"><p local-id=\"f355ebfbba65\">L’assistant (<ac:link ac:local-id=\"efe6df3a-fe9e-40b7-a41b-e51fd5287e23\" ac:card-appearance=\"inline\"><ri:page ri:content-title=\"CU-NOTE-CONSULTER\" ri:version-at-save=\"133\" /><ac:link-body>CU-NOTE-CONSULTER</ac:link-body></ac:link>  ) est mis à jour.</p></li></ul></td></tr><tr ac:local-id=\"4b6879eafa53\"><td ac:local-id=\"c48dc05e-a700-4619-bd6e-1c5acdbb7a13\"><p local-id=\"05adbb0d3f91\"><ac:inline-comment-marker ac:ref=\"261be494-018a-465a-a929-7dc4d730d7ce\">HTTP 409 NOTE-BUS-002</ac:inline-comment-marker></p></td><td ac:local-id=\"dff201d2063f\"><ul local-id=\"023ecffdb26e\"><li local-id=\"818351e8e193\"><p local-id=\"bcedd416-f211-428a-8e7a-2baff077efad\"><ac:inline-comment-marker ac:ref=\"261be494-018a-465a-a929-7dc4d730d7ce\">Le système affiche un message d’erreur: “Modification impossible. Habilitation insuffisante pour modifier une note.&quot;</ac:inline-comment-marker></p></li><li local-id=\"018d750efbca\"><p local-id=\"bf94ffda6663\">L&apos;assistant <ac:link ac:local-id=\"08b9016d-2b10-4af5-946b-24bb42a828f7\" ac:card-appearance=\"inline\"><ac:link-body>CU-NOTE-MODIFIER</ac:link-body></ac:link>  se ferme</p></li><li local-id=\"735ecd9e4748\"><p local-id=\"55a85957faa0\"><ac:inline-comment-marker ac:ref=\"261be494-018a-465a-a929-7dc4d730d7ce\">L’assistant (</ac:inline-comment-marker><ac:inline-comment-marker ac:ref=\"261be494-018a-465a-a929-7dc4d730d7ce\"><ac:link ac:local-id=\"6fc6e6dc-f8f6-4247-9e1c-3944a53312d1\" ac:card-appearance=\"inline\"><ri:page ri:content-title=\"CU-NOTE-CONSULTER\" ri:version-at-save=\"133\" /><ac:link-body>CU-NOTE-CONSULTER</ac:link-body></ac:link></ac:inline-comment-marker><ac:inline-comment-marker ac:ref=\"261be494-018a-465a-a929-7dc4d730d7ce\">  ) est mis à jour.</ac:inline-comment-marker></p></li></ul></td></tr><tr ac:local-id=\"c25a326fed78\"><td ac:local-id=\"c161d50108fd\"><p local-id=\"ebe039e4f030\"><ac:inline-comment-marker ac:ref=\"261be494-018a-465a-a929-7dc4d730d7ce\">HTTP 409 NOTE-BUS-003</ac:inline-comment-marker></p></td><td ac:local-id=\"a8acd6fff456\"><ul local-id=\"e4d7e7049c26\"><li local-id=\"cfc92a7f3ead\"><p local-id=\"bd15c9dcb570\"><ac:inline-comment-marker ac:ref=\"261be494-018a-465a-a929-7dc4d730d7ce\">Le système affiche un message d’erreur: &quot;Modification impossible. . Seul l’auteur de création peut effectuer cette opération.&quot;) si </ac:inline-comment-marker><code><ac:inline-comment-marker ac:ref=\"261be494-018a-465a-a929-7dc4d730d7ce\">auteurCreation</ac:inline-comment-marker></code><ac:inline-comment-marker ac:ref=\"261be494-018a-465a-a929-7dc4d730d7ce\"> &lt;&gt; </ac:inline-comment-marker><span style=\"background-color: rgb(198,237,251);\"><ac:inline-comment-marker ac:ref=\"261be494-018a-465a-a929-7dc4d730d7ce\">COMPTE.USER.login </ac:inline-comment-marker></span><ac:inline-comment-marker ac:ref=\"261be494-018a-465a-a929-7dc4d730d7ce\">de l’utilisateur qui a fait la modification </ac:inline-comment-marker><span style=\"background-color: rgb(198,237,251);\"><ac:inline-comment-marker ac:ref=\"261be494-018a-465a-a929-7dc4d730d7ce\"> (champ DTO à préciser)</ac:inline-comment-marker></span></p></li><li local-id=\"8927fe13e477\"><p local-id=\"c4b66bac9f64\"><span style=\"background-color: rgb(248,230,160);\">L&apos;assistant de modification se ferme</span></p></li><li local-id=\"4243ac185999\"><p local-id=\"165003576b3e\"><ac:inline-comment-marker ac:ref=\"261be494-018a-465a-a929-7dc4d730d7ce\">L’assistant (</ac:inline-comment-marker><ac:inline-comment-marker ac:ref=\"261be494-018a-465a-a929-7dc4d730d7ce\"><ac:link ac:local-id=\"432a5a99-181b-4661-bb4f-e051aa6c6693\" ac:card-appearance=\"inline\"><ri:page ri:content-title=\"CU-NOTE-CONSULTER\" ri:version-at-save=\"133\" /><ac:link-body>CU-NOTE-CONSULTER</ac:link-body></ac:link></ac:inline-comment-marker><ac:inline-comment-marker ac:ref=\"261be494-018a-465a-a929-7dc4d730d7ce\">  ) est mis à jour.</ac:inline-comment-marker></p></li></ul></td></tr></tbody></table>"
+                    }
+                  }
+                },
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "localId": "0d96c42ec498"
+                  },
+                  "content": [
+                    {
+                      "text": "NB: dans tous les cas d’erreur, l’assistant de modification reste ouvert, non réinitialisé, avec le message d’erreur affiché. L’utilisateur peut corriger sa saisie, puis cliquer sur  “Enregistrer”.",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "tableRow",
+          "attrs": {
+            "localId": "acaf0cacf3dc"
+          },
+          "content": [
+            {
+              "type": "tableCell",
+              "attrs": {
+                "colspan": 1,
+                "rowspan": 1,
+                "colwidth": [
+                  60.0
+                ],
+                "localId": "94598c2ce66f"
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "localId": "91f3e401aa66"
+                  },
+                  "content": [
+                    {
+                      "text": "3",
+                      "type": "text",
+                      "marks": [
+                        {
+                          "type": "annotation",
+                          "attrs": {
+                            "annotationType": "inlineComment",
+                            "id": "11731203-e448-46de-8229-23220d01811a"
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableCell",
+              "attrs": {
+                "colspan": 1,
+                "rowspan": 1,
+                "colwidth": [
+                  1740.0
+                ],
+                "localId": "ed22c74edd53"
+              },
+              "content": [
+                {
+                  "type": "extension",
+                  "attrs": {
+                    "layout": "default",
+                    "extensionType": "com.atlassian.confluence.macro.core",
+                    "extensionKey": "multiexcerpt-fast-include-block-macro",
+                    "parameters": {
+                      "macroParams": {
+                        "macro_uuid": {
+                          "value": "99868f9c-3f05-4ac5-b670-cc33b8e99ec8"
+                        },
+                        "name": {
+                          "value": "RG-NOTE-AUTEUR-AUTORISE-CREATION-MODIFICATION"
+                        },
+                        "templateData": {
+                          "value": "eJyLjgUAARUAuQ=="
+                        },
+                        "page": {
+                          "value": "SF-NOTE: Règles de gestion consolidées"
+                        },
+                        "addpanel": {
+                          "value": "true"
+                        }
+                      },
+                      "macroMetadata": {
+                        "macroId": {
+                          "value": "241666aa-c903-472b-8c23-e47d94853912"
+                        },
+                        "schemaVersion": {
+                          "value": "1"
+                        },
+                        "placeholder": [
+                          {
+                            "type": "icon",
+                            "data": {
+                              "url": "https://raw.githubusercontent.com/fuegokit/appfire-design-systems-brand-svg/main/single-color-brand-icons/af-logo-multi-excerpt-24.svg"
+                            }
+                          }
+                        ],
+                        "title": "MultiExcerpt Include (Advanced)"
+                      }
+                    },
+                    "localId": "5f4c166f-c63e-4036-a36a-53ebebd4a32b"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "tableRow",
+          "attrs": {
+            "localId": "0f28b60bc513"
+          },
+          "content": [
+            {
+              "type": "tableCell",
+              "attrs": {
+                "colspan": 1,
+                "rowspan": 1,
+                "colwidth": [
+                  60.0
+                ],
+                "localId": "5c18f673a49e"
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "localId": "cc9cdd905711"
+                  },
+                  "content": [
+                    {
+                      "text": "4",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableCell",
+              "attrs": {
+                "colspan": 1,
+                "rowspan": 1,
+                "colwidth": [
+                  1740.0
+                ],
+                "localId": "c5e61dbe5c1f"
+              },
+              "content": [
+                {
+                  "type": "extension",
+                  "attrs": {
+                    "layout": "default",
+                    "extensionType": "com.atlassian.confluence.macro.core",
+                    "extensionKey": "multiexcerpt-fast-include-block-macro",
+                    "parameters": {
+                      "macroParams": {
+                        "macro_uuid": {
+                          "value": "99868f9c-3f05-4ac5-b670-cc33b8e99ec8"
+                        },
+                        "name": {
+                          "value": "RG-NOTE-TYPENOTE"
+                        },
+                        "templateData": {
+                          "value": "eJyLjgUAARUAuQ=="
+                        },
+                        "page": {
+                          "value": "SF-NOTE: Règles de gestion consolidées"
+                        },
+                        "addpanel": {
+                          "value": "true"
+                        }
+                      },
+                      "macroMetadata": {
+                        "macroId": {
+                          "value": "936c007b-2fe3-44c1-983d-0229c846c0d5"
+                        },
+                        "schemaVersion": {
+                          "value": "1"
+                        },
+                        "placeholder": [
+                          {
+                            "type": "icon",
+                            "data": {
+                              "url": "https://raw.githubusercontent.com/fuegokit/appfire-design-systems-brand-svg/main/single-color-brand-icons/af-logo-multi-excerpt-24.svg"
+                            }
+                          }
+                        ],
+                        "title": "MultiExcerpt Include (Advanced)"
+                      }
+                    },
+                    "localId": "70ecb5b2-81ff-48a8-bcf3-b8073f34a9dc"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "tableRow",
+          "attrs": {
+            "localId": "3918bd7937ef"
+          },
+          "content": [
+            {
+              "type": "tableCell",
+              "attrs": {
+                "colspan": 1,
+                "rowspan": 1,
+                "colwidth": [
+                  60.0
+                ],
+                "localId": "c7415f9c443b"
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "localId": "a21325097ff7"
+                  },
+                  "content": [
+                    {
+                      "text": "3",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableCell",
+              "attrs": {
+                "colspan": 1,
+                "rowspan": 1,
+                "colwidth": [
+                  1740.0
+                ],
+                "localId": "b5f6bad5b90a"
+              },
+              "content": [
+                {
+                  "type": "extension",
+                  "attrs": {
+                    "layout": "default",
+                    "extensionType": "com.atlassian.confluence.macro.core",
+                    "extensionKey": "multiexcerpt-fast-include-block-macro",
+                    "parameters": {
+                      "macroParams": {
+                        "macro_uuid": {
+                          "value": "99868f9c-3f05-4ac5-b670-cc33b8e99ec8"
+                        },
+                        "name": {
+                          "value": "RG-NOTE-OPTIMISTIC&period;LOCKING"
+                        },
+                        "templateData": {
+                          "value": "eJyLjgUAARUAuQ=="
+                        },
+                        "page": {
+                          "value": "SF-NOTE: Règles de gestion consolidées"
+                        },
+                        "addpanel": {
+                          "value": "true"
+                        }
+                      },
+                      "macroMetadata": {
+                        "macroId": {
+                          "value": "86ac4903-2069-4ba0-8938-aa6116260d8a"
+                        },
+                        "schemaVersion": {
+                          "value": "1"
+                        },
+                        "placeholder": [
+                          {
+                            "type": "icon",
+                            "data": {
+                              "url": "https://raw.githubusercontent.com/fuegokit/appfire-design-systems-brand-svg/main/single-color-brand-icons/af-logo-multi-excerpt-24.svg"
+                            }
+                          }
+                        ],
+                        "title": "MultiExcerpt Include (Advanced)"
+                      }
+                    },
+                    "localId": "d9c41c34-f5b4-4e75-93d1-0598efd29913"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "tableRow",
+          "attrs": {
+            "localId": "ead301870cb9"
+          },
+          "content": [
+            {
+              "type": "tableCell",
+              "attrs": {
+                "colspan": 1,
+                "rowspan": 1,
+                "colwidth": [
+                  60.0
+                ],
+                "localId": "b88db3f5be26"
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "localId": "403807d33072"
+                  },
+                  "content": [
+                    {
+                      "text": "4",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "tableCell",
+              "attrs": {
+                "colspan": 1,
+                "rowspan": 1,
+                "colwidth": [
+                  1740.0
+                ],
+                "localId": "2205f95a7aed"
+              },
+              "content": [
+                {
+                  "type": "extension",
+                  "attrs": {
+                    "layout": "default",
+                    "extensionType": "com.atlassian.confluence.macro.core",
+                    "extensionKey": "multiexcerpt-fast-include-block-macro",
+                    "parameters": {
+                      "macroParams": {
+                        "macro_uuid": {
+                          "value": "7556ef3c-e62f-4d06-8952-9cf1fac2ddaa"
+                        },
+                        "name": {
+                          "value": "RG-API-ERREUR&period;GATEWAY"
+                        },
+                        "templateData": {
+                          "value": "eJyLjgUAARUAuQ=="
+                        },
+                        "page": {
+                          "value": "Règles génériques utilisables pour les API"
+                        },
+                        "addpanel": {
+                          "value": "true"
+                        }
+                      },
+                      "macroMetadata": {
+                        "macroId": {
+                          "value": "5e4b084b-b96d-4312-83a3-68bad4de58d2"
+                        },
+                        "schemaVersion": {
+                          "value": "1"
+                        },
+                        "placeholder": [
+                          {
+                            "type": "icon",
+                            "data": {
+                              "url": "https://raw.githubusercontent.com/fuegokit/appfire-design-systems-brand-svg/main/single-color-brand-icons/af-logo-multi-excerpt-24.svg"
+                            }
+                          }
+                        ],
+                        "title": "MultiExcerpt Include (Advanced)"
+                      }
+                    },
+                    "localId": "72b2cecb-8c4e-4765-8a04-52da830feabd"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "attrs": {
+        "localId": "33628393-9aca-453f-bca2-fe71cbb0465c"
+      }
+    }
+  ],
+  "version": 1
+}
