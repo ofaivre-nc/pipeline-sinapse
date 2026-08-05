@@ -140,7 +140,7 @@
         },
         "md_path": {
           "type": ["string", "null"],
-          "description": "Chemin du .md relatif a local_path (ex. \"specs/CU-PERSONNE-MODIFIER.md\"). Renseigne a l'export. Les titres contiennent des caracteres interdits sous Windows (\"SF-PERSONNE: ...\") : slugification obligatoire, collisions detectees et signalees. NON PRODUIT par inventory.py v1.1 — voir la note d'implementation en fin de fichier."
+          "description": "REFERENCE UNIQUE DU CHEMIN du .md, relatif a local_path. Les skills le LISENT ICI et ne le recalculent JAMAIS depuis le titre : l'arborescence exportee reproduit la hierarchie Confluence sous specs/ (groupe A) et docs/ (groupe B), donc la profondeur, le slug du parent et la forme fichier-ou-repertoire ne sont pas derivables d'un titre de page. Une page AVEC filles vit dans \"{slug}/{slug}.md\" (ex. \"specs/Q-IDENTITE.../SF-PERSONNE.../CU-PERSONNE-MODIFIER.md\") ; une page SANS fille donne un simple \"{slug}.md\" — pas de repertoire a fichier unique. Consequence : l'ajout d'une premiere fille DEPLACE le .md de la page parente sans que son contenu ni sa version.number aient change ; le run doit le traiter comme un deplacement identifie et le signaler comme tel au rapport, jamais comme une suppression suivie d'une creation. Les titres contiennent des caracteres interdits sous Windows (\"SF-PERSONNE: ...\") : slugification obligatoire, collisions detectees et signalees, et longueur de chemin surveillee (alerte a 200 caracteres, plafond Windows a 260). NON PRODUIT par inventory.py v1.1 — voir la note d'implementation en fin de fichier."
         },
         "last_exported": {
           "type": ["string", "null"],

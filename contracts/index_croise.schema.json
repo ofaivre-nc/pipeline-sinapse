@@ -150,7 +150,10 @@
       "properties": {
         "id": { "type": "string", "pattern": "^[0-9]+$" },
         "title": { "type": ["string", "null"] },
-        "md_path": { "type": ["string", "null"] },
+        "md_path": {
+          "type": ["string", "null"],
+          "description": "Recopie de md_path tel que publie dans pages_inventory.json, qui en est la reference unique. Ni recalcule depuis le titre, ni reconstruit depuis le module : l'arborescence exportee reproduit la hierarchie Confluence."
+        },
         "parse_status": {
           "enum": ["ok", "partial", "failed"],
           "description": "OBLIGATOIRE, jamais absent. Sans lui, un skill lisant regles: [] ne peut pas distinguer « aucune regle » de « le parser a echoue », et produit un rapport entierement faux. REGLE IMPOSEE AUX SKILLS : une page en parse_status != ok n'est PAS scoree, elle est signalee. Un noeud nested-table ne declasse PAS en partial — son contenu est integralement recuperable via parameters.adf."

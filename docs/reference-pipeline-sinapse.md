@@ -1,7 +1,7 @@
 # Pipeline SINAPSE — document de référence
 
-*Document unique de la conversation de conception. Remplace `brief-pipeline-sinapse-v3.md` et `reprise-contexte-sinapse.md`, tous deux archivés.*
-*Mis à jour le 5 août 2026.*
+*Document unique de la conversation de conception. Remplace `brief-pipeline-sinapse-v3.md`, archivé dans `docs/archive/`. Il succède aussi à un document de reprise de contexte antérieur, qui n'a vécu que dans l'espace de conversation : il n'en existe aucune trace dans le dépôt, inutile de l'y chercher.*
+*Mis à jour le 5 août 2026 — organisation des `.md` exportés.*
 
 ---
 
@@ -23,6 +23,8 @@ Le détail technique — **ce qui existe** — vit dans le dépôt, maintenu par
 **Règle** : si ce document et le dépôt divergent sur un fait technique, le dépôt a raison. S'ils divergent sur une décision ou sa justification, ce document a raison.
 
 À joindre à une nouvelle conversation : ce document, plus `guide_implementation_skills_sinapse_v4.md` (cartographie des 31 skills, février 2026, partiellement périmé) et les `contracts/` concernés par le sujet.
+
+**Convention de la ligne de date**, en tête : à chaque mise à jour, elle porte **la date et la dernière décision consignée** — « Mis à jour le 5 août 2026 — organisation des `.md` exportés ». Une date seule ne dit pas si l'on a devant soi la version qui tranche la question du jour ; le nom de la décision, si. Une modification qui ne consigne aucune décision ne touche pas cette ligne.
 
 ### Message d'amorçage suggéré
 
@@ -281,6 +283,34 @@ Le dépôt est la source de vérité ; l'espace GIE est une cible de déploiemen
 - Le token Atlassian n'est jamais versionné ni transmis en conversation.
 - **`contracts/` est la source de vérité technique** ; ce document ne le duplique pas.
 
+### Organisation des `.md` exportés — l'arborescence Confluence est reproduite
+
+*Décision prise le 5 août 2026. Elle n'avait jamais été arbitrée explicitement : le brief v3 impliquait un **répertoire plat** sous `specs/` et `docs/`, par le seul exemple `md_path: "specs/CU-PERSONNE-MODIFIER.md"`. Ce n'était pas un choix, c'était un exemple qu'on aurait fini par prendre pour une règle.*
+
+Les `.md` reproduisent **la hiérarchie des pages Confluence**. Un BA qui connaît l'arbre Confluence retrouve un fichier sans consulter d'index, et un module se lit comme un tout au lieu d'être dispersé dans une liste de 232 fichiers.
+
+**Les deux racines sont conservées** : `specs/` pour le groupe A, `docs/` pour le groupe B.
+
+| Cas | Forme |
+|---|---|
+| Page **avec** filles | un répertoire `{slug}/`, contenant son propre contenu dans `{slug}/{slug}.md`, puis les fichiers et répertoires de ses filles |
+| Page **sans** fille | un simple `{slug}.md` — **pas de répertoire à fichier unique** |
+
+```
+specs/
+├── Q-IDENTITE-gestion-des-identites/
+│   ├── Q-IDENTITE-gestion-des-identites.md
+│   └── SF-PERSONNE-gestion-des-personnes/
+│       ├── SF-PERSONNE-gestion-des-personnes.md
+│       ├── SF-PERSONNE-Modelisation-des-donnees.md
+│       └── CU-PERSONNE-MODIFIER.md
+└── ...
+```
+
+**Conséquence à signaler au rapport** : l'ajout d'une première fille **déplace le `.md` de la page parente**, de `{slug}.md` vers `{slug}/{slug}.md`, alors que **son contenu n'a pas changé** et que sa `version.number` n'a pas bougé. Ce n'est ni une suppression ni une création : le rapport doit le nommer comme un déplacement, sinon le run se lit comme une anomalie inexpliquée. Le cas inverse — suppression de la dernière fille — vaut aussi.
+
+**`md_path` dans `pages_inventory.json` reste la référence unique du chemin.** Les skills le **lisent depuis le cache** et ne le recalculent **jamais** depuis le titre : la profondeur, le slug du parent et la forme fichier-ou-répertoire ne sont pas dérivables d'un titre de page. Un skill qui reconstruirait un chemin le perdrait au premier déplacement.
+
 ---
 
 ## 6. Exigences à porter dans le code
@@ -307,7 +337,8 @@ Le dépôt est la source de vérité ; l'espace GIE est une cible de déploiemen
 - classification des 7 pages `A_QUALIFIER` (notes de cadrage, à qualifier une par une) ;
 - **`-NEW- CU-COMPTE-PROFIL.GEST` est exclue, et son ancienne version l'est par héritage → cette spec disparaît entièrement du corpus.** Seul trou connu ;
 - format des pages `SA-*` (services applicatifs) — typées, exportées, non scorées en attendant validation du principe ;
-- chemin SharePoint réel et exclusions de pages.
+- chemin SharePoint réel et exclusions de pages ;
+- **profondeur maximale de l'arborescence exportée** — à mesurer sur le corpus réel une fois le chemin SharePoint connu, pour vérifier qu'aucun chemin ne s'approche de la limite Windows de 260 caractères. La mesure ne vaut rien avant : c'est la longueur du préfixe SharePoint, inconnue à ce jour, qui décide si la marge est confortable ou nulle.
 
 **Déploiement**
 - repondération de l'orchestrateur après abandon d'OpenAPI (étape 10) ;

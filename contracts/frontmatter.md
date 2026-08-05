@@ -101,10 +101,34 @@ Les trois formes du corpus (`extension :: jira`, `blockCard` à table JQL, `inli
 
 ---
 
-## 7. Ce qui reste à arrêter
+---
+
+## 7. Emplacement du fichier — le frontmatter ne le porte pas
+
+Les `.md` reproduisent **la hiérarchie Confluence** sous `specs/` (groupe A) et `docs/`
+(groupe B) : une page avec filles vit dans `{slug}/{slug}.md` aux côtés de ses filles,
+une page sans fille donne un simple `{slug}.md`. Décision et justification dans
+`docs/reference-pipeline-sinapse.md` §5.
+
+**Le frontmatter ne contient pas `md_path`, volontairement.** Un chemin recopié dans le
+fichier qu'il désigne devient faux au premier déplacement, sans que rien ne le signale —
+et les déplacements sont attendus : l'ajout d'une première fille à une page déplace son
+`.md` alors que son contenu n'a pas changé.
+
+**La référence unique du chemin est `md_path` dans `pages_inventory.json`.** Un skill le
+lit depuis le cache. Il ne le recalcule jamais depuis `page_title`, et ne déduit jamais
+le chemin d'une page voisine du sien : la profondeur et le slug du parent ne sont pas
+dans le titre.
+
+Ce que le frontmatter porte, et qui suffit à tout rattachement : `page_id`, stable au
+renommage comme au déplacement.
+
+---
+
+## 8. Ce qui reste à arrêter
 
 - **le marquage d'une inclusion inline**, qui ne peut pas utiliser la forme en bloc ci-dessus ;
 - la forme exacte du marquage `syncBlock`, aucune page n'ayant encore été exportée ;
-- le gabarit de nom de fichier et la **slugification** : les titres contiennent des caractères interdits sous Windows (`SF-PERSONNE: …`). Slugification obligatoire, collisions détectées et signalées. `md_path` en dépend.
+- la **slugification** elle-même : les titres contiennent des caractères interdits sous Windows (`SF-PERSONNE: …`). Slugification obligatoire, collisions détectées et signalées. La *forme* de l'arborescence est tranchée, le *gabarit du slug* ne l'est pas.
 
 **État d'implémentation au 5 août 2026** : aucun `.md` n'a encore été produit. Ce contrat est écrit avant l'étape 1 (export d'une page CU) pour que le premier export s'y conforme au lieu de le définir par accident.

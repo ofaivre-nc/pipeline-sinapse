@@ -28,6 +28,46 @@ description: Règles de code pour le pipeline Python
 - Chemins via `pathlib.Path`. Slugifier les titres Confluence : ils contiennent `:` et
   d'autres caractères interdits sous Windows. Collisions détectées et signalées.
 
+### Arborescence de sortie
+
+Les `.md` reproduisent la hiérarchie Confluence sous `specs/` et `docs/` : une page avec
+filles donne `{slug}/{slug}.md` plus ses filles, une page sans fille un simple
+`{slug}.md`. Décision et justification dans `docs/reference-pipeline-sinapse.md` §5.
+
+**`md_path` est la référence unique du chemin.** Il est écrit dans `pages_inventory.json`
+et lu de là. Ne jamais recalculer un chemin depuis un titre, ni dans le pipeline ni dans
+un skill : la profondeur, le slug du parent et la forme fichier-ou-répertoire n'en sont
+pas dérivables.
+
+### Longueur de chemin — plafonner avant d'échouer
+
+Windows plafonne à **260 caractères**. Une arborescence profonde sous un préfixe
+SharePoint long peut y arriver, et l'échec se produirait alors à l'écriture, en fin de
+run, sur une page prise au hasard.
+
+- **seuil d'alerte à 200 caractères** : tout chemin qui le dépasse remonte au rapport,
+  avec sa longueur, **avant** d'échouer réellement ;
+- au-delà de 260, l'écriture échoue : la page est listée en échec avec ce motif précis,
+  jamais confondue avec une erreur réseau ;
+- la mesure porte sur le chemin **absolu**, préfixe `local_path` compris — c'est lui qui
+  consomme la marge, et il change au passage sur le SharePoint d'équipe.
+
+### Déplacement d'un sous-arbre
+
+Renommer ou déplacer une page parente change le chemin de **tout son sous-arbre** sur le
+disque, sans qu'aucune page fille n'ait été modifiée. Deux cas produisent le même effet :
+le renommage d'un parent, et l'ajout d'une première fille à une page — qui fait passer
+son `.md` de `{slug}.md` à `{slug}/{slug}.md`.
+
+**Le run traite ça comme une opération de déplacement identifiée** : ancien chemin
+supprimé, nouveau écrit, et **signalé au rapport comme un déplacement** — pas comme
+N suppressions suivies de N créations. Un rapport annonçant 40 suppressions et
+40 créations parce qu'un module a été renommé est illisible, et indistinguable d'un vrai
+sinistre.
+
+Le rapprochement se fait par `page_id` et non par chemin : l'inventaire précédent donne
+l'ancien `md_path`, le nouveau calcul donne le nouveau, la page est la même.
+
 ## Appels HTTP
 
 - API REST Confluence v2 (`/wiki/api/v2`), Basic Auth (email + token).
