@@ -1,3 +1,29 @@
+> # ⚠ DOCUMENT ARCHIVÉ — COMPTE RENDU D'UNE SÉANCE PASSÉE
+>
+> **Archivé le 5 août 2026.** Cette procédure a été exécutée : Claude Code est installé,
+> le dépôt existe, le recensement ADF est terminé. Elle est conservée comme trace de la
+> mise en route, pas comme mode d'emploi à suivre.
+>
+> **Le document qu'elle cite est lui-même archivé.** Elle renvoie à
+> `docs/brief-pipeline-sinapse-v3.md` comme document de projet à lire en premier ; ce
+> brief est aujourd'hui dans `docs/archive/brief-pipeline-sinapse-v3.md`, remplacé par
+> **`docs/reference-pipeline-sinapse.md`**. Les instructions de démarrage qu'elle donne
+> pointent donc vers un fichier qui n'est plus à cet emplacement, et vers un contenu qui
+> n'est plus la source active.
+>
+> Autres écarts avec l'état actuel du dépôt :
+>
+> - elle fait créer `CLAUDE.md`, `.gitignore`, `.claude/rules/python.md` et
+>   `CLAUDE.local.md` : tous existent et ont évolué depuis ;
+> - elle utilise `python` en ligne de commande, alors que le point d'entrée de ce poste
+>   est `.venv\Scripts\python.exe` — `requests` est absent du Python système
+>   (voir `CLAUDE.local.md`) ;
+> - le recensement qu'elle décrit a été rejoué depuis sur le corpus complet, avec
+>   `recense_adf.py` v1.2.
+>
+> Pour reprendre le projet aujourd'hui, lire `docs/reference-pipeline-sinapse.md`, dont le
+> §0 donne le message d'amorçage à jour.
+
 # Première séance Claude Code — procédure pas à pas
 
 **Objectif de la séance** : installer Claude Code, créer le dépôt SINAPSE, et exécuter le recensement des nœuds ADF sur de vraies pages Confluence.
