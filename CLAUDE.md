@@ -3,8 +3,15 @@
 Dépôt du pipeline Python qui exporte les pages Confluence SINAPSE en `.md` + caches JSON,
 et des skills Claude qui exploitent ces fichiers.
 
-**Document de référence : `docs/brief-pipeline-sinapse-v3.md`.** En cas de contradiction
-entre ce fichier et le brief, le brief fait foi — et ce fichier doit être corrigé.
+**Document de référence : `docs/reference-pipeline-sinapse.md`.** Il porte les décisions et
+leurs justifications ; le dépôt porte le détail technique.
+
+**Règle d'arbitrage** : si ce dépôt et le document de référence divergent sur un **fait
+technique**, le dépôt a raison. S'ils divergent sur une **décision ou sa justification**,
+le document de référence a raison.
+
+`docs/archive/brief-pipeline-sinapse-v3.md` est la version antérieure, conservée pour la
+formulation d'origine des décisions. Ne pas s'y référer comme source active.
 
 `docs/guide_implementation_skills_sinapse_v4.md` (février 2026) cartographie les 31 skills,
 leurs sources et leurs stratégies de reprise. Certains ont évolué depuis. En cas de
@@ -22,9 +29,17 @@ Deux espaces distincts, à ne pas confondre :
 ```
 CLAUDE.md              ce fichier
 CLAUDE.local.md        spécificités de la machine courante — non versionné
+config.ini.example     gabarit de configuration ; à copier en pipeline/config.ini
 .claude/rules/         règles ciblées par chemin (python.md)
 .claude/skills/        LES SKILLS SINAPSE — source de vérité
-contracts/             LE CONTRAT pipeline ↔ skills (schémas JSON, frontmatter, normalisation)
+contracts/             LE CONTRAT pipeline ↔ skills
+  classification_pages.md          groupe, type, module, exclusions, 3 attributs
+  normalisation_adf.md             table de normalisation ADF (partielle)
+  frontmatter.md                   métadonnées des .md exportés
+  pages_inventory.schema.json      inventaire et delta
+  reused_content_cache.schema.json multiexcerpt + syncBlock, deux clés
+  index_croise.schema.json         agrégation par module
+  mcd_sinapse_data.schema.json     données MCD — PROVISOIRE, voir le fichier
 pipeline/src/          main, confluence_client, inventory, multiexcerpt, normalizer,
                        renderer, index_builder, mcd, report
 pipeline/tests/        rejouent les fixtures
@@ -32,12 +47,25 @@ pipeline/fixtures/     5-10 ADF figés + .md attendus
 pipeline/config.ini    NON VERSIONNÉ
 tools/                 outils autonomes (restitution PUF, présentation MCD…)
 build/                 make_skill_zip.py
-docs/                  briefs, guides
+docs/                  document de référence, guides
 docs/skills/           READMEs utilisateurs des skills
+docs/archive/          documents remplacés, conservés pour mémoire
 ```
 
 Règle de rangement : `.claude/skills/` = ce que Claude exécute ; `docs/skills/` = ce que les
 humains lisent ; `contracts/` = ce qui lie les deux.
+
+### Distribution des skills
+
+Deux canaux **indépendants** — une session Claude Code ne lit que le disque, elle ne voit
+pas l'espace GIE de claude.ai.
+
+| Canal | Public | Mécanisme |
+|---|---|---|
+| Dépôt `.claude/skills/` | Olivier, devs, BAs sur Claude Code | `git pull` |
+| Espace GIE claude.ai | BAs sur l'interface web | zip produit par `build/make_skill_zip.py`, importé manuellement |
+
+Le dépôt est la source de vérité ; l'espace GIE est une cible de déploiement.
 
 ## Chaîne de traitement
 
@@ -125,29 +153,41 @@ Instance `sinapse-gie-nc.atlassian.net`, space `SINAPSE`, export récursif, prof
 
 Pour l'instant, pas de GitHub ni de GitLab : le remote est un **dépôt nu déposé sur le
 SharePoint GIE**. On n'y édite rien, on ne fait que `push` / `pull` — c'est ce qui évite les
-conflits de synchronisation OneDrive. Migration GitLab différée (question ouverte n°11).
+conflits de synchronisation OneDrive. Migration GitLab différée, réversible en une commande.
+
+```bash
+git init --bare "<SharePoint>\sinapse\sinapse.git"
+git remote add origin "<SharePoint>\sinapse\sinapse.git"
+```
+
+Aucun remote n'est configuré à ce jour : le chemin SharePoint sera renseigné le jour où le
+travail à domicile devient nécessaire.
 
 Avant le premier `push` : vérifier ce qui part (`git status`, `git diff --cached`).
 
-## État d'avancement — mis à jour le 4 août 2026
+## État d'avancement — mis à jour le 5 août 2026
 
-Séquencement complet en section 7 du brief, questions ouvertes en section 8. Position actuelle :
+Séquencement, position détaillée et questions ouvertes : sections 2 et 7 du document de
+référence. Position en bref :
 
-- **Étape 0d terminée** — recensement ADF. `pipeline/src/recense_adf.py` (v1.1) a couvert
-  le corpus complet : 246 pages sur 247, 36 types de nœuds, 12 macros, 15 marks.
-  La page manquante est tombée sur un timeout transitoire et n'apporte aucun nœud inédit.
-  Sorties dans `recensement/` (non versionné, régénérable).
-- **`marklas` confirmé contre `pyadf`.** Les trois inconnues du bake-off sont toutes
-  présentes dans le corpus — `layoutSection` (112 occurrences), `layoutColumn` (290),
-  `bodiedExtension` (260) — et `pyadf` les jetterait.
-- **Prochaine étape : la table de normalisation** (`contracts/normalisation_adf.md`),
-  puis l'arbitrage réutiliser/réécrire le resolver multiexcerpt.
-  **Ne pas écrire de code de conversion avant.**
-- Restent à trancher, révélés par le recensement : la règle pour `syncBlock` /
-  `bodiedSyncBlock`, celle pour `extension :: nested-table` (le marqueur que Confluence
-  pose lui-même sur un contenu qu'il n'a pas su convertir — son paramètre `reason` est à
-  remonter au rapport), et la classification des pages : 129 des 247 tombent en `AUTRE`,
-  les `TYPE_PATTERNS` ne reconnaissant ni les pages `Q-*` ni la documentation du groupe B.
+- **Étape 0d — recensement terminé, table de normalisation partielle.**
+  `recense_adf.py` (v1.2) a couvert le corpus : 246 pages sur 247, 36 types de nœuds,
+  12 macros, 15 marks. Sorties dans `recensement/` (non versionné, régénérable).
+  **`marklas` confirmé contre `pyadf`** : `layoutSection` (112), `layoutColumn` (290),
+  `bodiedExtension` (260) sont tous présents, `pyadf` les jetterait.
+- **`contracts/normalisation_adf.md` ne couvre que 3 mécanismes** — contenu réutilisé,
+  `nested-table`, nettoyage des noms. Restent `expand`, `layoutSection`/`layoutColumn`,
+  `media*`, les 3 formes de cartes Jira, `status`, `taskList`, les 15 marks.
+  Tout est tranchable sur les fixtures, sans Confluence.
+  **Ne pas écrire de code de conversion avant d'avoir complété cette table.**
+- **Étape 3 amorcée** — `inventory.py` (v1.1) classifie les 246 pages, 56 tests.
+  Restent la **slugification** (avec détection de collisions) et le **delta par
+  `version.number`** ; d'où l'absence de `md_path` et `last_exported`.
+- **Resolver** — `multiexcerpt.py` (v1.0) fournit les clés des deux mécanismes et le
+  garde-fou de cycle, 41 tests. Le parcours récursif reste à écrire, avec l'arbitrage
+  réutiliser/réécrire.
 - `.claude/rules/skills.md` n'existe pas encore : il accueillera les conventions de nommage
   des skills, la limite des 500 lignes et le barème, au moment du rapatriement des skills
   (étape 10).
+- `docs/anomalies-confluence.md` n'existe pas encore : il accueillera les anomalies à
+  remonter aux BA, listées en section 8 du document de référence.

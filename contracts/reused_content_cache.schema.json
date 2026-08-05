@@ -1,0 +1,141 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sinapse.nc/contracts/reused_content_cache.schema.json",
+  "title": "reused_content_cache.json",
+  "description": "Cache du contenu reutilise du space SINAPSE : contenu resolu, empreinte, pages consommatrices. Ecrit dans {local_path}/cache/. Remplace le multiexcerpt_cache.json du brief v3, dont le nom laissait croire a un seul mecanisme. Le corpus en porte DEUX, avec deux cles de resolution distinctes, traites par le meme visiteur mais jamais par la meme cle. Regles detaillees dans contracts/normalisation_adf.md §1. Invalidation transitive : si l'empreinte d'une source change, toutes ses consommatrices sont regenerees.",
+  "type": "object",
+  "required": ["generated_at", "schema_version", "multiexcerpts", "sync_blocks"],
+  "additionalProperties": false,
+  "properties": {
+    "generated_at": { "type": "string", "format": "date-time" },
+    "schema_version": {
+      "const": 1,
+      "description": "Version de CE schema. Un skill qui lit une autre valeur doit s'arreter, pas deviner."
+    },
+    "pipeline_version": { "type": "string" },
+
+    "multiexcerpts": {
+      "type": "array",
+      "description": "Cle de resolution : (page, nom) — la source est designee par TITRE. Un tableau et non une carte indexee par nom, parce que LE NOM N'EST PAS UNIQUE dans le space : \"habilitation\" est defini sur 5 pages differentes. Indexer par nom seul ecraserait 4 definitions sur 5 en silence.",
+      "items": { "$ref": "#/$defs/multiexcerpt" }
+    },
+
+    "sync_blocks": {
+      "type": "array",
+      "description": "Cle de resolution : (page_id, uuid) — la source est designee par IDENTIFIANT de page. L'UUID SEUL NE SUFFIT PAS : le corpus contient le meme resourceId defini sur deux pages CU vivantes (CU-NOTE-CREER 28344321 et CU-NOTE-TYPENOTE.CREER 396361729, copie de la premiere), avec des contenus divergents. Une indexation par UUID seul choisirait arbitrairement et produirait du contenu faux sans lever d'erreur.",
+      "items": { "$ref": "#/$defs/sync_block" }
+    },
+
+    "unresolved": {
+      "type": "array",
+      "description": "Inclusions non resolues. Une inclusion non resolue est un contenu MANQUANT dans le .md, pas une erreur bruyante : elle doit donc figurer ici ET au rapport de run. Cas attendus : source hors perimetre, source non content_source, cycle, depassement de profondeur, nom introuvable sur la page cible.",
+      "items": {
+        "type": "object",
+        "required": ["mechanism", "consumer_page_id", "reason"],
+        "additionalProperties": false,
+        "properties": {
+          "mechanism": { "enum": ["multiexcerpt", "sync_block"] },
+          "consumer_page_id": { "type": "string", "pattern": "^[0-9]+$" },
+          "consumer_page_title": { "type": ["string", "null"] },
+          "requested_page": {
+            "type": ["string", "null"],
+            "description": "Titre de page cible pour un multiexcerpt, identifiant pour un syncBlock."
+          },
+          "requested_key": {
+            "type": ["string", "null"],
+            "description": "Nom nettoye pour un multiexcerpt, UUID pour un syncBlock."
+          },
+          "reason": { "type": "string" }
+        }
+      }
+    }
+  },
+
+  "$defs": {
+    "consumer": {
+      "type": "object",
+      "required": ["page_id"],
+      "additionalProperties": false,
+      "properties": {
+        "page_id": { "type": "string", "pattern": "^[0-9]+$" },
+        "page_title": { "type": ["string", "null"] },
+        "occurrences": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Nombre d'inclusions de cette source dans cette page consommatrice."
+        }
+      }
+    },
+
+    "multiexcerpt": {
+      "type": "object",
+      "required": ["source_page_title", "source_page_id", "name", "content_hash", "consumers"],
+      "additionalProperties": false,
+      "properties": {
+        "source_page_title": {
+          "type": "string",
+          "description": "Premiere moitie de la cle. Titre NETTOYE : html.unescape() puis .strip(). Une definition ne porte aucun parametre `page` — elle definit sur sa propre page — donc ce titre est celui de la page hote."
+        },
+        "source_page_id": {
+          "type": "string",
+          "pattern": "^[0-9]+$",
+          "description": "Identifiant de la page source. N'entre PAS dans la cle de resolution — les inclusions visent un titre — mais indispensable pour tracer et pour invalider. Confluence maintient le titre a jour cote serveur au renommage (verifie le 5 aout 2026 sur la page de test 586416131 : REST v2 et connecteur MCP concordent), sans incrementer la version de la consommatrice."
+        },
+        "name": {
+          "type": "string",
+          "description": "Seconde moitie de la cle. Nom NETTOYE : html.unescape() PUIS .strip(), dans cet ordre, des DEUX cotes de la jointure. Le corpus contient \" RG-NOTE-ASSOCATION&period;PERSONNE\" : une entite HTML et un espace de tete. Verifie : aucun couple de noms ne fusionne apres nettoyage."
+        },
+        "macro_variant": {
+          "type": "string",
+          "description": "extensionKey de la definition, pour tracer (ex. multiexcerpt-fast-block-macro). Ne sert PAS a la reconnaissance : la regle est `multiexcerpt` dans la cle, puis corps present = definition / absent = inclusion. Ne jamais enumerer les variantes."
+        },
+        "inline": {
+          "type": "boolean",
+          "description": "Vrai si la definition est de forme inline. Une inclusion inline se substitue dans un paragraphe : le remplacement doit produire des noeuds inline, pas un bloc."
+        },
+        "content_hash": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "description": "Empreinte du contenu resolu. Son changement declenche la regeneration de toutes les consommatrices."
+        },
+        "content_md": {
+          "type": ["string", "null"],
+          "description": "Contenu resolu, rendu en markdown."
+        },
+        "last_changed": { "type": ["string", "null"], "format": "date-time" },
+        "consumers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/consumer" }
+        }
+      }
+    },
+
+    "sync_block": {
+      "type": "object",
+      "required": ["source_page_id", "uuid", "content_hash", "consumers"],
+      "additionalProperties": false,
+      "properties": {
+        "source_page_id": {
+          "type": "string",
+          "pattern": "^[0-9]+$",
+          "description": "Premiere moitie de la cle. Resolvable par un GET /pages/{id} direct : pas de dependance a pages_inventory.json, et insensible au renommage — contrairement au multiexcerpt."
+        },
+        "uuid": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "description": "Seconde moitie de la cle, en minuscules. C'est attrs.resourceId NU du bodiedSyncBlock de definition ; l'inclusion porte la forme prefixee confluence-page/{PAGE_ID}/{UUID}. Les deux formes ne doivent jamais etre confondues : une forme inattendue leve."
+        },
+        "source_page_title": { "type": ["string", "null"] },
+        "content_hash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "content_md": { "type": ["string", "null"] },
+        "last_changed": { "type": ["string", "null"], "format": "date-time" },
+        "consumers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/consumer" }
+        }
+      }
+    }
+  },
+
+  "$comment": "ETAT D'IMPLEMENTATION au 5 aout 2026 — pipeline/src/multiexcerpt.py v1.0 fournit les cles, l'extraction de parametres et le garde-fou de cycle (CycleGuard), verrouilles par 41 tests. Le parcours recursif qui remplit ce cache reste a ecrire : il depend de l'arbitrage reutiliser/reecrire le resolver et de la couche de recuperation des pages. Recursion et detection de cycle sont obligatoires : aucune imbrication dans les fixtures analysees, mais rien ne l'interdit. Les cles des deux mecanismes cohabitent dans la meme pile, PREFIXEES par leur mecanisme, sinon un (page_id, uuid) pourrait collisionner avec un (page, nom)."
+}

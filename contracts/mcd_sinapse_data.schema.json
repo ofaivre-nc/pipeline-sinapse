@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sinapse.nc/contracts/mcd_sinapse_data.schema.json",
+  "title": "mcd_sinapse_data_YYYYMMDD.json",
+  "description": "Donnees du modele conceptuel de donnees SINAPSE, reconstruites depuis les pages MDD modifiees. Ecrit dans {local_path}/cache/, accompagne de mcd_diff_YYYYMMDD.md. Absorbe le Bloc A du skill confluence-mcd-sync (le Bloc B, injection planning, reste un skill manuel). Consomme par confluence-validation-qualite-mdd, l'outil MCD HTML et les skills de generation. L'ancien fichier est CONSERVE : le nom est horodate, jamais ecrase, c'est ce qui permet le diff. Construit depuis l'ADF resolu, pas depuis le .md : un tableau MDD 9 colonnes dont une cellule contient une liste est aplati en markdown.",
+  "type": "object",
+  "required": ["generated_at", "schema_version", "pipeline_version", "entites"],
+  "additionalProperties": false,
+  "properties": {
+    "generated_at": { "type": "string", "format": "date-time" },
+    "schema_version": {
+      "const": 1,
+      "description": "Version de CE schema. Un skill qui lit une autre valeur doit s'arreter, pas deviner."
+    },
+    "pipeline_version": { "type": "string" },
+    "previous_file": {
+      "type": ["string", "null"],
+      "description": "Nom du fichier mcd_sinapse_data precedent, base du mcd_diff. null au premier run."
+    },
+    "modules": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Modules dont une page MDD a ete relue pour ce fichier."
+    },
+    "source_pages": {
+      "type": "array",
+      "description": "Pages MDD ayant alimente ce fichier, avec leur parse_status : une entite issue d'une page en parse_status != ok ne doit pas etre scoree.",
+      "items": {
+        "type": "object",
+        "required": ["id", "parse_status"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^[0-9]+$" },
+          "title": { "type": ["string", "null"] },
+          "module": { "type": ["string", "null"] },
+          "version": { "type": ["integer", "null"] },
+          "parse_status": { "enum": ["ok", "partial", "failed"] }
+        }
+      }
+    },
+
+    "entites": {
+      "type": "array",
+      "description": "PROVISOIRE — voir la note en fin de fichier. Entites du MCD et leurs attributs.",
+      "items": {
+        "type": "object",
+        "required": ["id", "module", "attributs"],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Identifiant qualifie, ex. \"PERSONNE.PP\"."
+          },
+          "module": { "type": "string" },
+          "libelle": { "type": ["string", "null"] },
+          "source_page_id": { "type": "string", "pattern": "^[0-9]+$" },
+          "attributs": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/attribut" }
+          }
+        }
+      }
+    },
+
+    "warnings": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Avertissements de construction, repris au rapport de run."
+    }
+  },
+
+  "$defs": {
+    "attribut": {
+      "type": "object",
+      "description": "PROVISOIRE. Les colonnes ci-dessous sont celles nommees dans docs/guide_implementation_skills_sinapse_v4.md : type, longueur, obligatoire, valeur defaut, contrainte, commentaire — soit 6 des 9 colonnes du tableau MDD. Les 3 restantes sont a relever sur TEMPLATE_MDD.md avant de figer ce schema.",
+      "required": ["nom"],
+      "additionalProperties": false,
+      "properties": {
+        "nom": { "type": "string" },
+        "type": { "type": ["string", "null"] },
+        "longueur": {
+          "type": ["integer", "string", "null"],
+          "description": "Le controle de coherence maxLength MDD/DTO est ABANDONNE (OpenAPI hors perimetre) : cette valeur est un fait releve, plus recoupe avec rien par le pipeline."
+        },
+        "obligatoire": { "type": ["boolean", "string", "null"] },
+        "valeur_defaut": { "type": ["string", "null"] },
+        "contrainte": { "type": ["string", "null"] },
+        "commentaire": { "type": ["string", "null"] },
+        "cle_etrangere": {
+          "type": ["string", "null"],
+          "description": "Format attendu par le template : \"uuid MODULE.ENTITE\"."
+        },
+        "champ_systeme": {
+          "type": "boolean",
+          "description": "Vrai pour les champs systeme injectes par le template : id, version, dateCreation, auteurCreation, dateModification, auteurModification. Les distinguer evite de les compter comme des attributs metier."
+        }
+      }
+    }
+  },
+
+  "$comment": "ATTENTION — SCHEMA PROVISOIRE, LE SEUL DE contracts/ DANS CE CAS. Le brief v3 §4.4 ne comportait AUCUN exemple de structure : quatre lignes de prose (provenance, conservation de l'ancien fichier, consommateurs). L'enveloppe ci-dessus (horodatage, versions, source_pages, previous_file) est etablie ; la forme de `entites`/`attributs` est reconstituee a partir des seules mentions du guide skills (9 colonnes MDD, dont 6 nommees ; champs systeme ; format de cle etrangere) et N'EST PAS UN CONTRAT TANT QU'ELLE N'EST PAS CONFIRMEE. Source de verite a consulter avant de figer : le Bloc A du skill confluence-mcd-sync, non encore rapatrie dans le depot (etape 10), et TEMPLATE_MDD.md (page 222035991, groupe B). Ne pas coder de skill contre la partie `entites` avant cette confirmation."
+}

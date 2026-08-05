@@ -1,0 +1,39 @@
+; Gabarit de configuration du pipeline SINAPSE.
+; Copier en pipeline/config.ini (NON VERSIONNE) et completer.
+; Le token n'est jamais ecrit ici : variable d'environnement ATLASSIAN_API_TOKEN.
+
+[confluence]
+base_url = https://sinapse-gie-nc.atlassian.net
+space_key = SINAPSE
+email = prenom.nom@sinapse.nc
+; token : variable ATLASSIAN_API_TOKEN (prioritaire) ou cle ci-dessous
+api_token =
+
+specs_root_page_ids = 1474581,1277977
+doc_root_page_ids = 1245499,1310723,219086849
+
+; Pages exclues nommement, par identifiant. Exclusion NON heritee : c'est un scalpel
+; pour une page precise, pas un marqueur de branche.
+exclude_page_ids =
+
+; Pages exclues par PREFIXE DE TITRE, separes par des virgules. Comparaison
+; insensible a la casse, ANCREE EN DEBUT DE TITRE : une exclusion par sous-chaine
+; ecarterait CU-DOSSIER-ARCHIVER, qui est une spec valide.
+; L'exclusion est HERITEE par tout le sous-arbre : une page rangee sous une page
+; archivee est archivee avec elle, quel que soit son propre titre.
+; Une page exclue reste dans l'inventaire avec son motif ; elle n'est ni exportee
+; ni scoree, mais son ADF demeure indexable comme source de multiexcerpt.
+; Laisser vide pour reprendre les defauts du code (voir inventory.py) ;
+; toute valeur renseignee remplace la liste par defaut, elle ne s'y ajoute pas.
+exclude_title_prefixes = Archive, ARCHIVE_, Copie de, -NEW-, DRAFT
+
+[storage]
+local_path = C:\sinapse-specs-test
+
+[convert]
+library = marklas            ; marklas | pyadf
+strict_unknown_nodes = true  ; tout noeud non couvert par le normalizer = erreur au rapport
+
+[run]
+schema_version = 1
+last_run = 2020-01-01T00:00:00Z

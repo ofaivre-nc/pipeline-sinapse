@@ -33,17 +33,46 @@ description: Règles de code pour le pipeline Python
 - API REST Confluence v2 (`/wiki/api/v2`), Basic Auth (email + token).
 - Corps en `atlas_doc_format` : `body.atlas_doc_format.value` est une **chaîne JSON**,
   double parsing obligatoire.
-- HTTP 429 : backoff exponentiel en respectant `Retry-After`, concurrence plafonnée.
 - Pagination v2 : suivre `_links.next` jusqu'à épuisement.
+
+### Backoff — trois familles, pas une
+
+Le backoff exponentiel couvre **obligatoirement** les trois, avec concurrence plafonnée :
+
+| Cas | Traitement |
+|---|---|
+| HTTP 429 | backoff exponentiel en respectant `Retry-After` |
+| `requests.exceptions.Timeout` | backoff exponentiel |
+| `requests.exceptions.ConnectionError` | backoff exponentiel |
+
+**Ne pas couvrir `Timeout` et `ConnectionError` fait disparaître des pages en silence.**
+Le run complet du 4 août 2026 a perdu une page sur un timeout transitoire — elle repasse
+en 0,3 s au réessai. Cette page n'est donc pas classée, n'est pas exportée, et rien dans
+le corpus ne signale son absence. À raison d'un run quotidien, ce sont des specs qui
+sortent du radar sans que personne ne le remarque.
+
+Une page perdue après épuisement des tentatives n'est pas une exception qui remonte :
+elle est listée au rapport avec son motif et retentée au run suivant (voir ci-dessous).
 
 ## Robustesse du run
 
-- Une page en échec **n'interrompt pas** le run : elle est listée au rapport et retentée
-  au run suivant.
-- Tout ce qui est anormal finit dans le rapport `.md` + `.json` : pages en échec avec motif,
-  multiexcerpts non résolus, nœuds non couverts, avertissements de parsing, pages non
-  classifiées, durée.
+| Sujet | Règle |
+|---|---|
+| Écriture | atomique (temporaire + `os.replace()`) — jamais de `.md` partiel visible |
+| Fichiers inchangés | **write-if-changed**, sinon SharePoint resynchronise tout le corpus chaque jour |
+| Verrous OneDrive | `PermissionError` retenté après une courte pause |
+| Rate limit et réseau | backoff exponentiel sur 429, `Timeout` et `ConnectionError` ; concurrence plafonnée |
+| Reprise | une page en échec **n'interrompt pas** le run : listée au rapport, retentée au run suivant |
+| Rapport | `.md` humain + `.json` machine |
+| Tests | `pipeline/fixtures/` rejouées à chaque modification du normalizer |
+| Horodatage | un run partiel ne doit pas pouvoir écraser le rapport d'un run complet du même jour |
+
+- Tout ce qui est anormal finit dans le rapport `.md` + `.json` : pages exportées /
+  ignorées / en échec avec motif, inclusions non résolues, nœuds non couverts,
+  avertissements de parsing, pages non classifiées, durée.
 - `parse_status` par page dans l'index croisé : `ok` / `partial` / `failed`, jamais absent.
+- **Nommage des fichiers** : les titres contiennent des caractères interdits sous Windows
+  (`SF-PERSONNE: …`). Slugification obligatoire, collisions détectées et signalées.
 
 ## Style
 

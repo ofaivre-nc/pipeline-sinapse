@@ -1,3 +1,42 @@
+> # ⚠ DOCUMENT ARCHIVÉ — NE PAS UTILISER COMME SOURCE
+>
+> **Remplacé le 5 août 2026 par `docs/reference-pipeline-sinapse.md`.**
+>
+> Ce brief est conservé pour une seule raison : il porte la **formulation d'origine** de
+> décisions qu'on voudra peut-être relire. Il n'est plus tenu à jour et contient des
+> éléments désormais **faux**.
+>
+> **Où est passé son contenu :**
+>
+> | Section du brief | Destination |
+> |---|---|
+> | §1 contexte, §6 impact skills, §7 séquencement, §8 questions ouvertes, §9 décisions | `docs/reference-pipeline-sinapse.md` |
+> | §2 organisation du code, arborescence, transport Git | `CLAUDE.md` |
+> | §2 `config.ini` | `config.ini.example` |
+> | §3 chaîne de conversion et table de normalisation | `contracts/normalisation_adf.md` |
+> | §4.1 `pages_inventory.json` | `contracts/pages_inventory.schema.json` |
+> | §4.2 `multiexcerpt_cache.json` | `contracts/reused_content_cache.schema.json` *(renommé : deux mécanismes)* |
+> | §4.3 `index_croise_{MODULE}.json` | `contracts/index_croise.schema.json` |
+> | §4.4 `mcd_sinapse_data` | `contracts/mcd_sinapse_data.schema.json` *(provisoire)* |
+> | §4.5 métadonnées des `.md` | `contracts/frontmatter.md` |
+> | §5 robustesse du run | `.claude/rules/python.md` |
+>
+> **Points de ce document devenus faux** — la liste complète des divergences est dans le
+> compte-rendu de redistribution ; les principaux :
+>
+> - §4.1 « module et type sont déduits du titre » : le **module** vient de l'ascendance,
+>   le titre n'est qu'un repli. Le bac `unclassified` est largement remplacé par le type
+>   `A_QUALIFIER`.
+> - §4.2 le cache indexé par **nom seul** : le nom n'est pas unique dans le space
+>   (`habilitation` défini 5 fois). Clé `(page, nom)`.
+> - §4.2 ne connaît qu'un mécanisme de réutilisation : le corpus en porte **deux**, le
+>   second (`syncBlock`) avec la clé `(page_id, uuid)`.
+> - §3 « `extension` TOC → supprimé » et le traitement de `nested-table` : ce nœud est
+>   **intégralement récupérable** via `parameters.adf`, il ne déclasse pas la page.
+> - §5 backoff sur le seul HTTP 429 : `Timeout` et `ConnectionError` sont obligatoires.
+> - §1 et §2 « multiexcerpt » partout : le terme est trop étroit depuis la découverte des
+>   `syncBlock`.
+
 # Brief — Pipeline Python SINAPSE : export Confluence → .md + caches JSON
 
 **Version 3** — 2 août 2026

@@ -9,9 +9,14 @@ VERSION : 1.1 — inventaire des types de noeuds, des macros (extensionKey), des
 Objectif : fermer le perimetre du normalizer avant d'ecrire une seule ligne de conversion.
 
 Sorties (dans --out, par defaut ./recensement/) :
-  - recensement_adf_YYYYMMDD.json   donnees brutes exploitables
-  - recensement_adf_YYYYMMDD.md     rapport lisible a relire
-  - fixtures/{page_id}.json         ADF brut des pages echantillonnees (jeu de tests)
+  - recensement_adf_YYYYMMDD.{json,md}                 run COMPLET (perimetre par defaut)
+  - recensement_adf_YYYYMMDD-HHMMSS_pages.{json,md}    run partiel --pages
+  - recensement_adf_YYYYMMDD-HHMMSS_roots.{json,md}    run partiel --roots
+  - fixtures/{page_id}.json                            ADF brut (jeu de tests)
+
+Un run partiel ne peut pas ecraser le rapport d'un run complet du meme jour : il porte
+l'heure a la seconde et son mode, et son rapport s'annonce comme partiel des l'en-tete.
+Seul le run sur le perimetre par defaut porte le stamp court YYYYMMDD.
 
 Authentification :
   ATLASSIAN_EMAIL et ATLASSIAN_API_TOKEN en variables d'environnement,
@@ -36,7 +41,7 @@ from pathlib import Path
 import requests
 from requests.auth import HTTPBasicAuth
 
-VERSION = "1.1"
+VERSION = "1.2"
 BASE_URL = "https://sinapse-gie-nc.atlassian.net"
 API_V2 = f"{BASE_URL}/wiki/api/v2"
 
@@ -308,11 +313,21 @@ def new_stats():
 # Rapport
 # --------------------------------------------------------------------------
 
-def build_report(stats, pages, errors, elapsed, calls):
+def build_report(stats, pages, errors, elapsed, calls, mode="complet", args=None):
     L = []
     add = L.append
     add(f"# Recensement ADF — corpus SINAPSE\n")
     add(f"*Script recense_adf.py v{VERSION} — {datetime.now():%d/%m/%Y %H:%M}*\n")
+    # Un rapport partiel relu dans six mois doit se denoncer lui-meme : sans cet
+    # encart, un recensement de 3 pages se lit comme un recensement du corpus.
+    if mode == "complet":
+        add("Couverture : **corpus complet** (perimetre par defaut, groupes A et B).\n")
+    else:
+        cible = (args.pages or args.roots) if args else "?"
+        add(f"> ⚠ **RUN PARTIEL** (`--{mode} {cible}`). Ce rapport **ne couvre pas le "
+            f"corpus** : les totaux ci-dessous ne valent que pour les pages listees en "
+            f"section 1. Le recensement complet le plus recent est le fichier "
+            f"`recensement_adf_YYYYMMDD.*` sans suffixe.\n")
     add(f"- Pages analysees : **{len(pages)}**")
     add(f"- Appels API : {calls} — duree : {elapsed:.1f}s")
     add(f"- Types de noeuds distincts : **{len(stats['node_types'])}**")
@@ -488,6 +503,32 @@ def build_report(stats, pages, errors, elapsed, calls):
 # Main
 # --------------------------------------------------------------------------
 
+def mode_du_run(args):
+    """Mode de couverture du run, qui determine le nom des fichiers de sortie.
+
+    "complet" est reserve au run sur le perimetre par defaut : c'est le seul qui
+    peut pretendre couvrir le corpus.
+    """
+    if args.pages:
+        return "pages"
+    if args.roots:
+        return "roots"
+    return "complet"
+
+
+def stamp_sortie(mode, maintenant=None):
+    """Suffixe de nom de fichier.
+
+    Un run partiel ne doit JAMAIS pouvoir ecraser le rapport d'un run complet du meme
+    jour : il porte l'heure a la seconde et son mode. Le run complet garde le stamp
+    court YYYYMMDD, qui est la forme citee par CLAUDE.md et par les contrats.
+    """
+    maintenant = maintenant or datetime.now()
+    if mode == "complet":
+        return maintenant.strftime("%Y%m%d")
+    return f"{maintenant:%Y%m%d-%H%M%S}_{mode}"
+
+
 def select_sample(client, roots, max_pages, per_type):
     """Echantillon equilibre : au plus per_type pages par type de spec."""
     candidates = []
@@ -528,6 +569,7 @@ def main():
     fixtures = out_dir / "fixtures"
     fixtures.mkdir(parents=True, exist_ok=True)
 
+    mode = mode_du_run(args)
     client = Confluence(args.email, args.token)
     started = time.time()
 
@@ -564,11 +606,14 @@ def main():
             errors.append((pid, str(exc)))
 
     elapsed = time.time() - started
-    stamp = datetime.now().strftime("%Y%m%d")
+    stamp = stamp_sortie(mode)
 
     payload = {
         "script_version": VERSION,
         "generated_at": datetime.now().isoformat(),
+        "mode": mode,
+        "couverture_complete": mode == "complet",
+        "cible_demandee": args.pages or args.roots or "perimetre par defaut",
         "pages_analysees": pages,
         "erreurs": errors,
         "node_types": dict(stats["node_types"]),
@@ -589,12 +634,16 @@ def main():
     json_path = out_dir / f"recensement_adf_{stamp}.json"
     md_path = out_dir / f"recensement_adf_{stamp}.md"
     json_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-    md_path.write_text(build_report(stats, pages, errors, elapsed, client.calls), encoding="utf-8")
+    md_path.write_text(
+        build_report(stats, pages, errors, elapsed, client.calls, mode, args),
+        encoding="utf-8")
 
-    print(f"\nTermine en {elapsed:.1f}s — {client.calls} appels API")
+    print(f"\nTermine en {elapsed:.1f}s - {client.calls} appels API - mode {mode}")
     print(f"  rapport  : {md_path}")
     print(f"  donnees  : {json_path}")
     print(f"  fixtures : {fixtures}/ ({len(pages)} fichiers ADF)")
+    if mode != "complet":
+        print("  run PARTIEL : ne couvre pas le corpus, n'ecrase aucun run complet")
 
 
 if __name__ == "__main__":

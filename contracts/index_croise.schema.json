@@ -1,0 +1,168 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sinapse.nc/contracts/index_croise.schema.json",
+  "title": "index_croise_{MODULE}.json",
+  "description": "Agregation structuree d'un module, permettant aux skills de travailler sans relire Confluence ni reparser les pages. Un fichier par module, ecrit dans {local_path}/cache/. CONSTRUIT DEPUIS L'ADF RESOLU, PAS DEPUIS LE .md : les tableaux markdown perdent leur structure des qu'une cellule contient une liste ou un saut de ligne — precisement le cas des tableaux IHM 5 colonnes et MDD 9 colonnes (467 cellules concernees dans le corpus, plus 6 colspan et 10 rowspan). FRONTIERE : le pipeline produit des FAITS et des recoupements mecaniques ; verdicts, severites et scores restent dans les skills, sinon changer un seuil impose de redeployer le pipeline.",
+  "type": "object",
+  "required": ["module", "schema_version", "pipeline_version", "generated_at", "pages"],
+  "additionalProperties": false,
+  "properties": {
+    "module": {
+      "type": "string",
+      "description": "Code module sans prefixe SF- (ex. \"PERSONNE\"). Le point est significatif : COMPTE et COMPTE.INTERNET sont deux modules distincts."
+    },
+    "schema_version": {
+      "const": 1,
+      "description": "Version de CE schema. Un skill qui lit une autre valeur doit s'arreter, pas deviner."
+    },
+    "pipeline_version": { "type": "string" },
+    "generated_at": { "type": "string", "format": "date-time" },
+
+    "pages": {
+      "type": "object",
+      "description": "Pages du module par type. MDD et RG sont uniques par module ; CU, API et JOB sont des listes. Toute page porte OBLIGATOIREMENT son parse_status.",
+      "additionalProperties": false,
+      "properties": {
+        "MDD": { "$ref": "#/$defs/page_ref" },
+        "RG": { "$ref": "#/$defs/page_ref" },
+        "CU": { "type": "array", "items": { "$ref": "#/$defs/page_ref" } },
+        "API": { "type": "array", "items": { "$ref": "#/$defs/page_ref" } },
+        "JOB": { "type": "array", "items": { "$ref": "#/$defs/page_ref" } }
+      }
+    },
+
+    "entites": {
+      "type": "array",
+      "description": "Entites du MDD et leurs attributs. Extrait du tableau 9 colonnes.",
+      "items": {
+        "type": "object",
+        "required": ["id"],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Identifiant qualifie, ex. \"PERSONNE.PP\"."
+          },
+          "attributs": { "type": "array", "items": { "type": "string" } },
+          "source_page_id": { "type": "string", "pattern": "^[0-9]+$" }
+        }
+      }
+    },
+
+    "regles": {
+      "type": "array",
+      "description": "Regles de gestion et leur recoupement mecanique entre RG, CU et API. Les trois champs de croisement sont des FAITS : la page cite ou ne cite pas la regle. Aucun verdict.",
+      "items": {
+        "type": "object",
+        "required": ["code", "existe_dans_rg"],
+        "additionalProperties": false,
+        "properties": {
+          "code": { "type": "string", "description": "Ex. \"RG-PERSONNE.PP-001\"." },
+          "categorie": { "type": ["string", "null"] },
+          "codes_erreur": { "type": "array", "items": { "type": "string" } },
+          "existe_dans_rg": {
+            "type": "boolean",
+            "description": "La regle est definie dans la page RG du module."
+          },
+          "citee_dans_cu": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Titres des CU qui la citent."
+          },
+          "citee_dans_api": { "type": "array", "items": { "type": "string" } },
+          "source": {
+            "enum": ["rg", "multiexcerpt", "sync_block", "cu", "api", null],
+            "description": "Origine de la definition. Une regle peut arriver par contenu reutilise : elle est alors definie ailleurs que sur la page RG du module."
+          }
+        }
+      }
+    },
+
+    "regles_orphelines": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Codes cites dans un CU ou un API sans definition dans le RG. Fait brut : c'est le skill qui decide si c'est grave."
+    },
+
+    "codes_erreur": { "type": "array", "items": { "type": "string" } },
+
+    "habilitations": {
+      "type": "object",
+      "description": "Habilitation relevee par page, telle qu'ecrite dans le cartouche. Le recoupement CU/API est fait par le skill.",
+      "additionalProperties": { "type": "string" }
+    },
+
+    "endpoints": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["methode", "path"],
+        "additionalProperties": false,
+        "properties": {
+          "methode": { "enum": ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"] },
+          "path": { "type": "string" },
+          "statut_attendu": { "type": ["integer", "null"] },
+          "source_page_id": { "type": "string", "pattern": "^[0-9]+$" }
+        }
+      }
+    },
+
+    "champs_ihm": {
+      "type": "array",
+      "description": "Champs des ecrans CU, par frame. Extrait des tableaux IHM 5 colonnes de l'ADF resolu — un tableau markdown les aurait aplatis.",
+      "items": {
+        "type": "object",
+        "required": ["page", "champ"],
+        "additionalProperties": false,
+        "properties": {
+          "page": { "type": "string" },
+          "frame": { "type": ["string", "null"] },
+          "champ": { "type": "string", "description": "Ex. \"_IHM_PERSONNE_PP_Nom_\"." },
+          "mdd_ref": {
+            "type": ["string", "null"],
+            "description": "Attribut MDD reference, ex. \"PERSONNE.PP.nom\". null si le champ n'en cite aucun — fait brut, pas verdict."
+          }
+        }
+      }
+    },
+
+    "rg_api_globales": {
+      "type": "object",
+      "description": "Presence des regles generiques API, par page API. Booleen = citee ou non.",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": { "type": "boolean" }
+      }
+    },
+
+    "warnings": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Avertissements de construction de l'index, repris au rapport de run."
+    }
+  },
+
+  "$defs": {
+    "page_ref": {
+      "type": "object",
+      "required": ["id", "parse_status"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "pattern": "^[0-9]+$" },
+        "title": { "type": ["string", "null"] },
+        "md_path": { "type": ["string", "null"] },
+        "parse_status": {
+          "enum": ["ok", "partial", "failed"],
+          "description": "OBLIGATOIRE, jamais absent. Sans lui, un skill lisant regles: [] ne peut pas distinguer « aucune regle » de « le parser a echoue », et produit un rapport entierement faux. REGLE IMPOSEE AUX SKILLS : une page en parse_status != ok n'est PAS scoree, elle est signalee. Un noeud nested-table ne declasse PAS en partial — son contenu est integralement recuperable via parameters.adf."
+        },
+        "warnings": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Ex. \"tableau §3 : 6 colonnes trouvees, 5 attendues (ligne 12)\"."
+        }
+      }
+    }
+  },
+
+  "$comment": "ETAT D'IMPLEMENTATION au 5 aout 2026 — non implemente. Etape 5 du sequencement, a valider sur le module PERSONNE : nombre de regles coherent avec le RG, une regle orpheline connue qui apparait, habilitations CU/API conformes aux cartouches, parse_status correct sur une page volontairement degradee. Ce schema reprend la structure du brief v3 §4.3, complete de source_page_id, du champ `source` sur les regles (une regle peut arriver par contenu reutilise) et de parse_status: failed."
+}

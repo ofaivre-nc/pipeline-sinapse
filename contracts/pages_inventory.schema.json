@@ -1,0 +1,159 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sinapse.nc/contracts/pages_inventory.schema.json",
+  "title": "pages_inventory.json",
+  "description": "Inventaire complet du perimetre Confluence SINAPSE, base de la detection de delta. Ecrit dans {local_path}/cache/. Produit par pipeline/src/inventory.py ; les regles de classification sont dans contracts/classification_pages.md, qui fait foi sur la semantique des champs. Le delta se fait par version.number, jamais par date : lastmodified est a la minute, sensible au fuseau, et ne bouge pas sur certains deplacements.",
+  "type": "object",
+  "required": ["generated_at", "schema_version", "inventory_version", "pages"],
+  "additionalProperties": false,
+  "properties": {
+    "generated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Horodatage de production de l'inventaire."
+    },
+    "schema_version": {
+      "const": 1,
+      "description": "Version de CE schema. Un skill qui lit une autre valeur doit s'arreter, pas deviner."
+    },
+    "inventory_version": {
+      "type": "string",
+      "description": "Version du module inventory.py ayant produit le fichier (ex. \"1.1\")."
+    },
+    "source": {
+      "type": "string",
+      "description": "Origine des metadonnees de pages : nom du fichier de recensement, ou \"confluence\" pour un run reel."
+    },
+    "pages": {
+      "type": "object",
+      "description": "Pages du perimetre, indexees par identifiant Confluence. Toute page collectee figure ici, y compris exclue ou non typee : l'inventaire est la base du delta, en sortir une page la ferait passer pour supprimee.",
+      "propertyNames": { "pattern": "^[0-9]+$" },
+      "additionalProperties": { "$ref": "#/$defs/page" }
+    },
+    "unclassified": {
+      "type": "array",
+      "description": "REDEFINI par rapport au brief v3 §4.1, qui y envoyait toute page non classifiable. Ce bac est desormais reserve aux pages dont les METADONNEES SONT INEXPLOITABLES : titre absent, chaine d'ascendance rompue, identifiant non numerique. Une page simplement non classifiable — correctement inventoriee mais qu'aucune regle mecanique ne sait nommer — RESTE DANS `pages`, avec le type A_QUALIFIER. RAISON : `pages` est la base du delta par version.number. Une page qui en sort est indistinguable d'une page supprimee ; elle serait traitee comme telle au run suivant, son .md efface, et elle reviendrait comme une creation au run d'apres. Sortir une page de `pages` doit donc rester l'exception, reservee au cas ou l'on ne dispose meme pas de quoi la suivre. Toute entree ici figure aussi au rapport de run.",
+      "items": {
+        "type": "object",
+        "required": ["id", "reason"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^[0-9]+$" },
+          "title": { "type": ["string", "null"] },
+          "reason": {
+            "type": "string",
+            "description": "Motif en clair, destine au rapport (ex. \"titre absent\")."
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "page": {
+      "type": "object",
+      "required": [
+        "id", "title", "version", "parent_id", "group", "type",
+        "exported", "content_source", "scored", "excluded", "warnings"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[0-9]+$",
+          "description": "Identifiant Confluence. Doit etre egal a la cle de l'entree."
+        },
+        "title": {
+          "type": "string",
+          "description": "Titre NORMALISE : html.unescape() puis repli des tirets Unicode (U+2010-U+2015, U+2212, U+FE58, U+FF0D) vers l'ASCII. NFKC seul ne suffit pas. C'est cette forme qui sert a tout filtrage."
+        },
+        "title_raw": {
+          "type": ["string", "null"],
+          "description": "Titre brut, renseigne UNIQUEMENT si la normalisation l'a modifie. C'est la trace qui permet de retrouver la page dans Confluence, ou le titre brut reste affiche."
+        },
+        "version": {
+          "type": ["integer", "null"],
+          "minimum": 1,
+          "description": "version.number Confluence. Seule base du delta."
+        },
+        "parent_id": {
+          "type": ["string", "null"],
+          "pattern": "^[0-9]+$",
+          "description": "Parent direct. La chaine des parent_id remonte jusqu'a une racine de perimetre ; c'est de la que derivent le groupe, le type residuel, le module et l'heritage d'exclusion. Aucun appel a l'endpoint ancetres n'est necessaire."
+        },
+        "parent_title": {
+          "type": ["string", "null"],
+          "description": "Titre du parent direct, pour lisibilite des rapports."
+        },
+        "root_id": {
+          "type": ["string", "null"],
+          "pattern": "^[0-9]+$",
+          "description": "Racine de perimetre atteinte : 1474581 ou 1277977 (groupe A), 1245499, 1310723 ou 219086849 (groupe B). null si aucune."
+        },
+        "group": {
+          "enum": ["A", "B", "hors_perimetre"],
+          "description": "A = specs fonctionnelles, B = documentation, hors_perimetre = aucune racine connue atteinte. Derive de l'ascendance, jamais du titre."
+        },
+        "type": {
+          "enum": [
+            "CU", "RG", "MDD", "API", "JOB",
+            "UX", "GENERIQUE", "SA", "MODULE", "DOMAINE",
+            "REFERENTIEL", "A_QUALIFIER", "DOCUMENTATION", "HORS_PERIMETRE"
+          ],
+          "description": "14 valeurs. Les 5 premieres sont les types de specs scorables. UX et GENERIQUE, SA, MODULE (SF-*), DOMAINE (Q-*) sont exportes et sources de contenu sans etre scores. Les 4 dernieres sont les types RESIDUELS, un par groupe, jamais partages : REFERENTIEL (groupe A, racine A2 hors sous-arbre UX), A_QUALIFIER (groupe A, racine A1 — ANOMALIE a resorber), DOCUMENTATION (groupe B, normal), HORS_PERIMETRE. DOC-* et TAB-* sont reserves et volontairement absents : un motif pour un type inexistant est un faux positif qui attend son heure."
+        },
+        "module": {
+          "type": ["string", "null"],
+          "description": "Code module sans le prefixe SF- (ex. \"PERSONNE\", \"COMPTE.INTERNET\"). Le point est significatif : SF-COMPTE et SF-COMPTE.INTERNET sont deux modules distincts. null est normal pour un DOMAINE ou une page UX."
+        },
+        "module_source": {
+          "enum": ["ascendance", "titre", null],
+          "description": "Origine du module. L'ascendance (plus proche ancetre SF-*) est prioritaire ; le titre n'est qu'un repli. Un desaccord entre les deux produit un avertissement, jamais un choix silencieux."
+        },
+        "exported": {
+          "type": "boolean",
+          "description": "La page part en .md dans specs/ (groupe A) ou docs/ (groupe B)."
+        },
+        "content_source": {
+          "type": "boolean",
+          "description": "Son ADF est parse et indexable comme source de multiexcerpt ou de syncBlock. TOUTE page du groupe A l'est, quel que soit son type : une definition peut vivre n'importe ou dans l'arbre des specs, et un faux negatif casse une inclusion en silence."
+        },
+        "scored": {
+          "type": "boolean",
+          "description": "La page est soumise aux skills de validation. Une page exclue ne l'est jamais. Une page en parse_status != ok n'est pas scoree non plus : elle est signalee."
+        },
+        "excluded": {
+          "type": "boolean",
+          "description": "Exclue du perimetre effectif. Reste inventoriee, avec son motif."
+        },
+        "exclusion_reason": {
+          "type": ["string", "null"],
+          "description": "Motif en clair. Pour une exclusion heritee, NOMME la page ancetre responsable : \"heritee de « Archive CU-COMPTE (...) » (109281281), prefixe « Archive »\"."
+        },
+        "exclusion_source_id": {
+          "type": ["string", "null"],
+          "pattern": "^[0-9]+$",
+          "description": "Page responsable de l'exclusion : la page elle-meme, ou l'ancetre dont elle herite. Evite de reconstituer la chaine pour savoir quoi corriger dans Confluence."
+        },
+        "exclusion_inherited": {
+          "type": "boolean",
+          "description": "Vrai si l'exclusion vient d'un ancetre et non du titre de la page. Seule l'exclusion par prefixe de titre est heritee ; exclude_page_ids reste nominative."
+        },
+        "md_path": {
+          "type": ["string", "null"],
+          "description": "Chemin du .md relatif a local_path (ex. \"specs/CU-PERSONNE-MODIFIER.md\"). Renseigne a l'export. Les titres contiennent des caracteres interdits sous Windows (\"SF-PERSONNE: ...\") : slugification obligatoire, collisions detectees et signalees. NON PRODUIT par inventory.py v1.1 — voir la note d'implementation en fin de fichier."
+        },
+        "last_exported": {
+          "type": ["string", "null"],
+          "format": "date-time",
+          "description": "Horodatage du dernier export effectif de cette page. NON PRODUIT par inventory.py v1.1."
+        },
+        "warnings": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Faits anormaux mais non bloquants, en clair, tous repris au rapport de run : module ambigu entre ascendance et titre, type de spec suggere par le titre mais ignore parce que la page est du groupe B, racine sans type residuel declare, page hors perimetre."
+        }
+      }
+    }
+  },
+  "$comment": "ETAT D'IMPLEMENTATION au 5 aout 2026 — inventory.py v1.1 produit tous les champs de classification, mais son CLI emet un tableau de pages a plat (dump de mise au point), pas encore la carte indexee par identifiant decrite ici, et ne renseigne ni md_path ni last_exported ni unclassified. L'assemblage de pages_inventory.json arrive avec la slugification et le delta, qui closent l'etape 3."
+}
