@@ -193,6 +193,10 @@ def tests_slugification():
 
 
 # Mesures de contracts/slugification.md §11, epinglees par le test ci-dessous.
+# Ces valeurs sont derivees du corpus FIGE au 5 aout, pas de Confluence. Le jour ou
+# la fixture sera rafraichie, elles doivent etre re-derivees DELIBEREMENT — jamais
+# recopiees depuis la sortie du script, ce qui reviendrait a valider la regression
+# qu'elles existent pour attraper.
 MESURES_ATTENDUES = {
     "pages exportees": 232,
     "collisions": 0,
@@ -231,10 +235,23 @@ def _md_path(page, par_id, meres, doublement_force=False):
     return f"{racine}/" + "/".join(segments) + ".md"
 
 
+def meres_exportantes(pages):
+    """Identifiants des pages ayant au moins une fille EXPORTEE — contrat §10.
+
+    Filles exportees seulement : une mere dont toutes les filles sont exclues n'a pas
+    de repertoire, il ne contiendrait que son propre fichier. Cas reel du corpus :
+    CU-PERSONNE-CONSULTER, dont l'unique fille est ARCHIVE_CU-DOSS-CONSULT.
+
+    Fonction partagee par mesures_corpus() et par le test dedie : les separer ferait
+    passer le test alors que l'assemblage mesure, lui, aurait regresse.
+    """
+    return {p["parent_id"] for p in pages if p.get("parent_id") and p["exported"]}
+
+
 def mesures_corpus(pages):
     """Les 7 mesures du §11 sur un dump de classification."""
     par_id = {p["id"]: p for p in pages}
-    meres = {p["parent_id"] for p in pages if p.get("parent_id")}
+    meres = meres_exportantes(pages)
     exportees = [p for p in pages if p["exported"]]
     chemins = [_md_path(p, par_id, meres) for p in exportees]
     forces = [_md_path(p, par_id, meres, doublement_force=True) for p in exportees]
@@ -302,6 +319,53 @@ def test_non_regression_corpus():
     echecs += check(pointes > 50,
                     f"l'invariant du point doit porter sur un echantillon consequent, "
                     f"{pointes} titres pointes trouves")
+
+    echecs += tests_mere_sans_fille_exportee(pages)
+    return echecs
+
+
+def tests_mere_sans_fille_exportee(pages_corpus):
+    """Une mere dont toutes les filles sont exclues ne prend PAS de repertoire.
+
+    Contrat §10. Aucune des sept mesures du §11 ne couvre ce cas : elles sont
+    identiques dans les deux lectures. C'est ce qui le rend dangereux — pris a la
+    lettre, « page avec filles » fabrique un repertoire a fichier unique.
+    """
+    echecs = 0
+
+    def mere(pid, titre, parent, exportee=True):
+        return {"id": pid, "title": titre, "parent_id": parent, "group": "A",
+                "exported": exportee}
+
+    # Mere + unique fille exclue -> la mere n'a pas de repertoire.
+    cas = [mere("10", "CU-X", "1"), mere("11", "Archive CU-Y", "10", exportee=False)]
+    par_id = {p["id"]: p for p in cas}
+    meres = meres_exportantes(cas)
+    chemin = _md_path(par_id["10"], par_id, meres)
+    echecs += check(chemin.endswith("/CU-X.md") and "/CU-X/" not in chemin,
+                    f"mere a fille unique exclue : attendu CU-X.md, obtenu {chemin}")
+
+    # La meme mere, sa fille exportee : le repertoire apparait.
+    cas[1]["exported"] = True
+    meres = meres_exportantes(cas)
+    chemin = _md_path(par_id["10"], par_id, meres)
+    echecs += check(chemin.endswith("/CU-X/CU-X.md"),
+                    f"mere a fille exportee : attendu CU-X/CU-X.md, obtenu {chemin}")
+
+    # Le cas reel du corpus : CU-PERSONNE-CONSULTER, unique fille archivee.
+    par_id = {p["id"]: p for p in pages_corpus}
+    reelle = par_id.get("324730881")
+    if reelle:
+        filles = [p for p in pages_corpus if p.get("parent_id") == "324730881"]
+        echecs += check(filles and not any(f["exported"] for f in filles),
+                        "CU-PERSONNE-CONSULTER doit n'avoir que des filles exclues")
+        meres = meres_exportantes(pages_corpus)
+        chemin = _md_path(reelle, par_id, meres)
+        echecs += check(chemin.endswith("/CU-PERSONNE-CONSULTER.md")
+                        and "/CU-PERSONNE-CONSULTER/" not in chemin,
+                        f"cas reel : pas de repertoire a fichier unique, obtenu {chemin}")
+    else:
+        echecs += check(False, "CU-PERSONNE-CONSULTER (324730881) absente de la fixture")
     return echecs
 
 

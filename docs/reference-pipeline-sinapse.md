@@ -1,7 +1,7 @@
 # Pipeline SINAPSE — document de référence
 
 *Document unique de la conversation de conception. Remplace `brief-pipeline-sinapse-v3.md`, archivé dans `docs/archive/`. Il succède aussi à un document de reprise de contexte antérieur, qui n'a vécu que dans l'espace de conversation : il n'en existe aucune trace dans le dépôt, inutile de l'y chercher.*
-*Mis à jour le 7 août 2026 — règle de slugification arrêtée.*
+*Mis à jour le 7 août 2026 — arborescence du dépôt inscrite, et « page avec filles » précisé en « avec au moins une fille exportée ».*
 
 ---
 
@@ -11,14 +11,55 @@ Ce document porte **ce qui a été décidé et pourquoi**. Il n'est vérifiable 
 
 Le détail technique — **ce qui existe** — vit dans le dépôt, maintenu par Claude Code et vérifiable contre le code :
 
-| Fichier du dépôt | Contenu |
-|---|---|
-| `CLAUDE.md` | organisation du code, instructions de session |
-| `.claude/rules/python.md` | règles de robustesse du run |
-| `contracts/normalisation_adf.md` | table de normalisation ADF |
-| `contracts/classification_pages.md` | règles de classification des pages |
-| `contracts/*.schema.json` | schémas des caches JSON |
-| `contracts/frontmatter.md` | métadonnées des `.md` exportés |
+```
+C:\dev\sinapse-claude\
+├── CLAUDE.md                    instructions de session
+├── CLAUDE.local.md              spécificités machine — non versionné
+├── config.ini.example           gabarit ; pipeline/config.ini non versionné
+├── .gitignore
+│
+├── .claude/
+│   ├── rules/python.md          règles Python, robustesse du run
+│   ├── settings.json            permissions du projet — versionné
+│   ├── settings.local.json      préférences du poste — non versionné
+│   └── skills/                  vide — rapatriement à l'étape 10
+│
+├── contracts/                   LE CONTRAT pipeline ↔ skills
+│   ├── classification_pages.md
+│   ├── normalisation_adf.md
+│   ├── slugification.md
+│   ├── frontmatter.md
+│   ├── pages_inventory.schema.json
+│   ├── reused_content_cache.schema.json
+│   ├── index_croise.schema.json
+│   └── mcd_sinapse_data.schema.json     PROVISOIRE
+│
+├── docs/
+│   ├── reference-pipeline-sinapse.md    ce document
+│   ├── guide_implementation_skills_sinapse_v4.md
+│   └── archive/                         brief v3, première séance
+│
+├── pipeline/
+│   ├── src/
+│   │   ├── recense_adf.py       v1.2 — porte la couche HTTP en attendant
+│   │   │                        confluence_client
+│   │   ├── inventory.py         v1.2 — classification + slugification
+│   │   └── multiexcerpt.py      v1.1 — clés des 3 mécanismes
+│   ├── tests/
+│   │   ├── test_inventory.py        `python pipeline/tests/test_inventory.py`
+│   │   └── test_multiexcerpt.py     ou `python -m pytest` ; sans dépendance
+│   └── fixtures/
+│       ├── 9 fixtures ADF figées (.json)
+│       ├── pages_classification_20260805.json   corpus de non-régression
+│       └── README.md
+│
+├── build/                       vide — make_skill_zip.py à venir
+├── tools/                       vide
+└── recensement/                 NON VERSIONNÉ, ~37 Mo, régénérable en 93 s
+                                 sert aussi de boîte de dépôt — voir §9
+```
+
+Les modules annoncés par le brief archivé et encore absents — `main`, `confluence_client`, `normalizer`, `renderer`, `index_builder`, `mcd`, `report` — sont tous en aval de l'étape 3. `pipeline/CLAUDE.md`, prévu par l'arborescence du brief, n'a jamais été créé : `.claude/rules/python.md`, ciblé par chemin, remplit le même rôle.
 
 **Règle** : si ce document et le dépôt divergent sur un fait technique, le dépôt a raison. S'ils divergent sur une décision ou sa justification, ce document a raison.
 

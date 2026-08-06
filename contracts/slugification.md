@@ -218,9 +218,23 @@ pour le groupe B.
 
 | Cas | Forme |
 |---|---|
-| Page **avec** filles | `{…ancêtres}/{slug}/{slug}.md` |
-| Page **sans** fille | `{…ancêtres}/{slug}.md` |
+| Page ayant au moins une fille **exportée** | `{…ancêtres}/{slug}/{slug}.md` |
+| Page sans fille exportée | `{…ancêtres}/{slug}.md` |
 | Ancêtre, quel qu'il soit | contribue **un** segment `{slug}/` |
+
+**« Avec filles » signifie « avec au moins une fille exportée ».** Une page dont
+toutes les filles sont exclues n'a pas de répertoire : il ne contiendrait que
+son propre fichier. Le cas existe — `CU-PERSONNE-CONSULTER` n'a qu'une fille,
+archivée.
+
+**Conséquence à signaler au rapport, au même titre que l'arrivée d'une première
+fille** : préfixer une fille unique par `Archive` dans Confluence ramène le
+`.md` de sa mère de `{slug}/{slug}.md` à `{slug}.md`, alors que la mère n'a pas
+bougé. C'est un déplacement, pas une suppression suivie d'une création.
+
+Aucune des sept mesures du §11 ne dépend de ce choix : elles sont identiques
+dans les deux lectures. C'est ce qui rend le point dangereux — il ne se signale
+nulle part et se recopie tel quel dans l'assembleur.
 
 Les segments d'ancêtres ne sont **jamais** doublés : le doublement ne concerne
 que le fichier propre d'une page mère.
