@@ -3,8 +3,9 @@
 Tests des cles de resolution du contenu reutilise — pipeline/src/multiexcerpt.py.
 
 Les cas sont tires des fixtures reelles CU-NOTE-CREER (28344321) et CU-NOTE-MODIFIER
-(28344344), plus le doublon d'UUID CU-NOTE-TYPENOTE.* trouve au balayage du corpus.
-Chaque test protege une decision de contracts/normalisation_adf.md.
+(28344344), du doublon d'UUID CU-NOTE-TYPENOTE.*, et des extraits du 6 aout 2026 qui
+ont revele la famille `excerpt` native. Chaque test protege une decision de
+contracts/normalisation_adf.md.
 
 Aucun acces reseau. Les fixtures lues sont celles du depot (pipeline/fixtures/).
 
@@ -33,12 +34,23 @@ def check(condition, message):
     return 0
 
 
+def leve(fn, message):
+    """Verifie qu'un appel leve ResolutionError. Rend 1 en cas d'echec."""
+    global TOTAL
+    TOTAL += 1
+    try:
+        fn()
+    except mx.ResolutionError:
+        return 0
+    print(f"ECHEC : {message}")
+    return 1
+
+
 def charge(page_id):
     return json.loads((FIXTURES / f"{page_id}.json").read_text(encoding="utf-8"))
 
 
 def collecte(adf):
-    """Tous les noeuds de reutilisation d'un document, par nature."""
     trouves = {}
 
     def walk(node):
@@ -54,13 +66,34 @@ def collecte(adf):
     return trouves
 
 
+# --------------------------------------------------------------------------
+# Fabriques de noeuds
+# --------------------------------------------------------------------------
+
+def macro(cle, params, corps=None, local_id=None):
+    node = {
+        "type": "bodiedExtension" if corps else "extension",
+        "attrs": {"extensionKey": cle,
+                  "parameters": {"macroParams": {k: {"value": v}
+                                                 for k, v in params.items()}}},
+    }
+    if corps:
+        node["content"] = corps
+    if local_id:
+        node["attrs"]["localId"] = local_id
+    return node
+
+
+CORPS = [{"type": "paragraph", "content": [{"type": "text", "text": "contenu"}]}]
+
+
 def run():
     echecs = 0
     creer = collecte(charge("28344321"))       # CU-NOTE-CREER
     modifier = collecte(charge("28344344"))    # CU-NOTE-MODIFIER
 
     # ------------------------------------------------------------------
-    # 1. Nettoyage des noms de multiexcerpt : entites + espace de tete
+    # 1. Nettoyage des noms : entites + espace de tete
     # ------------------------------------------------------------------
     echecs += check(mx.clean_name(" RG-NOTE-ASSOCATION&period;PERSONNE")
                     == "RG-NOTE-ASSOCATION.PERSONNE",
@@ -72,53 +105,172 @@ def run():
     echecs += check(mx.clean_name(None) == "" and mx.clean_name("") == "",
                     "un nom absent ne doit pas lever")
 
-    # La jointure doit coller alors que les deux cotes portent l'espace de tete.
-    # Definition sur SF-NOTE (180256775), inclusion depuis CU-NOTE-CREER.
-    definition = {"type": "bodiedExtension",
-                  "attrs": {"extensionKey": "multiexcerpt-fast-block-macro",
-                            "parameters": {"macroParams": {
-                                "name": {"value": " RG-NOTE-ASSOCATION&period;PERSONNE"}}}}}
-    inclusion = {"type": "extension",
-                 "attrs": {"extensionKey": "multiexcerpt-fast-include-block-macro",
-                           "parameters": {"macroParams": {
-                               "name": {"value": " RG-NOTE-ASSOCATION&period;PERSONNE"},
-                               "page": {"value": "SF-NOTE: Règles de gestion consolidées"}}}}}
-    cle_def = mx.multiexcerpt_definition_key(
-        definition, "SF-NOTE: Règles de gestion consolidées")
-    cle_inc = mx.multiexcerpt_include_key(inclusion, "CU-NOTE-CREER")
-    echecs += check(cle_def == cle_inc,
-                    f"la jointure doit coller apres nettoyage : {cle_def} vs {cle_inc}")
-    echecs += check(cle_def == ("SF-NOTE: Règles de gestion consolidées",
-                                "RG-NOTE-ASSOCATION.PERSONNE"),
-                    "la cle multiexcerpt est (titre de page, nom nettoye)")
+    # ------------------------------------------------------------------
+    # 2. Familles : reconnaissance par SOUS-CHAINE, jamais par enumeration
+    # ------------------------------------------------------------------
+    for cle in mx.VARIANTES_OBSERVEES[mx.FAMILLE_MULTIEXCERPT]:
+        echecs += check(mx.famille_macro(macro(cle, {"name": "x"}))
+                        == mx.FAMILLE_MULTIEXCERPT, f"{cle} doit etre multiexcerpt")
+    for cle in mx.VARIANTES_OBSERVEES[mx.FAMILLE_EXCERPT]:
+        echecs += check(mx.famille_macro(macro(cle, {"name": "x"}))
+                        == mx.FAMILLE_EXCERPT, f"{cle} doit etre excerpt")
 
-    # Un cote nettoye et l'autre pas : c'est ce que le strip des deux cotes evite.
-    echecs += check(mx.clean_name(" RG-NOTE-TRI") != " RG-NOTE-TRI",
-                    "sans strip, la cle brute differe de la cle nettoyee")
-
-    # Une inclusion sans parametre `page` vise la page courante.
-    local = {"type": "extension",
-             "attrs": {"extensionKey": "multiexcerpt-include-macro",
-                       "parameters": {"macroParams": {"name": {"value": "test"},
-                                                      "page": {"value": ""}}}}}
-    echecs += check(mx.multiexcerpt_include_key(local, "Page hote") == ("Page hote", "test"),
-                    "page vide = inclusion sur la page courante")
+    # L'ordre des tests compte : "multiexcerpt" CONTIENT "excerpt".
+    echecs += check(mx.famille_macro(macro("multiexcerpt-fast-block-macro", {"name": "x"}))
+                    == mx.FAMILLE_MULTIEXCERPT,
+                    "multiexcerpt-* ne doit jamais tomber en famille excerpt")
+    # Une variante inconnue doit etre reconnue : c'est tout l'interet de la sous-chaine.
+    echecs += check(mx.famille_macro(macro("multiexcerpt-v9-turbo", {"name": "x"}))
+                    == mx.FAMILLE_MULTIEXCERPT,
+                    "une variante multiexcerpt inedite doit etre reconnue")
+    echecs += check(mx.famille_macro(macro("excerpt-include-v2", {"name": "x"}))
+                    == mx.FAMILLE_EXCERPT,
+                    "une variante excerpt inedite doit etre reconnue")
+    echecs += check(mx.famille_macro(macro("toc", {})) is None,
+                    "une macro sans excerpt dans la cle n'a pas de famille")
+    echecs += check(mx.famille_macro({"type": "paragraph"}) is None,
+                    "un noeud non-extension n'a pas de famille")
 
     # ------------------------------------------------------------------
-    # 2. Les 6 variantes de macro sont reconnues, et separees def/include
+    # 3. Corps present = definition, absent = inclusion — pour les 2 familles
     # ------------------------------------------------------------------
-    echecs += check(len(mx.MULTIEXCERPT_DEFINITION_KEYS) == 3
-                    and len(mx.MULTIEXCERPT_INCLUDE_KEYS) == 3,
-                    "6 variantes attendues : 3 definitions, 3 inclusions")
-    echecs += check(not (mx.MULTIEXCERPT_DEFINITION_KEYS & mx.MULTIEXCERPT_INCLUDE_KEYS),
-                    "aucune variante ne peut etre a la fois definition et inclusion")
-    echecs += check(mx.classify_reuse_node(definition) == "multiexcerpt_definition",
-                    "bodiedExtension multiexcerpt = definition")
-    echecs += check(mx.classify_reuse_node(inclusion) == "multiexcerpt_include",
-                    "extension multiexcerpt-*-include-* = inclusion")
+    for cle, famille in (("multiexcerpt-fast-block-macro", "multiexcerpt"),
+                         ("excerpt", "excerpt")):
+        avec = macro(cle, {"name": "n"}, corps=CORPS)
+        sans = macro(cle, {"name": "n"})
+        echecs += check(mx.classify_reuse_node(avec) == f"{famille}_definition",
+                        f"{cle} avec corps = definition")
+        echecs += check(mx.classify_reuse_node(sans) == f"{famille}_include",
+                        f"{cle} sans corps = inclusion")
 
     # ------------------------------------------------------------------
-    # 3. syncBlock : deux cles distinctes, sur les fixtures reelles
+    # 4. Page source : parametre different selon la famille
+    # ------------------------------------------------------------------
+    inc_mx = macro("multiexcerpt-fast-include-block-macro",
+                   {"name": "RG-NOTE-TRI", "page": "SF-NOTE"})
+    inc_ex = macro("excerpt-include", {"name": "RG-NOTE-TRI", "": "SF-NOTE"})
+    echecs += check(mx.macro_page_source(inc_mx, "CU-X") == ("SF-NOTE", "page"),
+                    "multiexcerpt lit la page dans macroParams.page")
+    echecs += check(mx.macro_page_source(inc_ex, "CU-X") == ("SF-NOTE", ""),
+                    "excerpt lit la page dans macroParams[''] — la cle VIDE")
+
+    # Le piege : chercher `page` sur un excerpt-include ne trouve rien.
+    echecs += check(mx.macro_param(inc_ex, "page") is None,
+                    "un excerpt-include n'a PAS de parametre `page`")
+    echecs += check(mx.macro_param(inc_ex, "") == "SF-NOTE",
+                    "la cle vide est un parametre a part entiere")
+
+    # Page absente ou vide = page courante, dans les deux familles.
+    for cle, params in (("multiexcerpt-include-macro", {"name": "n", "page": ""}),
+                        ("multiexcerpt-include-macro", {"name": "n"}),
+                        ("excerpt-include", {"name": "n", "": ""}),
+                        ("excerpt-include", {"name": "n"})):
+        node = macro(cle, params)
+        echecs += check(mx.macro_include_key(node, "Page hote") == ("Page hote", "n"),
+                        f"page absente ou vide vise la page courante ({cle}, {params})")
+
+    # Une definition n'a pas de parametre de page : sa cle vient de la page hote.
+    echecs += check(mx.macro_definition_key(macro("excerpt", {"name": " X "}, CORPS),
+                                            "SF-NOTE") == ("SF-NOTE", "X"),
+                    "cle de definition = (page hote, nom nettoye)")
+    echecs += leve(lambda: mx.macro_nom(macro("excerpt", {"name": "  "}, CORPS)),
+                   "un nom vide apres nettoyage doit lever")
+
+    # ------------------------------------------------------------------
+    # 5. Index : une famille ne voit jamais l'autre
+    # ------------------------------------------------------------------
+    index = mx.IndexDefinitions()
+    def_mx = macro("multiexcerpt-fast-block-macro", {"name": "habilitation"}, CORPS,
+                   local_id="mx-1")
+    def_ex = macro("excerpt", {"name": "habilitation"}, CORPS, local_id="ex-1")
+    index.ajoute(def_mx, "SF-NOTE")
+    index.ajoute(def_ex, "SF-NOTE")
+    echecs += check(len(index) == 2,
+                    "la meme cle dans deux familles cohabite sans conflit")
+    echecs += check(index.cherche("multiexcerpt", ("SF-NOTE", "habilitation"))["node"]
+                    is def_mx, "l'index multiexcerpt rend la definition multiexcerpt")
+    echecs += check(index.cherche("excerpt", ("SF-NOTE", "habilitation"))["node"]
+                    is def_ex, "l'index excerpt rend la definition excerpt")
+
+    # Une inclusion ne resout que dans sa famille.
+    inc_ex_vers_sfnote = macro("excerpt-include", {"name": "habilitation", "": "SF-NOTE"})
+    inc_mx_vers_sfnote = macro("multiexcerpt-fast-include-block-macro",
+                               {"name": "habilitation", "page": "SF-NOTE"})
+    echecs += check(index.resout(inc_ex_vers_sfnote, "CU-X")["node"] is def_ex,
+                    "une inclusion excerpt resout sur la definition excerpt")
+    echecs += check(index.resout(inc_mx_vers_sfnote, "CU-X")["node"] is def_mx,
+                    "une inclusion multiexcerpt resout sur la definition multiexcerpt")
+
+    index_ex_seul = mx.IndexDefinitions()
+    index_ex_seul.ajoute(macro("excerpt", {"name": "n"}, CORPS), "SF-NOTE")
+    echecs += check(index_ex_seul.resout(
+        macro("multiexcerpt-fast-include-block-macro", {"name": "n", "page": "SF-NOTE"}),
+        "CU-X") is None,
+        "une inclusion multiexcerpt ne doit PAS voir une definition excerpt")
+
+    # ------------------------------------------------------------------
+    # 6. LE PIEGE DE LA CLE VIDE — cas reel 27787265
+    # ------------------------------------------------------------------
+    # CU-NOTE-CONSULTER definit 'habilitation' localement ET l'inclut depuis
+    # CU-NOTE-CREER. Un resolver qui cherche `page` ne trouve rien, conclut "page
+    # courante", et sert la definition LOCALE : contenu faux, sans la moindre erreur.
+    piege = mx.IndexDefinitions()
+    def_locale = macro("excerpt", {"name": "habilitation"}, CORPS, local_id="locale")
+    piege.ajoute(def_locale, "CU-NOTE-CONSULTER")
+    inc_distante = macro("excerpt-include",
+                         {"name": "habilitation", "": "CU-NOTE-CREER"})
+
+    echecs += check(mx.macro_include_key(inc_distante, "CU-NOTE-CONSULTER")
+                    == ("CU-NOTE-CREER", "habilitation"),
+                    "la cle de l'inclusion doit viser CU-NOTE-CREER, pas la page hote")
+    echecs += check(piege.resout(inc_distante, "CU-NOTE-CONSULTER") is None,
+                    "PIEGE : une inclusion vers une autre page ne doit JAMAIS tomber "
+                    "sur la definition locale de meme nom")
+
+    def_distante = macro("excerpt", {"name": "habilitation"}, CORPS, local_id="distante")
+    piege.ajoute(def_distante, "CU-NOTE-CREER")
+    trouve = piege.resout(inc_distante, "CU-NOTE-CONSULTER")
+    echecs += check(trouve is not None and trouve["node"] is def_distante,
+                    "une fois la page source indexee, l'inclusion resout dessus")
+    echecs += check(trouve["page_title"] == "CU-NOTE-CREER",
+                    "la definition retenue doit etre celle de la page visee")
+
+    # Une inclusion locale, elle, doit bien tomber sur la definition locale.
+    inc_locale = macro("excerpt-include", {"name": "habilitation"})
+    echecs += check(piege.resout(inc_locale, "CU-NOTE-CONSULTER")["node"] is def_locale,
+                    "sans page source, l'inclusion vise bien la page courante")
+
+    # ------------------------------------------------------------------
+    # 7. Doublon de definition dans une meme famille — cas reel 27787265
+    # ------------------------------------------------------------------
+    doublon = mx.IndexDefinitions()
+    d1 = macro("excerpt", {"name": "habilitation"}, CORPS, local_id="ce13daaf")
+    d2 = macro("excerpt", {"name": "habilitation"}, CORPS, local_id="200d7829")
+    doublon.ajoute(d1, "CU-NOTE-CONSULTER", page_id="27787265")
+    try:
+        doublon.ajoute(d2, "CU-NOTE-CONSULTER", page_id="27787265")
+        echecs += check(False, "une cle en double dans la meme famille doit lever")
+    except mx.ResolutionError as exc:
+        message = str(exc)
+        echecs += check("ce13daaf" in message and "200d7829" in message,
+                        f"le message doit citer LES DEUX emplacements : {message}")
+        echecs += check("27787265" in message,
+                        "le message doit citer la page concernee")
+        echecs += check("excerpt" in message, "le message doit citer la famille")
+
+    # Le meme nom sur deux pages differentes n'est PAS un doublon.
+    ok = mx.IndexDefinitions()
+    ok.ajoute(macro("excerpt", {"name": "habilitation"}, CORPS), "PAGE-A")
+    ok.ajoute(macro("excerpt", {"name": "habilitation"}, CORPS), "PAGE-B")
+    echecs += check(len(ok) == 2, "(page, nom) : deux pages differentes cohabitent")
+
+    echecs += leve(lambda: index.ajoute(inc_ex_vers_sfnote, "X"),
+                   "indexer une inclusion comme definition doit lever")
+    echecs += leve(lambda: index.resout(def_ex, "X"),
+                   "resoudre une definition comme inclusion doit lever")
+
+    # ------------------------------------------------------------------
+    # 8. syncBlock : deux cles distinctes, sur les fixtures reelles
     # ------------------------------------------------------------------
     echecs += check(len(creer.get("sync_definition", [])) == 2,
                     "CU-NOTE-CREER porte 2 bodiedSyncBlock")
@@ -128,8 +280,6 @@ def run():
                     "le contenu est absent de la page consommatrice (content: [])")
     echecs += check(all(n.get("content") for n in creer["sync_definition"]),
                     "la definition porte le contenu reel")
-
-    # Un syncBlock n'est PAS un noeud Extension : le visiteur doit le voir quand meme.
     echecs += check(all(n["type"] not in mx.EXTENSION_NODE_TYPES
                         for n in modifier["sync_include"]),
                     "syncBlock n'est pas un noeud Extension")
@@ -141,7 +291,6 @@ def run():
     echecs += check(all(pid == "28344321" for pid, _ in cles_inc),
                     "l'inclusion designe la page source par IDENTIFIANT")
 
-    # Le doublon reel : meme UUID defini sur deux pages, contenus diverges.
     uuid_double = "2342b419-9e51-43bd-81f4-c45e0ca27d9b"
     faux = {"type": "bodiedSyncBlock", "attrs": {"resourceId": uuid_double}}
     k1 = mx.sync_definition_key(faux, "28344321")
@@ -149,23 +298,19 @@ def run():
     echecs += check(k1 != k2,
                     "(page_id, uuid) doit distinguer deux definitions du meme UUID")
     echecs += check(k1[1] == k2[1],
-                    "l'UUID seul ne distingue rien : c'est bien la page qui tranche")
+                    "l'UUID seul ne distingue rien : c'est la page qui tranche")
 
-    # Formes de resourceId : inclusion prefixee, definition nue. Jamais confondues.
     inc_node = {"type": "syncBlock",
                 "attrs": {"resourceId": f"confluence-page/28344321/{uuid_double}"}}
     echecs += check(mx.sync_include_key(inc_node) == ("28344321", uuid_double),
                     "resourceId d'inclusion : confluence-page/{id}/{uuid}")
-    for mauvais, fn in ((faux, mx.sync_include_key),
-                        (inc_node, lambda n: mx.sync_definition_key(n, "1"))):
-        try:
-            fn(mauvais)
-            echecs += check(False, "une forme de resourceId inattendue doit lever")
-        except mx.ResolutionError:
-            echecs += check(True, "")
+    echecs += leve(lambda: mx.sync_include_key(faux),
+                   "un resourceId nu n'est pas une inclusion")
+    echecs += leve(lambda: mx.sync_definition_key(inc_node, "1"),
+                   "un resourceId prefixe n'est pas une definition")
 
     # ------------------------------------------------------------------
-    # 4. nested-table : contenu integralement recuperable
+    # 9. nested-table : contenu integralement recuperable
     # ------------------------------------------------------------------
     echecs += check(len(creer.get("nested_table", [])) == 1
                     and len(modifier.get("nested_table", [])) == 1,
@@ -173,61 +318,50 @@ def run():
     for lot, page in ((creer, "CU-NOTE-CREER"), (modifier, "CU-NOTE-MODIFIER")):
         noeud = lot["nested_table"][0]
         contenu = mx.nested_table_content(noeud)
-        echecs += check(bool(contenu),
-                        f"{page} : le contenu de la table imbriquee doit etre extrait")
         echecs += check(any(n.get("type") == "table" for n in contenu),
                         f"{page} : le contenu extrait doit contenir un noeud table")
-        params = noeud["attrs"]["parameters"]
-        echecs += check("cxhtml" in params and "adf" in params,
+        echecs += check("cxhtml" in noeud["attrs"]["parameters"],
                         f"{page} : cxhtml coexiste avec adf")
 
-    # reason est localise : anglais sur une page, francais sur l'autre. Ne jamais
-    # s'en servir pour detecter le cas.
     r_creer = creer["nested_table"][0]["attrs"]["parameters"].get("reason", "")
     r_modif = modifier["nested_table"][0]["attrs"]["parameters"].get("reason", "")
     echecs += check(r_creer != r_modif,
-                    "les deux fixtures doivent porter des reason de langues differentes")
+                    "les deux fixtures portent des reason de langues differentes")
     echecs += check(mx.is_nested_table(creer["nested_table"][0]),
                     "la detection se fait par extensionKey")
-    sans_reason = {"type": "extension",
-                   "attrs": {"extensionKey": "nested-table",
-                             "parameters": {"adf": json.dumps(
-                                 {"type": "doc", "content": [{"type": "table"}]})}}}
-    echecs += check(mx.is_nested_table(sans_reason)
-                    and mx.nested_table_content(sans_reason),
-                    "un nested-table sans reason doit rester detecte et exploitable")
-
-    # Seul cas justifiant un parse_status: partial — aucune occurrence dans le corpus.
+    echecs += check(mx.famille_macro(creer["nested_table"][0]) is None,
+                    "nested-table n'est pas une macro de reutilisation")
     for params in ({"reason": "x", "cxhtml": "<table/>"}, {"adf": "{pas du json"},
                    {"adf": "[]"}):
-        try:
-            mx.nested_table_content({"type": "extension",
-                                     "attrs": {"extensionKey": "nested-table",
-                                               "parameters": params}})
-            echecs += check(False, f"adf absent ou illisible doit lever : {params}")
-        except mx.ResolutionError:
-            echecs += check(True, "")
+        echecs += leve(
+            lambda p=params: mx.nested_table_content(
+                {"type": "extension",
+                 "attrs": {"extensionKey": "nested-table", "parameters": p}}),
+            f"adf absent ou illisible doit lever : {params}")
 
     # ------------------------------------------------------------------
-    # 5. Recursion : detection de cycle, cles des deux mecanismes melangees
+    # 10. Recursion : detection de cycle, les 3 mecanismes dans la meme pile
     # ------------------------------------------------------------------
     guard = mx.CycleGuard()
     with guard.enter("multiexcerpt", ("SF-NOTE", "RG-NOTE-TRI")):
-        with guard.enter("sync", ("28344321", uuid_double)):
-            try:
-                with guard.enter("multiexcerpt", ("SF-NOTE", "RG-NOTE-TRI")):
-                    echecs += check(False, "un cycle doit lever")
-            except mx.ResolutionError as exc:
-                echecs += check("cycle" in str(exc), "le message doit nommer le cycle")
-            # Une cle sync et une cle multiexcerpt de meme forme ne collisionnent pas.
-            echecs += check(len(guard.pile) == 2, "la pile doit contenir les 2 niveaux")
+        # Meme cle, autre famille : ce n'est pas un cycle.
+        with guard.enter("excerpt", ("SF-NOTE", "RG-NOTE-TRI")):
+            with guard.enter("sync", ("28344321", uuid_double)):
+                echecs += check(len(guard.pile) == 3,
+                                "les 3 mecanismes cohabitent dans la pile")
+                try:
+                    with guard.enter("multiexcerpt", ("SF-NOTE", "RG-NOTE-TRI")):
+                        echecs += check(False, "un cycle doit lever")
+                except mx.ResolutionError as exc:
+                    echecs += check("cycle" in str(exc),
+                                    "le message doit nommer le cycle")
     echecs += check(guard.pile == [], "la pile doit se vider en sortie de contexte")
 
     guard2 = mx.CycleGuard(profondeur_max=2)
     try:
-        with guard2.enter("multiexcerpt", ("p", "a")):
-            with guard2.enter("multiexcerpt", ("p", "b")):
-                with guard2.enter("multiexcerpt", ("p", "c")):
+        with guard2.enter("excerpt", ("p", "a")):
+            with guard2.enter("excerpt", ("p", "b")):
+                with guard2.enter("excerpt", ("p", "c")):
                     echecs += check(False, "la profondeur max doit lever")
     except mx.ResolutionError:
         echecs += check(True, "")

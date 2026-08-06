@@ -1,20 +1,25 @@
 #!/usr/bin/env python3
 """
-Cles de resolution du contenu reutilise — multiexcerpt et syncBlock.
+Cles de resolution du contenu reutilise — multiexcerpt, excerpt et syncBlock.
 
-VERSION : 1.0
+VERSION : 1.1
 
-Le corpus SINAPSE porte DEUX mecanismes de reutilisation, avec deux cles distinctes :
+Le corpus SINAPSE porte TROIS mecanismes de reutilisation, dont deux par macro :
 
-  multiexcerpt  cle (page, nom)      -- la page est designee par son TITRE
-  syncBlock     cle (page_id, uuid)  -- la page est designee par son IDENTIFIANT
+  multiexcerpt  cle (page, nom)      page designee par TITRE, parametre `page`
+  excerpt       cle (page, nom)      page designee par TITRE, parametre `""` (vide)
+  syncBlock     cle (page_id, uuid)  page designee par IDENTIFIANT
 
-Les deux sont traites par le meme visiteur, mais jamais par la meme cle : confondre
-les deux casse silencieusement la resolution. Ce module ne contient que la couche de
-cles et d'extraction de parametres — deterministe, sans reseau, sans conversion vers
-markdown. Le parcours recursif lui-meme attend l'arbitrage reutiliser/reecrire le
-resolver (question ouverte n.3 du brief) ; CycleGuard est fourni ici parce qu'il est
-independant de cet arbitrage.
+Les deux familles de macro partagent la forme de leur cle mais PAS l'endroit ou elles
+rangent la page source, et surtout pas leur index : Confluence ne croise jamais les
+deux. Un `excerpt-include` ne voit pas une definition multiexcerpt, et reciproquement.
+Si le pipeline les croisait, il produirait un `.md` plus complet que la page reelle et
+masquerait un affichage casse — le contraire de ce qu'on attend d'un export fidele.
+
+Ce module ne contient que la couche de cles et d'extraction — deterministe, sans
+reseau, sans conversion vers markdown. Le parcours recursif attend l'arbitrage
+reutiliser/reecrire le resolver ; CycleGuard est fourni ici parce qu'il en est
+independant.
 
 Contrat de reference : contracts/normalisation_adf.md.
 """
@@ -23,34 +28,55 @@ import html
 import json
 import re
 
-VERSION = "1.0"
+VERSION = "1.1"
 
 
 # ==========================================================================
 # BLOC DE CONSTANTES — documente dans contracts/normalisation_adf.md
 # ==========================================================================
 
-# Les 6 variantes de macro multiexcerpt du corpus, relevees au recensement du
-# 4 aout 2026. Un visiteur limite au type de noeud "extension" en manquerait la
-# moitie : les definitions sont des bodiedExtension, les inclusions se repartissent
-# entre extension et inlineExtension.
-MULTIEXCERPT_DEFINITION_KEYS = frozenset({
-    "multiexcerpt-fast-block-macro",     # bodiedExtension, 190 occurrences
-    "multiexcerpt-macro",                # bodiedExtension,  69
-    "multiexcerpt-fast-inline-macro",    # bodiedExtension,   1
-})
-MULTIEXCERPT_INCLUDE_KEYS = frozenset({
-    "multiexcerpt-fast-include-block-macro",   # extension,       595
-    "multiexcerpt-fast-include-inline-macro",  # inlineExtension,  50
-    "multiexcerpt-include-macro",              # inlineExtension,   3 (forme historique)
-})
+EXTENSION_NODE_TYPES = frozenset({"extension", "bodiedExtension", "inlineExtension"})
+
+# --- Familles de macro : reconnaissance par SOUS-CHAINE de la cle d'extension.
+# JAMAIS par enumeration de variantes : le corpus en compte 6 pour le seul
+# multiexcerpt, la liste a deja bouge une fois (apparition d'`excerpt` le 5 aout 2026),
+# et une variante inconnue tomberait silencieusement hors radar.
+# L'ORDRE DES TESTS COMPTE : "multiexcerpt-fast-block-macro" contient "excerpt".
+FAMILLE_MULTIEXCERPT = "multiexcerpt"
+FAMILLE_EXCERPT = "excerpt"
+FAMILLES = (FAMILLE_MULTIEXCERPT, FAMILLE_EXCERPT)
+
+# Parametre portant le TITRE de la page source, par famille.
+# La famille excerpt utilise la cle VIDE : heritage du parametre positionnel du wiki
+# markup ({excerpt-include:Page|name=X}), que l'ADF conserve tel quel. Chercher `page`
+# sur un excerpt-include ne trouve rien et fait conclure "page courante" — donc
+# resoudre contre une definition locale de meme nom, sans lever la moindre erreur.
+PARAM_PAGE_PAR_FAMILLE = {
+    FAMILLE_MULTIEXCERPT: "page",
+    FAMILLE_EXCERPT: "",
+}
+
+# Variantes relevees au 6 aout 2026. DOCUMENTAIRE UNIQUEMENT : rien ici ne sert a la
+# reconnaissance, qui se fait par sous-chaine. Cette liste vieillira, pas le code.
+VARIANTES_OBSERVEES = {
+    FAMILLE_MULTIEXCERPT: (
+        "multiexcerpt-fast-include-block-macro",   # extension,       inclusion
+        "multiexcerpt-fast-block-macro",           # bodiedExtension, definition
+        "multiexcerpt-macro",                      # bodiedExtension, definition
+        "multiexcerpt-fast-include-inline-macro",  # inlineExtension, inclusion
+        "multiexcerpt-include-macro",              # inlineExtension, inclusion
+        "multiexcerpt-fast-inline-macro",          # bodiedExtension, definition
+    ),
+    FAMILLE_EXCERPT: (
+        "excerpt",          # bodiedExtension, definition
+        "excerpt-include",  # extension,       inclusion
+    ),
+}
 
 # Les syncBlock ne sont PAS des noeuds Extension : un visiteur qui ne filtre que les
 # extensions les manque en silence. Ce sont des types de noeuds a part entiere.
 SYNC_DEFINITION_TYPES = frozenset({"bodiedSyncBlock"})
 SYNC_INCLUDE_TYPES = frozenset({"syncBlock"})
-
-EXTENSION_NODE_TYPES = frozenset({"extension", "bodiedExtension", "inlineExtension"})
 
 # resourceId d'une INCLUSION syncBlock : "confluence-page/{PAGE_ID}/{UUID}".
 # Le meme UUID sans prefixe de chemin est le resourceId de la DEFINITION.
@@ -69,29 +95,46 @@ class ResolutionError(Exception):
 # ==========================================================================
 
 def clean_name(nom):
-    """Nom de multiexcerpt pret pour la jointure : entites decodees, puis strip.
+    """Nom pret pour la jointure : entites decodees, puis strip. Les deux, dans cet ordre.
 
-    Les deux operations sont obligatoires et dans cet ordre. Le corpus contient
-    " RG-NOTE-ASSOCATION&period;PERSONNE" : une entite HTML ET un espace de tete.
-    Le strip doit s'appliquer des DEUX cotes de la jointure, definition comme
-    inclusion, sinon la cle ne colle plus.
+    Le corpus contient " RG-NOTE-ASSOCATION&period;PERSONNE" : une entite HTML ET un
+    espace de tete. Le nettoyage s'applique des DEUX cotes de la jointure, definition
+    comme inclusion, sinon la cle ne colle plus.
     """
     return html.unescape(str(nom or "")).strip()
 
 
 def clean_page_title(titre):
-    """Titre de page cible d'une inclusion multiexcerpt, meme traitement que le nom."""
+    """Titre de page cible, meme traitement que le nom."""
     return html.unescape(str(titre or "")).strip()
 
 
 # ==========================================================================
-# Nature d'un noeud de reutilisation
+# Nature d'un noeud de reutilisation — POINT D'ENTREE UNIQUE
 # ==========================================================================
 
-def classify_reuse_node(node):
-    """Nature du noeud : definition ou inclusion, multiexcerpt ou sync. None sinon.
+def famille_macro(node):
+    """Famille d'une macro de reutilisation, ou None. Par sous-chaine, ordre significatif."""
+    if not isinstance(node, dict) or node.get("type") not in EXTENSION_NODE_TYPES:
+        return None
+    cle = ((node.get("attrs") or {}).get("extensionKey") or "").lower()
+    if FAMILLE_MULTIEXCERPT in cle:      # doit passer AVANT : contient "excerpt"
+        return FAMILLE_MULTIEXCERPT
+    if FAMILLE_EXCERPT in cle:
+        return FAMILLE_EXCERPT
+    return None
 
-    C'est le point d'entree unique du visiteur : un seul parcours, quatre natures.
+
+def a_un_corps(node):
+    """Corps present = definition ; absent = inclusion. Vrai pour les deux familles."""
+    return bool(node.get("content"))
+
+
+def classify_reuse_node(node):
+    """Nature du noeud, ou None. Point d'entree unique du visiteur.
+
+    Rend l'une de : multiexcerpt_definition, multiexcerpt_include, excerpt_definition,
+    excerpt_include, sync_definition, sync_include.
     """
     if not isinstance(node, dict):
         return None
@@ -100,17 +143,18 @@ def classify_reuse_node(node):
         return "sync_definition"
     if ntype in SYNC_INCLUDE_TYPES:
         return "sync_include"
-    if ntype in EXTENSION_NODE_TYPES:
-        cle = (node.get("attrs") or {}).get("extensionKey") or ""
-        if cle in MULTIEXCERPT_DEFINITION_KEYS:
-            return "multiexcerpt_definition"
-        if cle in MULTIEXCERPT_INCLUDE_KEYS:
-            return "multiexcerpt_include"
+    famille = famille_macro(node)
+    if famille:
+        return f"{famille}_{'definition' if a_un_corps(node) else 'include'}"
     return None
 
 
 def macro_param(node, nom):
-    """Valeur d'un parametre de macro : attrs.parameters.macroParams.<nom>.value."""
+    """Valeur d'un parametre de macro : attrs.parameters.macroParams.<nom>.value.
+
+    `nom` peut etre la chaine vide : c'est le parametre positionnel de la famille
+    excerpt, une cle a part entiere dans macroParams.
+    """
     params = ((node.get("attrs") or {}).get("parameters") or {})
     valeur = (params.get("macroParams") or {}).get(nom)
     if isinstance(valeur, dict):
@@ -119,32 +163,46 @@ def macro_param(node, nom):
 
 
 # ==========================================================================
-# Cle multiexcerpt : (page, nom) — la page est un TITRE
+# Cle des macros : (page, nom) — la page est un TITRE
 # ==========================================================================
 
-def multiexcerpt_definition_key(node, page_title_hote):
+def macro_page_source(node, page_title_hote):
+    """(titre de la page source, parametre qui la portait).
+
+    Une page absente ou vide vise la page COURANTE, dans les deux familles.
+    """
+    famille = famille_macro(node)
+    if not famille:
+        raise ResolutionError(f"noeud sans famille de macro : {node.get('type')!r}")
+    param = PARAM_PAGE_PAR_FAMILLE[famille]
+    cible = clean_page_title(macro_param(node, param))
+    if cible:
+        return cible, param
+    return clean_page_title(page_title_hote), None
+
+
+def macro_nom(node):
+    nom = clean_name(macro_param(node, "name"))
+    if not nom:
+        raise ResolutionError(
+            f"macro {famille_macro(node)} sans nom exploitable "
+            f"(extensionKey={(node.get('attrs') or {}).get('extensionKey')!r})")
+    return nom
+
+
+def macro_definition_key(node, page_title_hote):
     """Cle d'une definition : (titre de la page qui la porte, nom nettoye).
 
-    Une definition ne porte AUCUN parametre `page` : elle definit sur sa propre page.
-    Le titre hote est donc fourni par l'appelant.
+    Une definition ne porte pas de parametre de page — ni `page`, ni `""` : elle definit
+    sur sa propre page. Le titre hote est donc fourni par l'appelant.
     """
-    nom = clean_name(macro_param(node, "name"))
-    if not nom:
-        raise ResolutionError("definition multiexcerpt sans nom exploitable")
-    return clean_page_title(page_title_hote), nom
+    return clean_page_title(page_title_hote), macro_nom(node)
 
 
-def multiexcerpt_include_key(node, page_title_hote):
-    """Cle d'une inclusion : (titre de la page cible, nom nettoye).
-
-    `page` vide signifie « sur la page courante » — la macro omet le parametre quand
-    la source et la consommatrice sont la meme page.
-    """
-    nom = clean_name(macro_param(node, "name"))
-    if not nom:
-        raise ResolutionError("inclusion multiexcerpt sans nom exploitable")
-    cible = clean_page_title(macro_param(node, "page")) or clean_page_title(page_title_hote)
-    return cible, nom
+def macro_include_key(node, page_title_hote):
+    """Cle d'une inclusion : (titre de la page cible, nom nettoye)."""
+    cible, _ = macro_page_source(node, page_title_hote)
+    return cible, macro_nom(node)
 
 
 # ==========================================================================
@@ -155,9 +213,8 @@ def sync_include_key(node):
     """Cle d'une inclusion syncBlock, lue dans attrs.resourceId.
 
     Le contenu est absent de la page consommatrice (content: []) : la source est
-    designee par IDENTIFIANT de page, donc resolvable par un GET /pages/{id} direct,
-    sans passer par pages_inventory.json et sans etre sensible au renommage —
-    contrairement au multiexcerpt, qui vise un titre.
+    designee par IDENTIFIANT, donc resolvable par un GET /pages/{id} direct, sans
+    pages_inventory.json et sans sensibilite au renommage.
     """
     rid = ((node.get("attrs") or {}).get("resourceId")) or ""
     trouve = RE_SYNC_RESOURCE.match(rid)
@@ -169,10 +226,9 @@ def sync_include_key(node):
 def sync_definition_key(node, page_id_hote):
     """Cle d'une definition syncBlock : (identifiant de la page hote, uuid).
 
-    L'UUID SEUL NE SUFFIT PAS. Le corpus contient le meme resourceId defini sur deux
-    pages differentes — CU-NOTE-CREER (28344321) et CU-NOTE-TYPENOTE.CREER
-    (396361729), la seconde etant une copie de la premiere — avec des contenus qui ont
-    depuis diverge. Une resolution par UUID seul choisirait l'une des deux au hasard.
+    L'UUID SEUL NE SUFFIT PAS. Le corpus porte le meme resourceId defini sur deux pages
+    differentes — CU-NOTE-CREER (28344321) et CU-NOTE-TYPENOTE.CREER (396361729), copie
+    de la premiere — avec des contenus qui ont depuis diverge.
     """
     rid = ((node.get("attrs") or {}).get("resourceId")) or ""
     trouve = RE_SYNC_UUID.match(rid)
@@ -182,14 +238,79 @@ def sync_definition_key(node, page_id_hote):
 
 
 # ==========================================================================
+# Index des definitions — UN PAR FAMILLE, jamais croises
+# ==========================================================================
+
+def emplacement(node, page_id=None, page_title=None):
+    """Localisation lisible d'un noeud, pour les messages d'erreur."""
+    local = (node.get("attrs") or {}).get("localId")
+    ou = page_id or page_title or "?"
+    return f"page {ou}" + (f", localId {local}" if local else "")
+
+
+class IndexDefinitions:
+    """Definitions indexees par (page, nom), SEPAREMENT par famille.
+
+    Confluence ne croise pas les familles : une inclusion `excerpt-include` ne voit pas
+    une definition multiexcerpt de meme nom, et reciproquement. Croiser les deux
+    produirait un `.md` plus complet que la page reelle, et masquerait un affichage
+    casse au lieu de le signaler.
+    """
+
+    def __init__(self):
+        self._par_famille = {famille: {} for famille in FAMILLES}
+
+    def ajoute(self, node, page_title, page_id=None):
+        """Indexe une definition. Leve si sa cle existe deja DANS LA MEME FAMILLE."""
+        nature = classify_reuse_node(node)
+        if nature not in (f"{f}_definition" for f in FAMILLES):
+            raise ResolutionError(f"ce noeud n'est pas une definition de macro : {nature}")
+        famille = famille_macro(node)
+        cle = macro_definition_key(node, page_title)
+        ou = emplacement(node, page_id, page_title)
+        deja = self._par_famille[famille].get(cle)
+        if deja is not None:
+            raise ResolutionError(
+                f"definition en double dans la famille {famille} pour la cle "
+                f"{cle!r} : {deja['emplacement']} ET {ou}. Confluence ne dit pas "
+                f"laquelle gagne ; la cle (page, nom) ne peut pas trancher.")
+        self._par_famille[famille][cle] = {"node": node, "emplacement": ou,
+                                           "page_title": page_title, "page_id": page_id}
+        return cle
+
+    def cherche(self, famille, cle):
+        """Definition d'une famille donnee, ou None. Ne regarde jamais l'autre famille."""
+        if famille not in self._par_famille:
+            raise ResolutionError(f"famille inconnue : {famille!r}")
+        return self._par_famille[famille].get(cle)
+
+    def resout(self, node, page_title_hote):
+        """Definition visee par une inclusion, ou None si absente.
+
+        La recherche est confinee a la famille de l'inclusion.
+        """
+        nature = classify_reuse_node(node)
+        if nature not in (f"{f}_include" for f in FAMILLES):
+            raise ResolutionError(f"ce noeud n'est pas une inclusion de macro : {nature}")
+        famille = famille_macro(node)
+        return self.cherche(famille, macro_include_key(node, page_title_hote))
+
+    def cles(self, famille):
+        return set(self._par_famille[famille])
+
+    def __len__(self):
+        return sum(len(v) for v in self._par_famille.values())
+
+
+# ==========================================================================
 # nested-table : contenu integralement recuperable
 # ==========================================================================
 
 def is_nested_table(node):
-    """Vrai si le noeud est le marqueur nested-table pose par Confluence.
+    """Marqueur nested-table pose par Confluence. Detection par extensionKey UNIQUEMENT.
 
-    Detection par extensionKey UNIQUEMENT. Le champ `reason` est localise — anglais
-    et francais tous deux presents dans le corpus — et ne doit jamais servir de test.
+    Le champ `reason` est localise — anglais et francais tous deux presents dans le
+    corpus — et ne doit jamais servir de test.
     """
     if not isinstance(node, dict) or node.get("type") not in EXTENSION_NODE_TYPES:
         return False
@@ -199,16 +320,14 @@ def is_nested_table(node):
 def nested_table_content(node):
     """Noeuds ADF de la table imbriquee, extraits de parameters.adf.
 
-    `adf` est une CHAINE JSON contenant un document ADF complet : second json.loads(),
-    comme pour body.atlas_doc_format.value. Le contenu est integralement recuperable,
-    donc ce cas n'est PAS un echec de conversion et ne doit pas declasser la page en
-    parse_status: partial. `reason` decrit une limitation de l'editeur Confluence.
+    `adf` est une CHAINE JSON contenant un document ADF complet : second json.loads().
+    Le contenu est integralement recuperable, donc ce cas n'est PAS un echec de
+    conversion et ne declasse pas la page en parse_status: partial.
 
-    `cxhtml` coexiste avec `adf` dans les 11 occurrences du corpus : on utilise `adf`
-    et on ignore `cxhtml`, qui est la meme table en XHTML de stockage.
+    `cxhtml` coexiste avec `adf` dans les 11 occurrences du corpus : on utilise `adf`.
 
-    Leve ResolutionError si `adf` manque ou est illisible : c'est le SEUL cas
-    nested-table qui justifie un parse_status: partial. Aucune occurrence a ce jour.
+    Leve si `adf` manque ou est illisible : SEUL cas nested-table justifiant un
+    parse_status: partial. Aucune occurrence a ce jour.
     """
     params = ((node.get("attrs") or {}).get("parameters") or {})
     brut = params.get("adf")
@@ -232,10 +351,9 @@ def nested_table_content(node):
 class CycleGuard:
     """Pile de resolution avec detection de cycle.
 
-    Aucune imbrication dans les fixtures CU-NOTE-CREER / CU-NOTE-MODIFIER, mais rien
-    ne l'interdit : une definition peut inclure un autre multiexcerpt ou un syncBlock.
-    Les cles des deux mecanismes cohabitent dans la meme pile, prefixees par leur
-    nature pour qu'un (page_id, uuid) ne puisse pas collisionner avec un (page, nom).
+    Les cles des trois mecanismes cohabitent dans la meme pile, prefixees par leur
+    mecanisme pour qu'un (page_id, uuid) ne collisionne pas avec un (page, nom) — et
+    pour qu'une cle multiexcerpt ne collisionne pas avec la meme cle excerpt.
 
         with guard.enter("multiexcerpt", cle):
             ...
