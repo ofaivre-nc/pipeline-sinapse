@@ -115,6 +115,12 @@ donc zéro brassage de fichiers sur le SharePoint.
 troncature, ce qui rend un slug tronqué reconnaissable à l'œil. L'identifiant est
 repris **entier** — un suffixe court ne garantit pas l'unicité.
 
+Le plafond porte sur la **partie dérivée du titre**, pas sur le segment rendu :
+celui-ci peut atteindre 80 + 1 + longueur de l'identifiant, soit 90 caractères
+pour un identifiant à 9 chiffres. C'est voulu — un identifiant tronqué ne
+garantirait plus l'unicité — mais c'est cette valeur, et non 80, qu'il faut
+retenir pour le budget de chemin du §11.
+
 ### 7. Noms réservés
 
 `CON`, `PRN`, `AUX`, `NUL`, `COM1`–`COM9`, `LPT1`–`LPT9`, comparés sur la partie
@@ -314,4 +320,17 @@ Markdown.
 
 Cette dernière ligne est un **test de non-régression sur le dump de
 recensement**, pas une note. Les mesures du §11 ne sont vérifiables que par
-elle ; sans elle, une évolution de la règle les périme en silence.
+elle ; sans elle, une évolution de la règle les périme en silence. Le dump est
+versionné dans `pipeline/fixtures/` — 143 Ko de métadonnées, sans contenu de
+page — et son absence fait **échouer** le test : pointer sur `recensement/`,
+non versionné, rendait la vérification verte pour toujours ailleurs que sur le
+poste qui l'avait produite.
+
+**Cas choisis et invariants de corpus ne se remplacent pas.** Les premiers
+pincent la règle sur des formes que le corpus ne porte pas ; les seconds pincent
+tout le corpus sur une propriété. La préservation du point l'illustre : réduire
+`.` en `-` ne fait bouger **aucune** des sept mesures, parce qu'aucune paire de
+frères ne diffère que par là — seuls les deux cas `CU-NOTE-TYPENOTE.CREER` et
+`CU-NOTE-TYPENOTE-CREER` tiennent alors la règle. L'invariant
+« un titre et son slug portent le même nombre de points » la tient, lui, sur les
+63 titres pointés du corpus.

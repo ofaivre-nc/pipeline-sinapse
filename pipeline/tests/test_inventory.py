@@ -144,8 +144,17 @@ def tests_slugification():
                     "la casse doit etre conservee")
 
     # slugify() ne refait pas la normalisation des titres : elle a lieu en amont.
-    echecs += check(sl("A&period;B", "9") == "A-period-B",
-                    "slugify ne decode pas les entites HTML, normalize_title le fait")
+    # Le risque n'est pas une collision manquee mais un NOM DE FICHIER FAUX — un slug
+    # plausible, sans erreur, et un identifiant SINAPSE meconnaissable.
+    echecs += check(sl("RG-COMPTE&period;GROUPE-CREER", "9")
+                    == "RG-COMPTE-period-GROUPE-CREER",
+                    "titre NON normalise : l'entite survit et abime l'identifiant")
+    echecs += check(sl(inventory.normalize_title("RG-COMPTE&period;GROUPE-CREER"), "9")
+                    == "RG-COMPTE.GROUPE-CREER",
+                    "titre normalise en amont : le point est restitue")
+    echecs += check(sl(inventory.normalize_title("SF-COMPTE&lowbar;INTERNET"), "9")
+                    == "SF-COMPTE_INTERNET",
+                    "&lowbar; doit redonner un tiret bas, pas -lowbar-")
 
     # --- §9, detection de collisions
     def page(pid, titre, parent):
@@ -194,7 +203,11 @@ MESURES_ATTENDUES = {
     "profondeur maximale sous specs/": 4,
 }
 
-DUMP = RACINE.parent / "recensement" / "pages_classification_20260805.json"
+# Fixture VERSIONNEE. 143 Ko de metadonnees de pages, sans contenu : le versionner
+# coute peu et rend le test executable sur un depot fraichement clone comme en CI.
+# Pointer sur recensement/, non versionne, rendait le test vert pour toujours ailleurs
+# que sur le poste qui l'avait produit — pire qu'un test absent.
+DUMP = RACINE / "fixtures" / "pages_classification_20260805.json"
 
 
 def _md_path(page, par_id, meres, doublement_force=False):
@@ -251,12 +264,13 @@ def test_non_regression_corpus():
     passage a la liste blanche.
     """
     echecs = 0
+    # La fixture est versionnee : son absence est une anomalie du depot, pas une
+    # circonstance. Un test qui se contenterait d'avertir serait vert pour toujours.
+    echecs += check(DUMP.is_file(),
+                    f"fixture de classification absente : {DUMP} — les "
+                    f"{len(MESURES_ATTENDUES)} mesures du §11 ne sont pas verifiables")
     if not DUMP.is_file():
-        print(f"  ATTENTION : dump absent, {len(MESURES_ATTENDUES)} mesures non "
-              f"verifiees ({DUMP.name})")
-        # Un dump absent ne doit pas passer pour un succes : recensement/ n'est pas
-        # versionne, un depot fraichement clone n'a pas ce fichier.
-        return 0
+        return echecs
 
     pages = json.loads(DUMP.read_text(encoding="utf-8"))["pages"]
     obtenues = mesures_corpus(pages)
@@ -272,6 +286,22 @@ def test_non_regression_corpus():
     echecs += check(not any("~" in inventory.slugify(p["title"], p["id"])
                             for p in pages),
                     "aucun slug du corpus ne doit porter la marque de troncature `~`")
+
+    # Le point est significatif dans la nomenclature SINAPSE : il distingue deux
+    # modules (SF-COMPTE / SF-COMPTE.INTERNET) et deux entites. Le reduire en tiret ne
+    # ferait bouger AUCUNE des sept mesures — le corpus ne porte aucune paire de
+    # freres qui n'en differe que par la. Cet invariant, lui, mord sur tous les titres
+    # pointes d'un coup, la ou un cas unitaire n'en couvre qu'un.
+    perdus = [p["title"] for p in pages
+              if p["title"].count(".")
+              != inventory.slugify(p["title"], p["id"]).count(".")]
+    echecs += check(not perdus,
+                    f"{len(perdus)} titre(s) perdent un point a la slugification, "
+                    f"ex. {perdus[:2]}")
+    pointes = sum(1 for p in pages if "." in p["title"])
+    echecs += check(pointes > 50,
+                    f"l'invariant du point doit porter sur un echantillon consequent, "
+                    f"{pointes} titres pointes trouves")
     return echecs
 
 

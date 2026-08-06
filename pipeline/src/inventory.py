@@ -2,7 +2,7 @@
 """
 Inventaire et classification des pages du corpus SINAPSE — etape 3 du pipeline.
 
-VERSION : 1.0
+VERSION : 1.2 — slugification et detection de collision
 
 Trois responsabilites :
   - normaliser le titre AVANT tout filtrage (entites HTML, tirets Unicode) ;
@@ -16,8 +16,9 @@ sortie de recense_adf.py, ce qui sert de jeu de tests grandeur reelle.
 Le contrat de classification est dans contracts/classification_pages.md : toute
 evolution du bloc de constantes ci-dessous doit s'y repercuter, et inversement.
 
-Ce module ne couvre pas encore la slugification ni le delta par version.number, qui
-sont les deux autres volets de l'etape 3.
+La slugification est couverte depuis la v1.2 (contracts/slugification.md). Restent
+l'assemblage de pages_inventory.json — la sortie actuelle est un tableau a plat, pas
+la carte indexee par identifiant du schema — et le delta par version.number.
 
 Exemples :
   python inventory.py --from-recensement ../../recensement/recensement_adf_20260804.json \
@@ -160,15 +161,16 @@ DEFAULT_EXCLUDE_TITLE_PREFIXES = ("Archive", "ARCHIVE_", "Copie de", "-NEW-", "D
 # quel dans un lien, sans encodage (normalisation_adf.md §6.3).
 SLUG_KEEP = re.compile(r"[^A-Za-z0-9._-]")
 
-# Noms de peripheriques DOS : Windows refuse NUL.md comme nul. Aucune occurrence au
-# corpus, mais le cout du garde-fou est nul.
+# Noms de peripheriques DOS : Windows refuse NUL.md comme nul. Le cout du garde-fou
+# est nul, et le cas ne se verrait qu'a l'ecriture, sur une page a la fois.
 SLUG_RESERVED = ({"CON", "PRN", "AUX", "NUL"}
                  | {f"COM{i}" for i in range(1, 10)}
                  | {f"LPT{i}" for i in range(1, 10)})
 
-# 80 : aucun titre du corpus ne l'atteint, le plus long fait 78 caracteres. Garde-fou
-# contre un titre pathologique futur, pas un mecanisme actif — le fixer la garantit
-# zero renommage aujourd'hui, donc zero brassage de fichiers sur le SharePoint.
+# Garde-fou contre un titre pathologique futur, pas un mecanisme actif : aucun slug
+# du corpus ne l'atteint, donc zero renommage aujourd'hui et zero brassage de
+# fichiers sur le SharePoint. Mesures au corpus : contrat §11, epinglees par le test
+# de non-regression — ne pas les recopier ici, un chiffre duplique diverge.
 SLUG_SEGMENT_MAX = 80
 
 
@@ -210,6 +212,11 @@ def detecte_collisions(pages):
     """Groupes de pages produisant le meme chemin. Voir contracts/slugification.md §9.
 
     `pages` : iterable de dicts portant au moins id, title, parent_id.
+
+    Les titres doivent DEJA etre normalises par normalize_title() : la fonction
+    consomme la sortie de build_inventory(), pas des pages brutes de
+    confluence_client. Un titre non decode donne un slug plausible et faux —
+    "RG-COMPTE&period;GROUPE" produit "RG-COMPTE-period-GROUPE".
 
     La cle est (identifiant du REPERTOIRE contenant, slug replie), et chaque page en
     alimente DEUX, dans le MEME espace de noms — c'est leur partage qui detecte le
