@@ -541,15 +541,27 @@ Traitement, dans cet ordre :
 
 | Cas | Rendu |
 |---|---|
-| ID extrait (URL longue ou lien court décodé) **et** présent dans `pages_inventory.json` | `[{titre}]({md_path})` |
+| ID extrait (URL longue ou lien court décodé) **et** présent dans `pages_inventory.json` | `[{titre}]({chemin relatif})` — voir ci-dessous |
 | ID extrait, **absent** de l'inventaire | `[{url}]({url})` + fait au rapport de run |
 | Suffixe non décodable, ou URL d'une autre nature (ticket Jira) | `[{url}]({url})` |
 
+**Le chemin est relatif au fichier porteur, pas à `local_path`.** La cible est
+`os.path.relpath(md_path_cible, os.path.dirname(md_path_source))`, séparateurs
+`/` quelle que soit la plateforme :
+
+```
+[CU-PERSONNE-MODIFIER](../SF-PERSONNE-gestion-des-personnes/CU-PERSONNE-MODIFIER.md)
+```
+
+Aucun encodage n'est nécessaire : la liste blanche de `contracts/slugification.md`
+§4 garantit que le chemin ne porte ni espace, ni parenthèse, ni caractère
+réservé de la syntaxe Markdown. C'est la raison d'être de cette liste blanche
+autant que la compatibilité Windows.
+
 **Conséquence de séquencement** : le normalizer dépend de `pages_inventory.json`
 pour une **seconde** raison, après la résolution du contenu réutilisé par titre
-(§1). Et il dépend de `md_path`, donc de la règle de slugification. Tant que
-celle-ci n'est pas arrêtée, la première ligne est inapplicable et le rendu se
-replie sur `[{url}]({url})`.
+(§1) — et il en dépend pour `md_path` des deux extrémités du lien, source
+comprise. Il ne peut donc pas tourner page par page en ignorant l'inventaire.
 
 Un ID absent de l'inventaire n'est pas une erreur de parsing : c'est un renvoi
 vers une page hors périmètre d'export, fait à consigner.
@@ -810,10 +822,6 @@ exemple, et une erreur ne se verrait qu'en production sur le corpus complet.
 
 ## 11. Ce qui reste à trancher
 
-- **La règle de slugification**, verrou de `md_path`, prérequis de §6.3. Le
-  corpus emploie `-` et `.` dans les titres : la réduction du point en tiret
-  fabriquerait des collisions (`CU-NOTE-TYPENOTE.CREER` contre
-  `CU-NOTE-TYPENOTE-CREER`). Une désambiguïsation est nécessaire.
 - **`fontSize`**, relevé dans le corpus complet mais absent des 9 fixtures.
 - **L'arbitrage réutiliser ou réécrire le resolver** multiexcerpt (question
   ouverte n°3 du brief), désormais élargi : le corpus porte **deux familles de

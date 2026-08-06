@@ -1,7 +1,7 @@
 # Pipeline SINAPSE — document de référence
 
 *Document unique de la conversation de conception. Remplace `brief-pipeline-sinapse-v3.md`, archivé dans `docs/archive/`. Il succède aussi à un document de reprise de contexte antérieur, qui n'a vécu que dans l'espace de conversation : il n'en existe aucune trace dans le dépôt, inutile de l'y chercher.*
-*Mis à jour le 6 août 2026 — clôture de l'étape 0d et seconde famille de macros de réutilisation.*
+*Mis à jour le 7 août 2026 — règle de slugification arrêtée.*
 
 ---
 
@@ -94,7 +94,7 @@ Export récursif, profondeur illimitée. 247 pages au total.
 | 0e — inventaire du space | ✅ |
 | 1, 2 — export d'une page, puis une par type | ⬜ |
 | 2bis — corpus doré | 🟡 9 fixtures figées ; `.md` attendus manquants |
-| **3 — inventaire et delta** | 🟡 classification ✅ ; **slugification et delta restants** — voir la note ci-dessous |
+| **3 — inventaire et delta** | 🟡 classification ✅, slugification ✅ (`contracts/slugification.md`) ; **assemblage de `pages_inventory.json` et delta restants** |
 | 4 — cache du contenu réutilisé | ⬜ |
 | 5 — index croisé (module PERSONNE) | ⬜ |
 | 6 — `mcd_sinapse_data` | ⬜ |
@@ -130,11 +130,17 @@ Claude Code opérationnel, dépôt `C:\dev\sinapse-claude`. Token Atlassian en v
 2. **Finir l'étape 3** : slugification et delta par `version.number`. La slugification est le verrou — `md_path` en dépend, donc l'assemblage de `pages_inventory.json`, donc le rendu des renvois entre pages (`normalisation_adf.md` §6.3).
 3. Puis étapes 1 et 2 (export de pages), 2bis (corpus doré complété), 4, 5…
 
-#### La slugification — ce qui la rend non triviale
+#### La slugification — arrêtée le 7 août
 
-Le corpus emploie `-` **et** `.` dans les titres de pages comme dans les identifiants de règles. Une réduction naïve du point en tiret fabriquerait des collisions : `CU-NOTE-TYPENOTE.CREER` et `CU-NOTE-TYPENOTE-CREER` produiraient le même fichier. S'y ajoutent les entités HTML (`&period;`, `&lowbar;`), les espaces de tête relevés sur 3 noms du module NOTE, les accents, les caractères interdits sous Windows et la limite de 260 caractères de chemin.
+Détail dans `contracts/slugification.md`. Trois décisions portent le reste :
 
-Une désambiguïsation est donc nécessaire, et les collisions doivent lever à la construction de l'inventaire plutôt que d'écraser silencieusement un fichier.
+- **Le point n'est pas touché.** La crainte d'origine — réduire `.` en `-` ferait entrer en collision `CU-NOTE-TYPENOTE.CREER` et `CU-NOTE-TYPENOTE-CREER` — supposait qu'il fallait le réduire. Le point est légal dans un nom de fichier Windows sauf en dernière position. Aucune désambiguïsation n'est nécessaire, et l'identifiant SINAPSE reste lisible tel que les BA l'écrivent.
+- **Liste blanche `[A-Za-z0-9._-]`, pas liste noire.** Une liste noire des caractères interdits sous Windows laisserait passer parenthèses, espaces et esperluettes, tous légaux sous Windows et tous nuisibles ailleurs : les parenthèses cassent la syntaxe d'un lien Markdown. La liste blanche donne un `md_path` qui s'écrit tel quel dans un lien, sans encodage — c'est ce qui rend `normalisation_adf.md` §6.3 applicable.
+- **Accents repliés, casse conservée.** Le slug est une clé d'adressage, le titre exact vit dans l'inventaire et le frontmatter. La détection de collision se fait sur `casefold()` : Windows, SharePoint et Git sur Windows sont insensibles à la casse.
+
+Mesuré sur les 246 pages du recensement du 5 août : **0 collision**, `md_path` médian à 89 caractères, le plus long à **131**, **164** si l'on provisionne un niveau d'arborescence supplémentaire. Il reste donc **96 caractères** pour le préfixe SharePoint sous le plafond Windows de 260 — un chemin de synchronisation OneDrive courant en consomme 70 à 90. La marge est réelle et mince : le chemin SharePoint doit être choisi court.
+
+Une piste a été mesurée puis fermée : tronquer le titre à son préfixe d'identifiant (`SF-COMPTE: Modélisation des données` → `SF-COMPTE`) produit **7 collisions entre frères** sur le corpus.
 
 ---
 
@@ -283,6 +289,7 @@ Le dépôt est la source de vérité ; l'espace GIE est une cible de déploiemen
 - **Aucun nœud ADF ignoré silencieusement** : tout nœud non couvert remonte en erreur au rapport. Un warning résiduel de la lib = un bug du normalizer.
 - **`marklas`** pour la conversion ADF → Markdown.
 - **Trois mécanismes de contenu réutilisé, deux formes de clé** : par titre pour les macros `multiexcerpt` **et** `excerpt` natif — clé `(page, nom)` ; par identifiant pour le `syncBlock` — clé `(page_id, uuid)`. Les index de définitions restent **séparés par mécanisme** : les croiser produirait un `.md` plus complet que la page réelle, et masquerait un affichage cassé que les rédacteurs voient à l'écran.
+- **Le slug est une clé d'adressage, pas un libellé** : liste blanche `[A-Za-z0-9._-]`, point conservé, accents repliés, casse conservée, collisions détectées sur `casefold()`. Une collision **lève au niveau du groupe de pages, pas du run** : les pages concernées ne sont pas exportées, leurs `.md` antérieurs ne sont pas supprimés, et le fait ouvre le rapport. Aucune désambiguïsation automatique — un suffixe renommerait silencieusement une spec qui n'a pas bougé. Contrat : `contracts/slugification.md`.
 - **OpenAPI hors périmètre** → maxLength abandonné assumé.
 
 **Exécution**
@@ -382,7 +389,7 @@ Décisions :
 
 > **Rangement** — `build_report()` vit provisoirement dans `inventory.py` ; sa place est dans `report.py` quand ce module existera.
 
-> **Nommage des fichiers** — les titres contiennent des caractères interdits sous Windows (`SF-PERSONNE: …`), des entités HTML (`&period;`, `&lowbar;`), des espaces de tête, et emploient `-` comme `.`. Slugification obligatoire ; **les collisions lèvent à la construction de l'inventaire**, elles ne sont pas seulement signalées — un fichier écrasé silencieusement fait disparaître une spec du corpus.
+> **Nommage des fichiers** — règle arrêtée, `contracts/slugification.md`. **Les collisions lèvent à la construction de l'inventaire**, elles ne sont pas seulement signalées : un fichier écrasé silencieusement fait disparaître une spec du corpus. Elles lèvent **au niveau du groupe de pages concerné**, le run se poursuit sur le reste, et la phase de nettoyage des orphelins doit ignorer ces pages — sinon une collision efface deux specs au lieu d'en manquer une.
 
 > **Horodatage des sorties** — un run partiel ne doit pas pouvoir écraser le rapport d'un run complet du même jour.
 
@@ -401,8 +408,8 @@ Décisions :
 - classification des 7 pages `A_QUALIFIER` (notes de cadrage, à qualifier une par une) ;
 - **`-NEW- CU-COMPTE-PROFIL.GEST` est exclue, et son ancienne version l'est par héritage → cette spec disparaît entièrement du corpus.** Seul trou connu ;
 - format des pages `SA-*` (services applicatifs) — typées, exportées, non scorées en attendant validation du principe ;
-- chemin SharePoint réel et exclusions de pages ;
-- **profondeur maximale de l'arborescence exportée** — à mesurer sur le corpus réel une fois le chemin SharePoint connu, pour vérifier qu'aucun chemin ne s'approche de la limite Windows de 260 caractères. La mesure ne vaut rien avant : c'est la longueur du préfixe SharePoint, inconnue à ce jour, qui décide si la marge est confortable ou nulle.
+- exclusions de pages ;
+- **chemin SharePoint réel** — devenu chiffré, et contraint : `md_path` mesure au plus 131 caractères aujourd'hui, 164 en provisionnant un niveau d'arborescence de plus. Il reste **96 caractères** de préfixe sous le plafond Windows de 260, quand un chemin de synchronisation OneDrive courant en consomme 70 à 90. Le chemin doit être choisi court, et mesuré avant le premier run complet ; le pipeline avertit à 200 caractères de chemin complet et lève à 250.
 
 **Déploiement**
 - repondération de l'orchestrateur après abandon d'OpenAPI (étape 10) ;
@@ -443,3 +450,22 @@ Côté **périmètre**, s'ajoutent :
 - **L'interlocuteur de conception n'a accès ni à Confluence ni à la machine.** Son bac à sable ne peut pas joindre `atlassian.net`. Tout ce qui touche à Confluence passe par un script exécuté en local — ou par un partage de fixtures JSON en pièce jointe, qui s'est révélé efficace.
 - **Le token Atlassian n'est jamais transmis en conversation** ni écrit dans un fichier versionné.
 - Le développement se fait en Claude Code ; cette conversation sert à concevoir, arbitrer et relire.
+
+### Échange de fichiers entre la conversation et le dépôt
+
+**Les documents de référence vivent dans le dépôt.** La conversation ne régénère jamais un fichier existant : elle produit un **patch en blocs avant/après**, que Claude Code applique. Régénérer un document depuis la conversation efface silencieusement ce que Claude Code y a écrit entre-temps, et fait perdre l'historique Git de la modification réelle.
+
+Deux natures de fichiers descendent de la conversation vers le dépôt, et elles ne se déposent pas au même endroit :
+
+| Nature | Destination | Versionné |
+|---|---|---|
+| **Livrable** — contrat, code, schéma | sa place définitive (`contracts/`, `pipeline/src/`…) | oui |
+| **Document de travail** — patch, note d'arbitrage, brouillon | `recensement/` | non |
+
+`recensement/` sert de boîte de dépôt parce qu'il figure déjà au `.gitignore` : 37 Mo régénérables en 93 s, rien de ce qu'il contient n'a vocation à survivre. **C'est aussi sa limite** — un nouveau run de `recense_adf.py` peut le vider. Un patch en attente d'application ne doit pas y séjourner d'un jour à l'autre.
+
+**Un patch se supprime une fois appliqué.** Le laisser en place fait courir le risque qu'il soit réappliqué sur un document qui a déjà bougé, ou lu comme l'état courant d'une décision qu'il ne fait que proposer.
+
+**Dans l'autre sens**, la conversation n'a accès ni à Confluence ni à la machine : tout fichier du dépôt dont l'interlocuteur de conception a besoin — fixture ADF, cache JSON, module Python à relire — lui est **joint directement** en pièce jointe. L'aller-retour descriptif s'est révélé bien moins efficace, et ces pièces jointes sont aussi ce qui permet de mesurer une décision sur le corpus réel au lieu de l'arbitrer à vue.
+
+**Ce qui ne transite jamais** : le token Atlassian, sous aucune forme.

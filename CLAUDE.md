@@ -34,7 +34,8 @@ config.ini.example     gabarit de configuration ; à copier en pipeline/config.i
 .claude/skills/        LES SKILLS SINAPSE — source de vérité
 contracts/             LE CONTRAT pipeline ↔ skills
   classification_pages.md          groupe, type, module, exclusions, 3 attributs
-  normalisation_adf.md             table de normalisation ADF (partielle)
+  normalisation_adf.md             table de normalisation ADF
+  slugification.md                 règle de fabrication de `md_path`
   frontmatter.md                   métadonnées des .md exportés
   pages_inventory.schema.json      inventaire et delta
   reused_content_cache.schema.json multiexcerpt + syncBlock, deux clés
@@ -165,27 +166,28 @@ travail à domicile devient nécessaire.
 
 Avant le premier `push` : vérifier ce qui part (`git status`, `git diff --cached`).
 
-## État d'avancement — mis à jour le 5 août 2026
+## État d'avancement — mis à jour le 7 août 2026
 
 Séquencement, position détaillée et questions ouvertes : sections 2 et 7 du document de
 référence. Position en bref :
 
-- **Étape 0d — recensement terminé, table de normalisation partielle.**
-  `recense_adf.py` (v1.2) a couvert le corpus : 246 pages sur 247, 36 types de nœuds,
-  12 macros, 15 marks. Sorties dans `recensement/` (non versionné, régénérable).
-  **`marklas` confirmé contre `pyadf`** : `layoutSection` (112), `layoutColumn` (290),
-  `bodiedExtension` (260) sont tous présents, `pyadf` les jetterait.
-- **`contracts/normalisation_adf.md` ne couvre que 3 mécanismes** — contenu réutilisé,
-  `nested-table`, nettoyage des noms. Restent `expand`, `layoutSection`/`layoutColumn`,
-  `media*`, les 3 formes de cartes Jira, `status`, `taskList`, les 15 marks.
-  Tout est tranchable sur les fixtures, sans Confluence.
-  **Ne pas écrire de code de conversion avant d'avoir complété cette table.**
-- **Étape 3 amorcée** — `inventory.py` (v1.1) classifie les 246 pages, 56 tests.
-  Restent la **slugification** (avec détection de collisions) et le **delta par
-  `version.number`** ; d'où l'absence de `md_path` et `last_exported`.
-- **Resolver** — `multiexcerpt.py` (v1.0) fournit les clés des deux mécanismes et le
-  garde-fou de cycle, 41 tests. Le parcours récursif reste à écrire, avec l'arbitrage
-  réutiliser/réécrire.
+- **Étape 0d close.** `recense_adf.py` (v1.2) a couvert le corpus : 246 pages sur 247,
+  36 types de nœuds, 12 macros, 15 marks. Sorties dans `recensement/` (non versionné,
+  régénérable). **`marklas` confirmé contre `pyadf`** : `layoutSection` (112),
+  `layoutColumn` (290), `bodiedExtension` (260) sont tous présents, `pyadf` les jetterait.
+- **`contracts/normalisation_adf.md` est complet** : les 33 types de nœuds du corpus sont
+  couverts, un type non couvert lève. Seul `fontSize` reste non arbitré — relevé dans le
+  corpus complet, absent des 9 fixtures.
+- **Slugification close** — `contracts/slugification.md`. Liste blanche `[A-Za-z0-9._-]`,
+  point conservé, accents repliés, casse conservée, collisions détectées sur `casefold()`
+  et levées au niveau du groupe de pages. Mesuré : 0 collision sur les 246 pages.
+- **Étape 3 en cours** — `inventory.py` (v1.2) classifie les 246 pages et produit
+  `slugify()` + la détection de collision. Restent l'**assemblage de
+  `pages_inventory.json`** (carte indexée par identifiant, `md_path`, `last_exported`)
+  et le **delta par `version.number`**.
+- **Resolver** — `multiexcerpt.py` (v1.1) fournit les clés des trois mécanismes de
+  réutilisation et le garde-fou de cycle, 75 tests. Le parcours récursif reste à écrire,
+  avec l'arbitrage réutiliser/réécrire.
 - `.claude/rules/skills.md` n'existe pas encore : il accueillera les conventions de nommage
   des skills, la limite des 500 lignes et le barème, au moment du rapatriement des skills
   (étape 10).

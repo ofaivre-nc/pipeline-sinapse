@@ -12,10 +12,13 @@ Aucun acces reseau : le corpus de test est un mini-arbre en dur.
   python -m pytest pipeline/tests/test_inventory.py      (ou : python test_inventory.py)
 """
 
+import json
+import re
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+RACINE = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(RACINE / "src"))
 
 import inventory  # noqa: E402
 
@@ -77,6 +80,199 @@ def check(condition, message):
         print(f"ECHEC : {message}")
         return 1
     return 0
+
+
+def tests_slugification():
+    """Les 14 cas de contracts/slugification.md §13, plus les invariants de la regle."""
+    echecs = 0
+    sl = inventory.slugify
+
+    # --- §13, tableau des cas attendus
+    cas = [
+        ("CU-NOTE-TYPENOTE.CREER", "9", "CU-NOTE-TYPENOTE.CREER",
+         "le point est preserve"),
+        ("CU-NOTE-TYPENOTE-CREER", "9", "CU-NOTE-TYPENOTE-CREER",
+         "distinct du precedent : c'est tout l'enjeu du point conserve"),
+        ("SF-COMPTE: gestion des comptes utilisateurs", "9",
+         "SF-COMPTE-gestion-des-comptes-utilisateurs", "deux-points et espaces"),
+        ("Archive CU-COMPTE (version monolithique, sans API)", "9",
+         "Archive-CU-COMPTE-version-monolithique-sans-API",
+         "parentheses et virgule tombent, pas de tiret double"),
+        ("IV. Les Assurés Obligatoires Étudiants/Élèves (AOEE)", "9",
+         "IV.-Les-Assures-Obligatoires-Etudiants-Eleves-AOEE",
+         "accents replies, slash remplace"),
+        ("Guide d’utilisation du BPMN", "9", "Guide-d-utilisation-du-BPMN",
+         "apostrophe typographique"),
+        ("-NEW- CU-COMPTE-PROFIL.GEST", "9", "NEW-CU-COMPTE-PROFIL.GEST",
+         "tiret de tete rogne"),
+        ("Bonnes pratiques RGAA 4.1.2 - Guide opérationnel BA & DEV", "9",
+         "Bonnes-pratiques-RGAA-4.1.2-Guide-operationnel-BA-DEV",
+         "esperluette, et points de version preserves"),
+        ("  ", "42", "page-42", "titre de blancs : repli sur l'identifiant"),
+        ("NUL", "9", "_NUL", "nom de peripherique DOS prefixe"),
+    ]
+    for titre, pid, attendu, motif in cas:
+        obtenu = sl(titre, pid)
+        echecs += check(obtenu == attendu,
+                        f"slugify({titre!r}) = {obtenu!r}, attendu {attendu!r} — {motif}")
+
+    # Plafond de segment : 120 caracteres -> 80 + ~{page_id}
+    long_titre = "A" * 120
+    obtenu = sl(long_titre, "123456")
+    echecs += check(obtenu == "A" * 80 + "~123456",
+                    f"titre de 120 car. doit etre tronque a 80 + ~id, obtenu {obtenu!r}")
+    echecs += check(len(sl("B" * 79, "9")) == 79,
+                    "un titre sous le plafond n'est pas tronque")
+    echecs += check("~" not in sl("C" * 80, "9"),
+                    "exactement 80 caracteres ne declenche pas la troncature")
+
+    # --- Invariants de la liste blanche
+    for titre in ("SF-COMPTE: gestion", "Archive (v2)", "a&b", "x'y", "IV. Élèves/AOEE",
+                  "-NEW- X", "  ", "NUL", "A" * 120):
+        slug = sl(titre, "9")
+        echecs += check(re.fullmatch(r"[A-Za-z0-9._~-]+", slug) is not None,
+                        f"slug hors liste blanche : {slug!r}")
+        echecs += check(not slug.endswith(("-", ".", "_", " ")),
+                        f"un nom Windows ne peut finir par un separateur : {slug!r}")
+        # Le `_` de tete est legitime : c'est le prefixe des noms reserves, applique
+        # APRES le rognage. Seuls `-`, `.` et l'espace sont proscrits en tete.
+        echecs += check(not slug.startswith(("-", ".", " ")),
+                        f"tete en separateur : {slug!r}")
+
+    # La casse est conservee : c'est la forme de l'identifiant SINAPSE.
+    echecs += check(sl("CU-PERSONNE-MODIFIER", "9") == "CU-PERSONNE-MODIFIER",
+                    "la casse doit etre conservee")
+
+    # slugify() ne refait pas la normalisation des titres : elle a lieu en amont.
+    echecs += check(sl("A&period;B", "9") == "A-period-B",
+                    "slugify ne decode pas les entites HTML, normalize_title le fait")
+
+    # --- §9, detection de collisions
+    def page(pid, titre, parent):
+        return {"id": pid, "title": titre, "parent_id": parent}
+
+    # Deux titres qui ne different que par un accent : collision voulue.
+    g = inventory.detecte_collisions([page("1", "Réflexion", "100"),
+                                      page("2", "Reflexion", "100")])
+    echecs += check(len(g) == 1 and {p["id"] for p in next(iter(g.values()))} == {"1", "2"},
+                    "Reflexion et Réflexion freres doivent entrer en collision")
+
+    # Casse seule : collision aussi, Windows et SharePoint y sont insensibles.
+    g = inventory.detecte_collisions([page("1", "A", "100"), page("2", "a", "100")])
+    echecs += check(len(g) == 1, "A et a freres doivent entrer en collision (casefold)")
+
+    # Cas X/X.md : une fille dont le slug egale celui de sa mere.
+    g = inventory.detecte_collisions([page("10", "X", "100"), page("11", "X", "10")])
+    echecs += check(len(g) == 1,
+                    "une fille de meme slug que sa mere doit entrer en collision (X/X.md)")
+    if g:
+        touchees = {p["id"] for p in next(iter(g.values()))}
+        echecs += check(touchees == {"10", "11"},
+                        f"le groupe doit nommer la mere ET la fille, obtenu {touchees}")
+
+    # Parents differents : pas de collision, l'arborescence les isole.
+    g = inventory.detecte_collisions([page("1", "X", "100"), page("2", "X", "200")])
+    echecs += check(g == {},
+                    "deux pages de parents differents ne collisionnent pas")
+
+    # Une page seule ne collisionne pas avec elle-meme via les deux cles.
+    echecs += check(inventory.detecte_collisions([page("1", "X", "100")]) == {},
+                    "une page isolee ne doit pas se collisionner elle-meme")
+
+    echecs += test_non_regression_corpus()
+    return echecs
+
+
+# Mesures de contracts/slugification.md §11, epinglees par le test ci-dessous.
+MESURES_ATTENDUES = {
+    "pages exportees": 232,
+    "collisions": 0,
+    "slug le plus long": 77,
+    "md_path median": 89,
+    "md_path le plus long": 131,
+    "md_path le plus long, doublement force": 164,
+    "profondeur maximale sous specs/": 4,
+}
+
+DUMP = RACINE.parent / "recensement" / "pages_classification_20260805.json"
+
+
+def _md_path(page, par_id, meres, doublement_force=False):
+    """Assemblage de md_path selon contracts/slugification.md §10.
+
+    IMPLEMENTATION DE REFERENCE, LOCALE AU TEST. L'assemblage reel n'existe pas
+    encore dans inventory.py — il arrive avec pages_inventory.json et le delta. Le
+    jour ou il sera ecrit, ce test doit l'appeler LUI au lieu de cette copie, sinon
+    il verifiera une seconde implementation au lieu de la vraie.
+    """
+    segments, courant = [], page
+    while courant:
+        segments.append(inventory.slugify(courant["title"], courant["id"]))
+        courant = par_id.get(courant.get("parent_id") or "")
+    segments.reverse()
+    # Une page a filles porte son contenu dans {slug}/{slug}.md ; les segments
+    # d'ancetres ne sont jamais doubles.
+    if doublement_force or page["id"] in meres:
+        segments.append(segments[-1])
+    racine = "specs" if page["group"] == "A" else "docs"
+    return f"{racine}/" + "/".join(segments) + ".md"
+
+
+def mesures_corpus(pages):
+    """Les 7 mesures du §11 sur un dump de classification."""
+    par_id = {p["id"]: p for p in pages}
+    meres = {p["parent_id"] for p in pages if p.get("parent_id")}
+    exportees = [p for p in pages if p["exported"]]
+    chemins = [_md_path(p, par_id, meres) for p in exportees]
+    forces = [_md_path(p, par_id, meres, doublement_force=True) for p in exportees]
+    longueurs = sorted(len(c) for c in chemins)
+    milieu = longueurs[len(longueurs) // 2] if longueurs else 0
+    return {
+        "pages exportees": len(exportees),
+        "collisions": len(inventory.detecte_collisions(pages)),
+        "slug le plus long": max(len(inventory.slugify(p["title"], p["id"]))
+                                 for p in pages),
+        "md_path median": milieu,
+        "md_path le plus long": max(len(c) for c in chemins),
+        "md_path le plus long, doublement force": max(len(c) for c in forces),
+        "profondeur maximale sous specs/": max(c.count("/") for c in chemins
+                                               if c.startswith("specs")),
+    }
+
+
+def test_non_regression_corpus():
+    """Epingle les mesures du §11 sur le dump de recensement.
+
+    C'est la seule verification qui porte sur le corpus reel : les cas du §13 sont
+    des exemples choisis, ils ne diraient rien d'une regle qui derive sur 246 titres
+    authentiques. Sans ce test, une evolution de la regle perime les chiffres du §11
+    en silence — ce qui s'est deja produit : le contrat annoncait un slug maximal de
+    78, valeur heritee d'une regle candidate en liste noire, jamais recalculee au
+    passage a la liste blanche.
+    """
+    echecs = 0
+    if not DUMP.is_file():
+        print(f"  ATTENTION : dump absent, {len(MESURES_ATTENDUES)} mesures non "
+              f"verifiees ({DUMP.name})")
+        # Un dump absent ne doit pas passer pour un succes : recensement/ n'est pas
+        # versionne, un depot fraichement clone n'a pas ce fichier.
+        return 0
+
+    pages = json.loads(DUMP.read_text(encoding="utf-8"))["pages"]
+    obtenues = mesures_corpus(pages)
+    for nom, attendu in MESURES_ATTENDUES.items():
+        echecs += check(obtenues[nom] == attendu,
+                        f"§11 — {nom} : {obtenues[nom]}, attendu {attendu}")
+
+    # Le plafond de segment doit rester un garde-fou inactif : s'il devenait actif,
+    # des fichiers seraient renommes sur le SharePoint au prochain run.
+    echecs += check(obtenues["slug le plus long"] < inventory.SLUG_SEGMENT_MAX,
+                    f"le plafond de {inventory.SLUG_SEGMENT_MAX} doit rester inactif, "
+                    f"slug le plus long {obtenues['slug le plus long']}")
+    echecs += check(not any("~" in inventory.slugify(p["title"], p["id"])
+                            for p in pages),
+                    "aucun slug du corpus ne doit porter la marque de troncature `~`")
+    return echecs
 
 
 def run():
@@ -206,6 +402,8 @@ def run():
     echecs += check(all(nom not in dict(inventory.TYPE_PATTERNS)
                         for nom in inventory.TYPES_RESERVES),
                     "DOC et TAB doivent rester sans motif tant qu'aucune page n'existe")
+
+    echecs += tests_slugification()
 
     if echecs:
         print(f"\n{echecs} echec(s) sur {TOTAL} verifications")

@@ -140,7 +140,7 @@
         },
         "md_path": {
           "type": ["string", "null"],
-          "description": "REFERENCE UNIQUE DU CHEMIN du .md, relatif a local_path. Les skills le LISENT ICI et ne le recalculent JAMAIS depuis le titre : l'arborescence exportee reproduit la hierarchie Confluence sous specs/ (groupe A) et docs/ (groupe B), donc la profondeur, le slug du parent et la forme fichier-ou-repertoire ne sont pas derivables d'un titre de page. Une page AVEC filles vit dans \"{slug}/{slug}.md\" (ex. \"specs/Q-IDENTITE.../SF-PERSONNE.../CU-PERSONNE-MODIFIER.md\") ; une page SANS fille donne un simple \"{slug}.md\" — pas de repertoire a fichier unique. Consequence : l'ajout d'une premiere fille DEPLACE le .md de la page parente sans que son contenu ni sa version.number aient change ; le run doit le traiter comme un deplacement identifie et le signaler comme tel au rapport, jamais comme une suppression suivie d'une creation. Les titres contiennent des caracteres interdits sous Windows (\"SF-PERSONNE: ...\") : slugification obligatoire, collisions detectees et signalees, et longueur de chemin surveillee (alerte a 200 caracteres, plafond Windows a 260). NON PRODUIT par inventory.py v1.1 — voir la note d'implementation en fin de fichier."
+          "description": "REFERENCE UNIQUE DU CHEMIN du .md, relatif a local_path. Fabrication : contracts/slugification.md, qui fait foi. Les skills le LISENT ICI et ne le recalculent JAMAIS depuis le titre : la profondeur, le slug du parent et la forme fichier-ou-repertoire ne sont pas derivables d'un titre de page. Une page AVEC filles vit dans \"{slug}/{slug}.md\" ; une page SANS fille donne un simple \"{slug}.md\" — pas de repertoire a fichier unique. Consequence : l'ajout d'une premiere fille DEPLACE le .md de la page parente sans que son contenu ni sa version.number aient change ; le run doit le traiter comme un deplacement identifie et le signaler comme tel au rapport, jamais comme une suppression suivie d'une creation. null dans deux cas seulement : page non exportee, ou page membre d'un groupe en collision de slug — dans ce second cas la page conserve son entree et ses .md des runs precedents ne sont PAS supprimes."
         },
         "last_exported": {
           "type": ["string", "null"],
@@ -150,10 +150,10 @@
         "warnings": {
           "type": "array",
           "items": { "type": "string" },
-          "description": "Faits anormaux mais non bloquants, en clair, tous repris au rapport de run : module ambigu entre ascendance et titre, type de spec suggere par le titre mais ignore parce que la page est du groupe B, racine sans type residuel declare, page hors perimetre."
+          "description": "Faits anormaux mais non bloquants, en clair, tous repris au rapport de run : module ambigu entre ascendance et titre, type de spec suggere par le titre mais ignore parce que la page est du groupe B, racine sans type residuel declare, page hors perimetre, collision de slug entre freres, longueur de chemin complet superieure a 200 caracteres."
         }
       }
     }
   },
-  "$comment": "ETAT D'IMPLEMENTATION au 5 aout 2026 — inventory.py v1.1 produit tous les champs de classification, mais son CLI emet un tableau de pages a plat (dump de mise au point), pas encore la carte indexee par identifiant decrite ici, et ne renseigne ni md_path ni last_exported ni unclassified. L'assemblage de pages_inventory.json arrive avec la slugification et le delta, qui closent l'etape 3."
+  "$comment": "ETAT D'IMPLEMENTATION au 7 aout 2026 — inventory.py v1.2 produit tous les champs de classification, ainsi que slugify() et la detection de collision de contracts/slugification.md §2 et §9. Son CLI emet encore un tableau de pages a plat (dump de mise au point), pas la carte indexee par identifiant decrite ici, et ne renseigne ni md_path ni last_exported ni unclassified : l'assemblage reste a ecrire, avec le delta, ce qui clot l'etape 3. La regle de fabrication de md_path, elle, est arretee."
 }

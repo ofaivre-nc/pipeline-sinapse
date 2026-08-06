@@ -30,10 +30,11 @@ import html
 import json
 import re
 import sys
-from collections import Counter
+import unicodedata
+from collections import Counter, defaultdict
 from pathlib import Path
 
-VERSION = "1.1"
+VERSION = "1.2"
 SCHEMA_VERSION = 1
 
 
@@ -145,6 +146,109 @@ ATTRIBUTS_PAR_TYPE = {
 # L'exclusion est HERITEE par tout le sous-arbre : une page rangee sous une page
 # archivee est archivee avec elle, quel que soit son propre titre.
 DEFAULT_EXCLUDE_TITLE_PREFIXES = ("Archive", "ARCHIVE_", "Copie de", "-NEW-", "DRAFT")
+
+# --- Slugification : contracts/slugification.md ---------------------------
+# Le slug est une CLE D'ADRESSAGE, pas un libelle. Le titre exact vit dans
+# pages_inventory.json et dans le frontmatter ; rien n'est perdu quand le slug abime
+# un titre. En revanche deux pages qui produisent le meme chemin font disparaitre une
+# spec, silencieusement et sans retour. D'ou l'ordre : unicite d'abord, lisibilite
+# ensuite.
+
+# Liste BLANCHE, jamais liste noire. Une liste noire des caracteres interdits sous
+# Windows laisserait passer parentheses, espaces et esperluettes : les parentheses
+# cassent la syntaxe d'un lien markdown, et c'est ce qui permet d'ecrire md_path tel
+# quel dans un lien, sans encodage (normalisation_adf.md §6.3).
+SLUG_KEEP = re.compile(r"[^A-Za-z0-9._-]")
+
+# Noms de peripheriques DOS : Windows refuse NUL.md comme nul. Aucune occurrence au
+# corpus, mais le cout du garde-fou est nul.
+SLUG_RESERVED = ({"CON", "PRN", "AUX", "NUL"}
+                 | {f"COM{i}" for i in range(1, 10)}
+                 | {f"LPT{i}" for i in range(1, 10)})
+
+# 80 : aucun titre du corpus ne l'atteint, le plus long fait 78 caracteres. Garde-fou
+# contre un titre pathologique futur, pas un mecanisme actif — le fixer la garantit
+# zero renommage aujourd'hui, donc zero brassage de fichiers sur le SharePoint.
+SLUG_SEGMENT_MAX = 80
+
+
+def slugify(title, page_id):
+    """Segment de chemin derive d'un titre. Voir contracts/slugification.md §2.
+
+    L'entree est le titre DEJA NORMALISE par normalize_title() : html.unescape() puis
+    repli des tirets Unicode. slugify() ne refait pas cette normalisation — un seul
+    endroit normalise les titres, le dupliquer garantirait une divergence le jour ou
+    l'un des deux evoluerait.
+    """
+    # Repli des accents. Git et les clients de synchronisation ne s'accordent pas sur
+    # la forme Unicode d'un nom accentue : un depot partage Windows/macOS voit des
+    # fichiers "modifies" que personne n'a touches. Effet de bord recherche :
+    # "Reflexion" et "Réflexion" produisent le meme slug et entrent en collision, au
+    # lieu de deux fichiers voisins que personne ne rapprochera.
+    s = unicodedata.normalize("NFD", str(title or ""))
+    s = "".join(c for c in s if unicodedata.category(c) != "Mn")
+    s = unicodedata.normalize("NFC", s)
+
+    s = SLUG_KEEP.sub("-", s)
+    s = re.sub(r"-{2,}", "-", s).strip("-._ ")
+
+    if len(s) > SLUG_SEGMENT_MAX:
+        # `~` n'appartient pas a la liste blanche : sa seule origine possible est
+        # cette troncature, ce qui rend un slug tronque reconnaissable a l'oeil.
+        # L'identifiant est repris ENTIER, un suffixe court ne garantit pas l'unicite.
+        s = s[:SLUG_SEGMENT_MAX].rstrip("-._") + "~" + str(page_id)
+
+    # Comparaison sur la partie qui precede le premier point, sans tenir compte de la
+    # casse : Windows refuse NUL.md comme nul.
+    if s.split(".")[0].upper() in SLUG_RESERVED:
+        s = "_" + s
+
+    return s or f"page-{page_id}"
+
+
+def detecte_collisions(pages):
+    """Groupes de pages produisant le meme chemin. Voir contracts/slugification.md §9.
+
+    `pages` : iterable de dicts portant au moins id, title, parent_id.
+
+    La cle est (identifiant du REPERTOIRE contenant, slug replie), et chaque page en
+    alimente DEUX, dans le MEME espace de noms — c'est leur partage qui detecte le
+    second cas :
+
+      (parent_id, slug)  le fichier de la page vit dans le repertoire de son parent,
+                         donc les FRERES se disputent ce nom ;
+      (page_id,  slug)   cas X/X.md — une page a filles porte son contenu dans un
+                         fichier de meme nom que son propre repertoire. Une fille dont
+                         le slug egale celui de sa mere vise exactement ce chemin, et
+                         sa cle (parent_id = id de la mere, slug) tombe sur celle-ci.
+
+    Un espace de noms separe par nature de collision ne detecterait rien du second
+    cas : la mere et la fille n'y seraient jamais comparees.
+
+    Les cles sont repliees par `casefold()` : la casse est CONSERVEE dans le slug —
+    c'est la forme de l'identifiant SINAPSE — mais Windows, SharePoint et Git sur
+    Windows y sont insensibles, donc deux slugs qui n'en different que par la casse
+    designent le meme fichier.
+
+    Rend {cle: [pages du groupe]} pour les seuls groupes d'au moins 2 pages. Aucune
+    desambiguisation : elle renommerait silencieusement des specs, y compris celle qui
+    n'a pas bouge. Une collision est une anomalie editoriale, elle se corrige dans
+    Confluence.
+    """
+    par_cle = defaultdict(list)
+    for page in pages:
+        page_id = str(page["id"])
+        pli = slugify(page.get("title"), page_id).casefold()
+        par_cle[(str(page.get("parent_id") or ""), pli)].append(page)
+        par_cle[(page_id, pli)].append(page)
+
+    groupes = {}
+    for cle, lot in par_cle.items():
+        uniques = {str(p["id"]): p for p in lot}
+        if len(uniques) > 1:
+            groupes[cle] = sorted(uniques.values(), key=lambda p: str(p["id"]))
+    return groupes
+
 
 # --- Extraction du module ------------------------------------------------
 # Un module SF- peut porter un point : SF-COMPTE et SF-COMPTE.INTERNET sont deux
