@@ -1,7 +1,7 @@
 # Pipeline SINAPSE — document de référence
 
 *Document unique de la conversation de conception. Remplace `brief-pipeline-sinapse-v3.md`, archivé dans `docs/archive/`. Il succède aussi à un document de reprise de contexte antérieur, qui n'a vécu que dans l'espace de conversation : il n'en existe aucune trace dans le dépôt, inutile de l'y chercher.*
-*Mis à jour le 5 août 2026 — organisation des `.md` exportés.*
+*Mis à jour le 6 août 2026 — clôture de l'étape 0d et seconde famille de macros de réutilisation.*
 
 ---
 
@@ -88,9 +88,9 @@ Export récursif, profondeur illimitée. 247 pages au total.
 | Étape | État |
 |---|---|
 | 0a — accès REST | ✅ |
-| 0b — resolver : réutiliser ou réécrire | 🟡 à trancher en écrivant le parcours récursif |
+| 0b — resolver : réutiliser ou réécrire | 🟡 à trancher en écrivant le parcours récursif — **trois mécanismes** à couvrir désormais |
 | 0c — environnement | ✅ |
-| **0d — recensement + table de normalisation** | 🟡 recensement ✅ ; `contracts/normalisation_adf.md` **partiel** |
+| **0d — recensement + table de normalisation** | ✅ les 33 types du corpus sont couverts ; un type non couvert lève |
 | 0e — inventaire du space | ✅ |
 | 1, 2 — export d'une page, puis une par type | ⬜ |
 | 2bis — corpus doré | 🟡 9 fixtures figées ; `.md` attendus manquants |
@@ -118,7 +118,7 @@ Récupérés du brief archivé. Ce sont des **tests d'acceptation fondés sur un
 | **7** — run complet | mesure du temps, vérification du rapport, **contrôle manuel de 5 pages** |
 | **8** — runs incrémentaux | tester les 4 cas : page modifiée, **source de contenu réutilisé modifiée**, suppression, renommage |
 
-Le critère de l'étape 8 est à étendre : « source de multiexcerpt modifiée » date d'avant la découverte des `syncBlock`. Les deux mécanismes doivent être testés, l'invalidation transitive valant pour l'un comme pour l'autre.
+Le critère de l'étape 8 est à étendre : « source de multiexcerpt modifiée » date d'avant la découverte des `syncBlock`, puis de la famille `excerpt`. Les **trois** mécanismes doivent être testés, l'invalidation transitive valant pour chacun.
 
 ### Environnement en place
 
@@ -126,10 +126,15 @@ Claude Code opérationnel, dépôt `C:\dev\sinapse-claude`. Token Atlassian en v
 
 ### Prochaines étapes
 
-1. **Compléter `contracts/normalisation_adf.md`** — `expand`, `layoutSection`/`layoutColumn`, `media*`, les 3 formes de cartes Jira, `status`, `taskList`, les 15 marks. Tout est tranchable sur les fixtures, sans Confluence. Clôture de l'étape 0d.
-2. **Test de conversion `marklas`** sur les 9 fixtures, avec la liste des warnings émis.
-3. **Finir l'étape 3** : slugification et delta par `version.number`.
-4. Puis étapes 1 et 2 (export de pages), 2bis (corpus doré complété), 4, 5…
+1. **Test de conversion `marklas`** sur les 9 fixtures, avec la liste des warnings émis. Confronter les warnings à `contracts/normalisation_adf.md` : un warning résiduel signale soit un nœud mal couvert, soit une limite de la bibliothèque à contourner dans le normalizer.
+2. **Finir l'étape 3** : slugification et delta par `version.number`. La slugification est le verrou — `md_path` en dépend, donc l'assemblage de `pages_inventory.json`, donc le rendu des renvois entre pages (`normalisation_adf.md` §6.3).
+3. Puis étapes 1 et 2 (export de pages), 2bis (corpus doré complété), 4, 5…
+
+#### La slugification — ce qui la rend non triviale
+
+Le corpus emploie `-` **et** `.` dans les titres de pages comme dans les identifiants de règles. Une réduction naïve du point en tiret fabriquerait des collisions : `CU-NOTE-TYPENOTE.CREER` et `CU-NOTE-TYPENOTE-CREER` produiraient le même fichier. S'y ajoutent les entités HTML (`&period;`, `&lowbar;`), les espaces de tête relevés sur 3 noms du module NOTE, les accents, les caractères interdits sous Windows et la limite de 260 caractères de chemin.
+
+Une désambiguïsation est donc nécessaire, et les collisions doivent lever à la construction de l'inventaire plutôt que d'écraser silencieusement un fichier.
 
 ---
 
@@ -145,7 +150,12 @@ Claude Code opérationnel, dépôt `C:\dev\sinapse-claude`. Token Atlassian en v
 - **Décodage générique obligatoire** : `html.unescape()` — le corpus contient `&period;` et `&lowbar;`.
 - **Marks à traiter** : `fragment`, `breakout`, `textColor`, `backgroundColor`, `alignment`, `annotation`, `subsup`, `border`, `fontSize`.
 
-### Réutilisation de contenu — deux mécanismes, deux clés
+### Réutilisation de contenu — trois mécanismes, deux formes de clé
+
+Deux familles de macros — `multiexcerpt` et `excerpt` natif, clé `(page, nom)` — et le
+mécanisme `syncBlock`, clé `(page_id, uuid)`. Détail dans
+`contracts/normalisation_adf.md` §1 ; les circonstances de la découverte de la seconde
+famille sont en §5 de ce document.
 
 **Multiexcerpt** — 6 variantes, 908 occurrences : 3 formes de définition (`bodiedExtension`, sans paramètre `page` : elles définissent sur leur propre page) et 3 formes d'inclusion.
 
@@ -154,6 +164,13 @@ Claude Code opérationnel, dépôt `C:\dev\sinapse-claude`. Token Atlassian en v
 - La source est désignée **par titre**. Confluence maintient ce titre à jour côté serveur au renommage, sans incrémenter la version de la consommatrice. REST v2 et connecteur MCP concordent. **Aucun repli par ID nécessaire.**
 - Nettoyage obligatoire : `html.unescape()` **puis** `.strip()` des deux côtés. 10 occurrences portent un espace de tête, cohérent des deux côtés aujourd'hui — la jointure marche par chance, une retouche d'un seul côté casserait 4 inclusions en silence. Vérifié : aucun couple de noms ne fusionne après nettoyage.
 - L'inclusion **inline** se substitue dans un paragraphe : le remplacement doit produire des nœuds inline.
+
+**`excerpt` natif** — 2 variantes relevées le 6 août, `excerpt` (définition) et `excerpt-include` (inclusion), sur `180256775` et `27787265`.
+
+- Même forme de clé que le multiexcerpt, **`(page, nom)`**, et même désignation de la source **par titre** : aucun gain sur le renommage ni sur la dépendance à l'inventaire.
+- **La page source se lit dans `macroParams[""]`**, la clé vide — pas dans `macroParams.page`. C'est le piège le plus dangereux du dossier : chercher `page` ne trouve rien, fait conclure « page courante », et résout contre une définition locale de même nom, sans erreur.
+- **Reconnaissance par sous-chaîne**, `multiexcerpt` testé **avant** `excerpt` — le premier contient le second.
+- **Index séparé du multiexcerpt** : Confluence ne croise pas les deux familles, le pipeline non plus.
 
 **syncBlock** — mécanisme distinct, absent de l'échantillon initial. Un visiteur limité aux nœuds `Extension` le manquerait **en silence**.
 
@@ -168,7 +185,7 @@ syncBlock       (inclusion)   attrs.resourceId = "confluence-page/{PAGE_ID}/{UUI
 - Les 4 inclusions du corpus trouvent toutes leur définition, aucune orpheline.
 - Enjeu mesuré : sans résolution, `CU-NOTE-MODIFIER` sort sans aucun de ses tableaux IHM, et `structure-cu` la validerait comme une CU sans frames.
 
-**Les deux mécanismes cohabitent dans la même pile de récursion**, clés préfixées par leur mécanisme pour interdire toute collision. `CycleGuard` implémenté dans `pipeline/src/multiexcerpt.py` v1.0. Le parcours récursif reste à écrire.
+**Les trois mécanismes cohabitent dans la même pile de récursion**, clés préfixées par leur mécanisme pour interdire toute collision — y compris entre une clé `multiexcerpt` et une clé `excerpt` de forme identique. `CycleGuard` implémenté dans `pipeline/src/multiexcerpt.py` v1.1, 75 tests. Le parcours récursif reste à écrire.
 
 ### `nested-table` — pas un échec de conversion
 
@@ -260,12 +277,12 @@ Le dépôt est la source de vérité ; l'espace GIE est une cible de déploiemen
 
 **Données**
 - **Delta par `version.number`**, jamais par date : `lastmodified` est à la minute, sensible au fuseau, et ne bouge pas sur certains déplacements. Le diff de versions donne en prime suppressions, renommages et déplacements.
-- **Index croisé construit depuis l'ADF**, pas depuis le `.md` : les tableaux markdown perdent leur structure dès qu'une cellule contient une liste ou un saut de ligne — précisément le cas des tableaux IHM 5 colonnes et MDD 9 colonnes.
+- **Index croisé construit depuis l'ADF**, pas depuis le `.md` : les tableaux markdown perdent leur structure dès qu'une cellule contient une liste ou un saut de ligne — précisément le cas des tableaux IHM 5 colonnes et MDD 9 colonnes. **Mesuré le 6 août** : 13 des 56 tableaux des 9 fixtures portent au moins une cellule à contenu de bloc, et jusqu'à ~24 après injection des `nested-table`. Deux des CU analysées (`28344321`, `28344344`) en font partie.
 - **`parse_status` obligatoire par page** : sans lui, un skill lisant `regles: []` ne peut pas distinguer « aucune règle » de « le parser a échoué », et produit un rapport entièrement faux. Une page en `parse_status ≠ ok` n'est pas scorée, elle est signalée.
 - **Pas de cache ADF brut global** — seulement `pipeline/fixtures/` pour les tests. Une évolution du convertisseur implique un run complet depuis Confluence.
 - **Aucun nœud ADF ignoré silencieusement** : tout nœud non couvert remonte en erreur au rapport. Un warning résiduel de la lib = un bug du normalizer.
 - **`marklas`** pour la conversion ADF → Markdown.
-- **Résolution : par titre pour le multiexcerpt, par identifiant de page pour le syncBlock.**
+- **Trois mécanismes de contenu réutilisé, deux formes de clé** : par titre pour les macros `multiexcerpt` **et** `excerpt` natif — clé `(page, nom)` ; par identifiant pour le `syncBlock` — clé `(page_id, uuid)`. Les index de définitions restent **séparés par mécanisme** : les croiser produirait un `.md` plus complet que la page réelle, et masquerait un affichage cassé que les rédacteurs voient à l'écran.
 - **OpenAPI hors périmètre** → maxLength abandonné assumé.
 
 **Exécution**
@@ -311,6 +328,52 @@ specs/
 
 **`md_path` dans `pages_inventory.json` reste la référence unique du chemin.** Les skills le **lisent depuis le cache** et ne le recalculent **jamais** depuis le titre : la profondeur, le slug du parent et la forme fichier-ou-répertoire ne sont pas dérivables d'un titre de page. Un skill qui reconstruirait un chemin le perdrait au premier déplacement.
 
+### Le contenu réutilisé — trois mécanismes, et un incident qui en a révélé un
+
+*Décision du 6 août 2026.*
+
+Le 5 août, l'endpoint REST v1 « Convert content body » de Confluence a atteint sa
+date de suppression définitive. La macro **MultiExcerpt Advanced** (app
+Marketplace Appfire) l'utilisait en interne : elle a cessé de restituer le
+contenu. Le service est revenu à la normale le 6 après mise à jour du plugin.
+
+**Le pipeline n'a jamais été menacé** : il lit l'ADF brut et résout lui-même. Ce
+qui a cassé, c'est l'affichage pour les rédacteurs. Cette indépendance est un
+acquis de conception, pas une chance.
+
+Pendant l'incident, un BA a testé la macro **Extrait native** de Confluence comme
+contournement, sur `180256775` (25 définitions) et `27787265` (8 inclusions). La
+limite historique d'un extrait par page **n'existe plus** : les extraits natifs
+sont nommés, comme les multiexcerpts.
+
+Décisions :
+
+- **Le contrat documente la famille `excerpt` sans l'adopter**
+  (`normalisation_adf.md` §1.8). Documenter n'est pas encourager : la famille est
+  présente dans Confluence aujourd'hui, le code doit la reconnaître.
+- **Aucune contrainte technique n'impose de choisir un mécanisme.** Les deux
+  familles cohabitent déjà sur une même page — `180256775` porte 25 `excerpt`
+  **et** 2 multiexcerpts résiduels. Le resolver classe nœud par nœud, jamais page
+  par page.
+- **Reconnaissance par sous-chaîne dans `extensionKey`, jamais par énumération**,
+  avec `multiexcerpt` testé **avant** `excerpt` — le premier contient le second.
+  Le corpus comptait six variantes le 4 août, deux de plus le 5 : une liste
+  figée vieillit, une sous-chaîne non.
+- **La page source ne se lit pas au même endroit** : `macroParams.page` pour le
+  multiexcerpt, `macroParams[""]` pour l'`excerpt` natif — héritage du paramètre
+  positionnel du wiki markup `{excerpt-include:Page|name=X}`. Un resolver qui
+  chercherait `page` conclurait « page courante » et résoudrait contre une
+  définition locale de même nom : contenu faux, plausible, **muet**. Cas réel sur
+  `27787265`.
+- **L'`excerpt` natif désigne sa source par titre**, comme le multiexcerpt : il
+  n'apporte aucun gain sur la sensibilité au renommage ni sur la dépendance à
+  `pages_inventory.json`. Seul le `syncBlock` règle ce point.
+- **L'unité de migration est une définition et toutes ses inclusions**, jamais
+  une page : convertir une source sans ses consommatrices casse l'affichage. Sur
+  908 occurrences, c'est un travail de coordination — que l'index croisé sait
+  produire. D'où l'ordre : **construire l'inventaire et l'index croisé, puis
+  migrer avec**, et non l'inverse.
+
 ---
 
 ## 6. Exigences à porter dans le code
@@ -319,7 +382,7 @@ specs/
 
 > **Rangement** — `build_report()` vit provisoirement dans `inventory.py` ; sa place est dans `report.py` quand ce module existera.
 
-> **Nommage des fichiers** — les titres contiennent des caractères interdits sous Windows (`SF-PERSONNE: …`). Slugification obligatoire, collisions détectées et signalées.
+> **Nommage des fichiers** — les titres contiennent des caractères interdits sous Windows (`SF-PERSONNE: …`), des entités HTML (`&period;`, `&lowbar;`), des espaces de tête, et emploient `-` comme `.`. Slugification obligatoire ; **les collisions lèvent à la construction de l'inventaire**, elles ne sont pas seulement signalées — un fichier écrasé silencieusement fait disparaître une spec du corpus.
 
 > **Horodatage des sorties** — un run partiel ne doit pas pouvoir écraser le rapport d'un run complet du même jour.
 
@@ -328,8 +391,9 @@ specs/
 ## 7. Ce qui reste ouvert
 
 **Technique**
-- compléter la table de normalisation : `expand`, `layoutSection`/`layoutColumn`, `media*`, cartes Jira, `status`, `taskList`, marks ;
-- **réutiliser ou réécrire le resolver** (étape 0b du brief) — deux voies : injecter des fonctions `requests` en place des fonctions connecteur dans `confluence_adf_multiexcerpt_resolver.py`, **ou** réimplémenter comme visiteur de l'AST. **Ne pas maintenir deux logiques.** À arbitrer au vu de la table de normalisation. Les clés et le `CycleGuard` sont faits, le parcours récursif reste à écrire — et il doit désormais couvrir les deux mécanismes, ce que le resolver d'origine ne fait pas ;
+- **réutiliser ou réécrire le resolver** (étape 0b) — deux voies : injecter des fonctions `requests` en place des fonctions connecteur dans `confluence_adf_multiexcerpt_resolver.py`, **ou** réimplémenter comme visiteur de l'AST. **Ne pas maintenir deux logiques.** Les clés, le `CycleGuard` et la classification en six natures sont faits ; le parcours récursif reste à écrire, et il doit couvrir **trois mécanismes**, ce que le resolver d'origine n'en couvre qu'un ;
+- `fontSize` — relevé dans le corpus complet, absent des 9 fixtures : seul mark non arbitré. Il lève tant qu'il n'est pas tranché ;
+- **forme inline de l'Extrait natif** — le corpus compte 53 inclusions inline en multiexcerpt (`…-include-inline-macro` ×50, `multiexcerpt-include-macro` ×3). L'essai du 5 août n'a produit que des nœuds `extension` de bloc, y compris en cellule de tableau où un bloc paraît en ligne. À vérifier par une insertion **au milieu d'une phrase, hors tableau** : si Confluence l'accepte, le nœud doit être un `inlineExtension` ;
 - sort de `confluence-outil-resolve-multiexcerpt` (retiré ou conservé en secours) — dépend de la fiabilité du pipeline en production ;
 - emplacement des 3 outils existants (`tools/` ou skill) : artefact autonome → `tools/` ; déclenché en conversation → skill.
 
@@ -348,6 +412,12 @@ specs/
 - migration GitLab + CI, après l'étape 9 ou à l'arrivée d'un 2ᵉ contributeur ;
 - **runner CI capable de joindre `atlassian.net`** — question longue à obtenir, à poser tôt en parallèle.
 
+Côté **périmètre**, s'ajoutent :
+
+- **sort de l'essai « Extrait natif »** du 5 août sur `180256775` et `27787265` : conservé, annulé, ou généralisé. Deux pages sont dans un état que personne n'a validé, et les rédacteurs ne savent pas quoi utiliser. Le pipeline n'impose rien — c'est une décision d'équipe ;
+- **convention de couleurs des BA** — 5 valeurs de `backgroundColor` relevées, le surlignage signalant les évolutions à venir non encore développées. Le pipeline conserve le hex sans l'interpréter ; si une convention existe, elle est à documenter côté skills ;
+- **coordination avec les BA pendant l'écriture du normalizer** — éviter qu'une conversion de masse se poursuive pendant que le pipeline se construit.
+
 ---
 
 ## 8. Anomalies Confluence à remonter aux BA
@@ -356,7 +426,9 @@ specs/
 
 - **`CU-NOTE-TYPENOTE.CREER` (396361729) est une copie de `CU-NOTE-CREER` (28344321) qui a hérité de ses identifiants de bloc** — même `resourceId`, même `localId`, contenus divergents. Deux specs vivantes prétendent définir le même bloc. Le pipeline s'en sort par la clé `(page_id, uuid)`, mais l'édition de l'une des deux réserve des surprises ;
 - 5 requêtes JQL avec gabarit `{{page.url}}` non substitué — ces tables Jira ne ciblent aucune page réelle ;
-- 3 `blockCard` sans datasource, en fait des liens SharePoint ;
+- 3 `blockCard` sans datasource, en fait des liens SharePoint — **sur le corpus complet des 246 pages** ; les 9 fixtures du corpus doré n'en contiennent aucun, leurs 5 `blockCard` portent tous un `datasource` ;
+- **`habilitation` défini deux fois sur `27787265`** — deux `bodiedExtension :: excerpt` de même nom, contenu identique à ce jour. Sans effet visible jusqu'au jour où les deux divergeront ; ni le plugin ni la macro native ne disent laquelle gagne. Le pipeline lève à la construction de l'index ;
+- **`380567556` porte un `inlineCard` vers une URL d'édition** — `…/pages/edit-v2/380567556#IHM-concernant-la-gestion-du-profil…`, pointant vers la page elle-même. Un lien d'édition n'a rien à faire dans une spec ;
 - `Règles génériques utilisables pour les recherches` (28803126) rangée sous `4. Patterns`, au milieu du sous-arbre Design System, alors que ses quatre sœurs sont directement sous la racine ;
 - écart module titre/ascendance sur `SF-DOCUMENT` et `ARCHIVE_CU-DOSS-CONSULT` (titre annonce DOSS, arbre dit PERSONNE) ;
 - `-NEW- CU-COMPTE-PROFIL.GEST` — préfixe à retirer si c'est la version vivante ;
