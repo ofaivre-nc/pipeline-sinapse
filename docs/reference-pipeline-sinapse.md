@@ -1,7 +1,7 @@
 # Pipeline SINAPSE — document de référence
 
 *Document unique de la conversation de conception. Remplace `brief-pipeline-sinapse-v3.md`, archivé dans `docs/archive/`. Il succède aussi à un document de reprise de contexte antérieur, qui n'a vécu que dans l'espace de conversation : il n'en existe aucune trace dans le dépôt, inutile de l'y chercher.*
-*Mis à jour le 7 août 2026 — arborescence du dépôt inscrite, et « page avec filles » précisé en « avec au moins une fille exportée ».*
+*Mis à jour le 7 août 2026 — étape 3 : slugification close, reste l'assemblage et le delta.*
 
 ---
 
@@ -135,7 +135,7 @@ Export récursif, profondeur illimitée. 247 pages au total.
 | 0e — inventaire du space | ✅ |
 | 1, 2 — export d'une page, puis une par type | ⬜ |
 | 2bis — corpus doré | 🟡 9 fixtures figées ; `.md` attendus manquants |
-| **3 — inventaire et delta** | 🟡 classification ✅, slugification ✅ (`contracts/slugification.md`) ; **assemblage de `pages_inventory.json` et delta restants** |
+| **3 — inventaire et delta** | 🟡 classification ✅, slugification ✅ ; restent l'assemblage de `pages_inventory.json` et le delta |
 | 4 — cache du contenu réutilisé | ⬜ |
 | 5 — index croisé (module PERSONNE) | ⬜ |
 | 6 — `mcd_sinapse_data` | ⬜ |
@@ -167,9 +167,10 @@ Claude Code opérationnel, dépôt `C:\dev\sinapse-claude`. Token Atlassian en v
 
 ### Prochaines étapes
 
-1. **Test de conversion `marklas`** sur les 9 fixtures, avec la liste des warnings émis. Confronter les warnings à `contracts/normalisation_adf.md` : un warning résiduel signale soit un nœud mal couvert, soit une limite de la bibliothèque à contourner dans le normalizer.
-2. **Finir l'étape 3** : slugification et delta par `version.number`. La slugification est le verrou — `md_path` en dépend, donc l'assemblage de `pages_inventory.json`, donc le rendu des renvois entre pages (`normalisation_adf.md` §6.3).
-3. Puis étapes 1 et 2 (export de pages), 2bis (corpus doré complété), 4, 5…
+1. **Assembleur de `pages_inventory.json`** — carte indexée par identifiant (la sortie actuelle d'`inventory.py` est un tableau à plat, dump de mise au point), `md_path`, `unclassified`, `last_exported`. Il appelle `slugify()` et `meres_exportantes()`, et **remplace `_md_path()` dans `pipeline/tests/test_inventory.py`** : c'est la dernière implémentation dupliquée du dépôt, et elle a déjà piégé deux fois — un test ne vaut que par ce qu'il partage avec le code qu'il surveille.
+2. **Delta**, à deux entrées. `version.number` détecte modifications, suppressions et renommages. Il ne détecte **pas** le déplacement provoqué par l'arrivée d'une première fille exportée, ni par l'archivage d'une fille unique : le `.md` de la mère passe de `{slug}.md` à `{slug}/{slug}.md` ou l'inverse, sans que son contenu ni sa version aient bougé. Le seul moyen de le voir est de comparer le `md_path` calculé à celui du `pages_inventory.json` du run précédent. **Le delta lit donc l'inventaire précédent, pas seulement les versions Confluence** — c'est une décision de conception, à arbitrer avant écriture.
+3. **Test de conversion `marklas`** sur les 9 fixtures, warnings confrontés à `contracts/normalisation_adf.md`.
+4. Puis étapes 1 et 2 (export de pages), 2bis (corpus doré complété), 4, 5…
 
 #### La slugification — arrêtée le 7 août
 
@@ -464,6 +465,7 @@ Côté **périmètre**, s'ajoutent :
 
 - **sort de l'essai « Extrait natif »** du 5 août sur `180256775` et `27787265` : conservé, annulé, ou généralisé. Deux pages sont dans un état que personne n'a validé, et les rédacteurs ne savent pas quoi utiliser. Le pipeline n'impose rien — c'est une décision d'équipe ;
 - **convention de couleurs des BA** — 5 valeurs de `backgroundColor` relevées, le surlignage signalant les évolutions à venir non encore développées. Le pipeline conserve le hex sans l'interpréter ; si une convention existe, elle est à documenter côté skills ;
+- **sens du texte barré** — le mark `strike` est présent au corpus et conservé en `~~…~~`. Reste à confirmer ce qu'il signifie dans une spec : s'il marque du contenu périmé, il est le symétrique du surlignage et les skills de validation ne doivent pas le scorer comme du contenu actif. Question de convention BA, à poser avec celle des couleurs — le pipeline conserve le fait dans les deux cas ;
 - **coordination avec les BA pendant l'écriture du normalizer** — éviter qu'une conversion de masse se poursuive pendant que le pipeline se construit.
 
 ---

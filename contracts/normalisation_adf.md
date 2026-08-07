@@ -617,8 +617,16 @@ d'émettre une mention vide qui passerait pour du texte manquant.
 
 ## 8. Marks
 
-14 marks distincts. Six ont un rendu markdown direct : `strong`, `em`, `code`,
-`link`, `underline` (`<u>`), `strike`.
+14 marks distincts. Six ont un rendu direct :
+
+| Mark | Rendu | Note |
+|---|---|---|
+| `strong` | `**texte**` | |
+| `em` | `*texte*` | |
+| `code` | `` `texte` `` | |
+| `link` | `[texte]({href})` | `attrs.href` ; les liens vers des pages du périmètre suivent §6.3 |
+| `underline` | `<u>texte</u>` | pas d'équivalent markdown |
+| `strike` | `~~texte~~` | GitHub Flavored Markdown — supporté par les moteurs visés, mais **hors markdown de base** : si un consommateur ne le rend pas, le repli est `<del>texte</del>`, jamais la perte du texte |
 
 ### 8.1 Marks conservés — les couleurs portent du sens métier
 
@@ -644,6 +652,20 @@ Valeurs relevées, pour mémoire et sans valeur normative :
 `#dfd8fd` (47), `#fedec8` (46), `#d3f1a7` (40), `#c6edfb` (9), `#f8e6a0` (5) en
 fond ; `#bf2600` (7) en texte, sur des libellés de contrainte du type « La date
 doit être de la forme "JJ/MM/AAAA" ».
+
+**Le barré pose la même question, en sens inverse.** Le surlignage signale du
+futur non encore développé ; un passage barré signale vraisemblablement du
+passé — « ceci n'est plus d'actualité ». Si la convention se confirme, un skill
+qui score une CU ne doit pas compter le barré comme du contenu actif, au même
+titre qu'il ne doit pas scorer un passage surligné comme de l'existant.
+
+**Le pipeline ne change rien pour autant** : il conserve le fait (`~~…~~`),
+l'interprétation reste aux skills et aux BA. Une table figée dans le pipeline
+« barré → à ignorer » se périmerait au premier changement de convention, comme
+le ferait une table couleur → sens.
+
+Convention à confirmer auprès des BA — voir
+`docs/reference-pipeline-sinapse.md` §7.
 
 ### 8.2 Marks jetés
 
