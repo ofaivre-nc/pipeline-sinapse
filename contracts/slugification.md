@@ -268,6 +268,10 @@ Mesures sur les 232 pages exportées du corpus du 5 août :
 | Slug le plus long | **77** car. |
 | Profondeur maximale sous `specs/` | 4 niveaux |
 
+Mesures établies sur **246 pages**. Le corpus du 5 août en compte une de moins
+que le périmètre réel : `334888965` a été perdue sur un timeout au recensement.
+Aucune des sept valeurs n'a été recalculée avec elle.
+
 Le plus long aujourd'hui :
 
 ```

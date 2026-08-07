@@ -27,3 +27,20 @@ normalizer les traite spécifiquement.
 
 Les `.md` attendus seront ajoutés à côté de chaque `.json` au moment d'écrire le renderer :
 **toute modification du normalizer rejoue ces fixtures.**
+
+## `pages_classification_20260805.json` — corpus de non-régression
+
+Ce fichier n'est pas un ADF : c'est le dump de classification produit par
+`inventory.py`, 246 pages avec leurs métadonnées et sans aucun contenu. Il sert de
+corpus de non-régression aux sept mesures du §11 de `contracts/slugification.md` —
+nombre de pages exportées, collisions, longueurs de `md_path`, profondeur.
+
+**Corpus incomplet, et c'est su.** Il porte 246 pages là où le périmètre en compte
+247 : `334888965` (`SF-COORDONNEE: Règles de gestion consolidées`, page **RG**,
+v130) a été perdue sur un timeout au recensement du 4 août. Elle est retrouvée,
+non collectée.
+
+Le recensement est **à rejouer dans un commit dédié**, où seul le jeu de données
+change — jamais en même temps que du code. Il ramènera aussi `180256775` et
+`27787265`, modifiées le 5 août. Au rafraîchissement, les sept mesures doivent être
+**re-dérivées délibérément** : un écart est attendu, ce n'est pas une régression.

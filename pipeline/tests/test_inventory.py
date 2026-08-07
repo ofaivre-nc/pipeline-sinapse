@@ -197,6 +197,11 @@ def tests_slugification():
 # la fixture sera rafraichie, elles doivent etre re-derivees DELIBEREMENT — jamais
 # recopiees depuis la sortie du script, ce qui reviendrait a valider la regression
 # qu'elles existent pour attraper.
+#
+# CORPUS INCOMPLET, ET C'EST SU : le recensement du 4 aout a perdu 334888965
+# (SF-COORDONNEE: Regles de gestion consolidees, page RG) sur un timeout. Les sept
+# mesures portent donc sur 246 pages au lieu de 247. Au rafraichissement du corpus,
+# un ecart sur ces valeurs est ATTENDU — ce n'est pas une regression.
 MESURES_ATTENDUES = {
     "pages exportees": 232,
     "collisions": 0,
