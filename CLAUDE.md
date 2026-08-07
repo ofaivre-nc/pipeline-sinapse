@@ -149,6 +149,10 @@ Instance `sinapse-gie-nc.atlassian.net`, space `SINAPSE`, export récursif, prof
 - Commits en français, à l'impératif : `ajoute le normalizer des nœuds expand`.
 - Chaque skill affiche `exported_at` en tête de son compte-rendu, et sa propre version
   (`Skill : nom-du-skill vX.Y`) pour repérer un décalage avec l'espace GIE claude.ai.
+- **Un patch nomme sa cible par son chemin complet dans le dépôt.** Si la cible n'existe
+  pas — y compris s'il existe un candidat plausible à un répertoire près — ne pas appliquer
+  par interprétation : s'arrêter et demander. Détail et motifs :
+  `docs/reference-pipeline-sinapse.md` §9.
 
 ## Git
 
