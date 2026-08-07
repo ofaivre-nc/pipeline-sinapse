@@ -208,6 +208,23 @@ def slugify(title, page_id):
     return s or f"page-{page_id}"
 
 
+def meres_exportantes(pages):
+    """Identifiants des pages ayant au moins une fille EXPORTEE — contrat §10.
+
+    Filles exportees seulement : une page dont toutes les filles sont exclues n'a pas
+    de repertoire, il ne contiendrait que son propre fichier. Cas reel du corpus :
+    CU-PERSONNE-CONSULTER, dont l'unique fille est ARCHIVE_CU-DOSS-CONSULT.
+
+    C'est ce predicat qui decide de la forme du chemin : {slug}/{slug}.md pour une
+    page qui figure ici, {slug}.md sinon. Il vit AUPRES de slugify() et non dans les
+    tests, pour que l'assembleur de pages_inventory.json l'appelle au lieu d'en
+    ecrire une seconde version — deux lectures de "page avec filles" divergeraient
+    sans qu'aucune des mesures du contrat §11 ne le signale, elles sont identiques
+    dans les deux cas.
+    """
+    return {p["parent_id"] for p in pages if p.get("parent_id") and p.get("exported")}
+
+
 def detecte_collisions(pages):
     """Groupes de pages produisant le meme chemin. Voir contracts/slugification.md §9.
 

@@ -235,23 +235,10 @@ def _md_path(page, par_id, meres, doublement_force=False):
     return f"{racine}/" + "/".join(segments) + ".md"
 
 
-def meres_exportantes(pages):
-    """Identifiants des pages ayant au moins une fille EXPORTEE — contrat §10.
-
-    Filles exportees seulement : une mere dont toutes les filles sont exclues n'a pas
-    de repertoire, il ne contiendrait que son propre fichier. Cas reel du corpus :
-    CU-PERSONNE-CONSULTER, dont l'unique fille est ARCHIVE_CU-DOSS-CONSULT.
-
-    Fonction partagee par mesures_corpus() et par le test dedie : les separer ferait
-    passer le test alors que l'assemblage mesure, lui, aurait regresse.
-    """
-    return {p["parent_id"] for p in pages if p.get("parent_id") and p["exported"]}
-
-
 def mesures_corpus(pages):
     """Les 7 mesures du §11 sur un dump de classification."""
     par_id = {p["id"]: p for p in pages}
-    meres = meres_exportantes(pages)
+    meres = inventory.meres_exportantes(pages)
     exportees = [p for p in pages if p["exported"]]
     chemins = [_md_path(p, par_id, meres) for p in exportees]
     forces = [_md_path(p, par_id, meres, doublement_force=True) for p in exportees]
@@ -340,14 +327,14 @@ def tests_mere_sans_fille_exportee(pages_corpus):
     # Mere + unique fille exclue -> la mere n'a pas de repertoire.
     cas = [mere("10", "CU-X", "1"), mere("11", "Archive CU-Y", "10", exportee=False)]
     par_id = {p["id"]: p for p in cas}
-    meres = meres_exportantes(cas)
+    meres = inventory.meres_exportantes(cas)
     chemin = _md_path(par_id["10"], par_id, meres)
     echecs += check(chemin.endswith("/CU-X.md") and "/CU-X/" not in chemin,
                     f"mere a fille unique exclue : attendu CU-X.md, obtenu {chemin}")
 
     # La meme mere, sa fille exportee : le repertoire apparait.
     cas[1]["exported"] = True
-    meres = meres_exportantes(cas)
+    meres = inventory.meres_exportantes(cas)
     chemin = _md_path(par_id["10"], par_id, meres)
     echecs += check(chemin.endswith("/CU-X/CU-X.md"),
                     f"mere a fille exportee : attendu CU-X/CU-X.md, obtenu {chemin}")
@@ -359,7 +346,7 @@ def tests_mere_sans_fille_exportee(pages_corpus):
         filles = [p for p in pages_corpus if p.get("parent_id") == "324730881"]
         echecs += check(filles and not any(f["exported"] for f in filles),
                         "CU-PERSONNE-CONSULTER doit n'avoir que des filles exclues")
-        meres = meres_exportantes(pages_corpus)
+        meres = inventory.meres_exportantes(pages_corpus)
         chemin = _md_path(reelle, par_id, meres)
         echecs += check(chemin.endswith("/CU-PERSONNE-CONSULTER.md")
                         and "/CU-PERSONNE-CONSULTER/" not in chemin,
