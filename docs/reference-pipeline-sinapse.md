@@ -503,6 +503,10 @@ Deux natures de fichiers descendent de la conversation vers le dépôt, et elles
 | **Livrable** — contrat, code, schéma | sa place définitive (`contracts/`, `pipeline/src/`…) | oui |
 | **Document de travail** — patch, note d'arbitrage, brouillon | `recensement/` | non |
 
+**Un patch nomme sa cible par son chemin complet dans le dépôt** (`docs/…`,
+`contracts/…`, `pipeline/src/…`). Un patch dont la cible n'existe pas n'est jamais
+appliqué par interprétation : Claude Code s'arrête et demande.
+
 `recensement/` sert de boîte de dépôt parce qu'il figure déjà au `.gitignore` : 37 Mo régénérables en 93 s, rien de ce qu'il contient n'a vocation à survivre. **C'est aussi sa limite** — un nouveau run de `recense_adf.py` peut le vider. Un patch en attente d'application ne doit pas y séjourner d'un jour à l'autre.
 
 **Un patch se supprime une fois appliqué.** Le laisser en place fait courir le risque qu'il soit réappliqué sur un document qui a déjà bougé, ou lu comme l'état courant d'une décision qu'il ne fait que proposer.
