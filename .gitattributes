@@ -1,0 +1,33 @@
+# Fins de ligne normalisees par LE DEPOT, pas par la configuration de chaque poste.
+#
+# Sans cette declaration, c'est core.autocrlf de chaque clone qui decide : un meme
+# fichier peut alors apparaitre modifie sans qu'aucun octet utile ne change. Le
+# symptome s'est produit le 8 aout 2026 sur pipeline/src/inventory.py — diff fantome
+# restaure a la main.
+#
+# L'enjeu reel est pipeline/fixtures/pages_classification_20260805.json : 143 Ko dont
+# les octets changeraient d'un poste a l'autre, ce qui rendrait illisible le commit
+# dedie de rafraichissement du corpus, celui ou seules les DONNEES doivent bouger.
+
+# Detection automatique, normalisation en LF dans le depot pour tout ce qui est texte.
+* text=auto
+
+# Sources et documents : LF dans le depot ET dans la copie de travail. Python,
+# PowerShell et les editeurs du projet lisent LF sans difficulte, et cela garantit
+# qu'un aller-retour entre deux postes ne produit aucun diff.
+*.py            text eol=lf
+*.md            text eol=lf
+*.json          text eol=lf
+*.ini           text eol=lf
+*.example       text eol=lf
+*.gitignore     text eol=lf
+*.gitattributes text eol=lf
+
+# Exception : cmd.exe exige CRLF. Un .bat en LF peut s'executer de travers, et
+# l'etape 11 du sequencement prevoit un .bat de lancement.
+*.bat           text eol=crlf
+*.cmd           text eol=crlf
+
+# Les fixtures ADF et le corpus de classification restent du texte diffable : marques
+# -text (binaire), leur rafraichissement afficherait "binary files differ" au lieu du
+# diff ligne a ligne qu'on veut pouvoir relire.
