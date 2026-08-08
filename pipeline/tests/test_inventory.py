@@ -219,34 +219,16 @@ MESURES_ATTENDUES = {
 DUMP = RACINE / "fixtures" / "pages_classification_20260805.json"
 
 
-def _md_path(page, par_id, meres, doublement_force=False):
-    """Assemblage de md_path selon contracts/slugification.md §10.
-
-    IMPLEMENTATION DE REFERENCE, LOCALE AU TEST. L'assemblage reel n'existe pas
-    encore dans inventory.py — il arrive avec pages_inventory.json et le delta. Le
-    jour ou il sera ecrit, ce test doit l'appeler LUI au lieu de cette copie, sinon
-    il verifiera une seconde implementation au lieu de la vraie.
-    """
-    segments, courant = [], page
-    while courant:
-        segments.append(inventory.slugify(courant["title"], courant["id"]))
-        courant = par_id.get(courant.get("parent_id") or "")
-    segments.reverse()
-    # Une page a filles porte son contenu dans {slug}/{slug}.md ; les segments
-    # d'ancetres ne sont jamais doubles.
-    if doublement_force or page["id"] in meres:
-        segments.append(segments[-1])
-    racine = "specs" if page["group"] == "A" else "docs"
-    return f"{racine}/" + "/".join(segments) + ".md"
-
-
 def mesures_corpus(pages):
     """Les 7 mesures du §11 sur un dump de classification."""
     par_id = {p["id"]: p for p in pages}
     meres = inventory.meres_exportantes(pages)
+    # Le doublement force du §11 s'obtient en declarant TOUTES les pages meres :
+    # md_path() ne double que le segment de la page elle-meme.
+    toutes = {p["id"] for p in pages}
     exportees = [p for p in pages if p["exported"]]
-    chemins = [_md_path(p, par_id, meres) for p in exportees]
-    forces = [_md_path(p, par_id, meres, doublement_force=True) for p in exportees]
+    chemins = [inventory.md_path(p, par_id, meres) for p in exportees]
+    forces = [inventory.md_path(p, par_id, toutes) for p in exportees]
     longueurs = sorted(len(c) for c in chemins)
     milieu = longueurs[len(longueurs) // 2] if longueurs else 0
     return {
@@ -333,14 +315,14 @@ def tests_mere_sans_fille_exportee(pages_corpus):
     cas = [mere("10", "CU-X", "1"), mere("11", "Archive CU-Y", "10", exportee=False)]
     par_id = {p["id"]: p for p in cas}
     meres = inventory.meres_exportantes(cas)
-    chemin = _md_path(par_id["10"], par_id, meres)
+    chemin = inventory.md_path(par_id["10"], par_id, meres)
     echecs += check(chemin.endswith("/CU-X.md") and "/CU-X/" not in chemin,
                     f"mere a fille unique exclue : attendu CU-X.md, obtenu {chemin}")
 
     # La meme mere, sa fille exportee : le repertoire apparait.
     cas[1]["exported"] = True
     meres = inventory.meres_exportantes(cas)
-    chemin = _md_path(par_id["10"], par_id, meres)
+    chemin = inventory.md_path(par_id["10"], par_id, meres)
     echecs += check(chemin.endswith("/CU-X/CU-X.md"),
                     f"mere a fille exportee : attendu CU-X/CU-X.md, obtenu {chemin}")
 
@@ -352,12 +334,30 @@ def tests_mere_sans_fille_exportee(pages_corpus):
         echecs += check(filles and not any(f["exported"] for f in filles),
                         "CU-PERSONNE-CONSULTER doit n'avoir que des filles exclues")
         meres = inventory.meres_exportantes(pages_corpus)
-        chemin = _md_path(reelle, par_id, meres)
+        chemin = inventory.md_path(reelle, par_id, meres)
         echecs += check(chemin.endswith("/CU-PERSONNE-CONSULTER.md")
                         and "/CU-PERSONNE-CONSULTER/" not in chemin,
                         f"cas reel : pas de repertoire a fichier unique, obtenu {chemin}")
     else:
         echecs += check(False, "CU-PERSONNE-CONSULTER (324730881) absente de la fixture")
+
+    # Cycle d'ascendance : la remontee doit rendre None, pas boucler. La copie
+    # locale au test n'avait pas ce garde-fou.
+    boucle = [{"id": "20", "title": "A", "parent_id": "21", "group": "A",
+               "exported": True},
+              {"id": "21", "title": "B", "parent_id": "20", "group": "A",
+               "exported": True}]
+    par_id = {p["id"]: p for p in boucle}
+    echecs += check(
+        inventory.md_path(par_id["20"], par_id, inventory.meres_exportantes(boucle))
+        is None, "une chaine d'ascendance circulaire doit rendre None")
+
+    # Hors perimetre : pas de racine de sortie, donc pas de chemin. Un repli
+    # silencieux sur docs/ rangerait une page inconnue dans la documentation.
+    orpheline = {"id": "30", "title": "CU-ORPHELIN", "parent_id": "999999",
+                 "group": "hors_perimetre", "exported": False}
+    echecs += check(inventory.md_path(orpheline, {"30": orpheline}, set()) is None,
+                    "une page hors perimetre ne doit pas recevoir de chemin")
     return echecs
 
 

@@ -16,9 +16,10 @@ sortie de recense_adf.py, ce qui sert de jeu de tests grandeur reelle.
 Le contrat de classification est dans contracts/classification_pages.md : toute
 evolution du bloc de constantes ci-dessous doit s'y repercuter, et inversement.
 
-La slugification est couverte depuis la v1.2 (contracts/slugification.md). Restent
-l'assemblage de pages_inventory.json — la sortie actuelle est un tableau a plat, pas
-la carte indexee par identifiant du schema — et le delta par version.number.
+La slugification est couverte depuis la v1.2, l'assemblage de md_path depuis la
+v1.3 (contracts/slugification.md §2, §9 et §10). Restent l'assemblage de
+pages_inventory.json — la sortie actuelle est un tableau a plat, pas la carte
+indexee par identifiant du schema — et le delta.
 
 Exemples :
   python inventory.py --from-recensement ../../recensement/recensement_adf_20260804.json \
@@ -35,7 +36,7 @@ import unicodedata
 from collections import Counter, defaultdict
 from pathlib import Path
 
-VERSION = "1.2"
+VERSION = "1.3"
 SCHEMA_VERSION = 1
 
 
@@ -223,6 +224,63 @@ def meres_exportantes(pages):
     dans les deux cas.
     """
     return {p["parent_id"] for p in pages if p.get("parent_id") and p.get("exported")}
+
+
+# Racine de sortie par groupe. Une page hors perimetre n'en a pas : elle n'est
+# jamais exportee, et lui donner `docs/` par defaut la ferait atterrir dans la
+# documentation sans que rien ne le signale.
+RACINE_PAR_GROUPE = {"A": "specs", "B": "docs"}
+
+
+def md_path(page, pages_par_id, meres):
+    """Chemin du .md relatif a local_path. Voir contracts/slugification.md §10.
+
+    Fonction PURE et purement geometrique : elle derive le chemin du titre, de
+    l'ascendance et du predicat "a au moins une fille exportee", sans lire
+    Confluence, sans config.ini, et sans consulter `exported`. C'est ce qui la
+    rend appelable depuis pipeline/tests/test_inventory.py -- la copie locale au
+    test avait deja diverge une fois.
+
+    Elle ne decide PAS si le chemin est retenu : c'est l'assembleur de
+    pages_inventory.json qui ecrit `null` pour une page non exportee ou en
+    collision.
+
+    `meres` : sortie de meres_exportantes(). Pour obtenir la mesure du §11
+    "md_path le plus long si chaque feuille gagnait une fille", passer
+    l'ensemble de TOUS les identifiants : seule la page elle-meme est concernee
+    par le doublement, jamais ses ancetres.
+
+    Rend None dans deux cas, tous deux non exportables :
+      - groupe sans racine de sortie (hors perimetre) ;
+      - chaine d'ascendance qui boucle.
+    """
+    racine = RACINE_PAR_GROUPE.get(page.get("group"))
+    if racine is None:
+        return None
+
+    # Garde-cycle : la copie du test n'en avait pas et bouclait indefiniment sur
+    # un parent_id circulaire. chaine_ascendance() porte le meme garde ; les deux
+    # remontees doivent se comporter pareil.
+    segments, courant, vus = [], page, set()
+    while courant is not None:
+        page_id = str(courant["id"])
+        if page_id in vus:
+            return None
+        vus.add(page_id)
+        segments.append(slugify(courant.get("title"), page_id))
+        parent = courant.get("parent_id")
+        courant = pages_par_id.get(parent) if parent else None
+    segments.reverse()
+
+    # Les 5 racines de perimetre ne sont pas collectees : la remontee s'arrete
+    # d'elle-meme et elles ne contribuent aucun segment.
+    #
+    # Une page a filles porte son contenu dans {slug}/{slug}.md. Les segments
+    # d'ancetres ne sont JAMAIS doubles.
+    if str(page["id"]) in meres:
+        segments.append(segments[-1])
+
+    return f"{racine}/" + "/".join(segments) + ".md"
 
 
 def detecte_collisions(pages):
