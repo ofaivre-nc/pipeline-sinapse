@@ -104,14 +104,34 @@ def verifie_nommage_pytest():
     C'est aussi pourquoi le bloc __main__ est en FIN de fichier : place avant le point
     d'entree, il ferait tourner run() sur un namespace ou test_inventory n'existe pas encore.
     """
+    echecs = 0
+
+    # Assertion POSITIVE, et non "pas de coupable" : la liste doit valoir exactement
+    # le point d'entree attendu. Une liste vide echoue donc aussi, quelle qu'en soit
+    # la cause — bloc __main__ mal place, point d'entree renomme, filtre de namespace
+    # devenu faux. Un controle qui ne peut echouer que sur un coupable identifie est
+    # vert quand il ne mesure rien.
     collectees = sorted(nom for nom, objet in globals().items()
                         if callable(objet)
                         and getattr(objet, "__module__", None) == __name__
                         and nom.startswith("test"))
-    return check(
+    echecs += check(
         collectees == [POINT_ENTREE_PYTEST],
         f"pytest collecterait {collectees}, attendu ['{POINT_ENTREE_PYTEST}'] — "
-        "une fonction auxiliaire se nomme verifie_*, jamais test*")
+        f"soit une auxiliaire porte un nom en test* (elle se nomme verifie_*), soit "
+        f"{POINT_ENTREE_PYTEST} est absent du namespace au moment de l'appel")
+
+    # Le FICHIER doit lui aussi matcher un motif de collecte de pytest. Renomme hors
+    # de test_*.py / *_test.py, il n'est plus collecte du tout — en silence — pendant
+    # que le point d'entree autonome continue d'afficher OK. La verification ci-dessus
+    # ne verrait rien : elle inspecte un namespace que pytest ne visite jamais.
+    nom_fichier = Path(__file__).name
+    echecs += check(
+        nom_fichier.startswith("test_") or nom_fichier.endswith("_test.py"),
+        f"{nom_fichier} ne matche aucun motif de collecte pytest (test_*.py, "
+        "*_test.py) : le fichier serait ignore sans un mot")
+
+    return echecs
 
 
 def verifie_slugification():

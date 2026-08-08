@@ -172,6 +172,18 @@ Instance `sinapse-gie-nc.atlassian.net`, space `SINAPSE`, export récursif, prof
 
 ## Git
 
+**Commiter avant d'injecter une régression de contrôle.** Vérifier qu'un test échoue bien
+quand la règle est cassée est une bonne pratique — mais elle suppose de modifier le code,
+puis de le remettre. Si le fichier porte du travail non enregistré, la remise le détruit.
+
+**Ne jamais employer `git checkout -- <fichier>` sur un fichier porteur de travail non
+commité** : la commande restaure depuis l'index, sans confirmation ni récupération
+possible. `git stash` puis `git stash pop` conserve tout.
+
+*Payé deux fois le 8 août 2026, sur `pipeline/tests/test_inventory.py` : des renommages
+non commités effacés par un `git checkout --` de remise en état après une injection de
+régression. Le travail a dû être refait à l'identique.*
+
 Pour l'instant, pas de GitHub ni de GitLab : le remote est un **dépôt nu déposé sur le
 SharePoint GIE**. On n'y édite rien, on ne fait que `push` / `pull` — c'est ce qui évite les
 conflits de synchronisation OneDrive. Migration GitLab différée, réversible en une commande.
