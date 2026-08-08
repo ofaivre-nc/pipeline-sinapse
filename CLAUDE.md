@@ -139,8 +139,24 @@ Instance `sinapse-gie-nc.atlassian.net`, space `SINAPSE`, export récursif, prof
 
 ## Conventions
 
-- Python 3.11+, stdlib + `requests` ; toute autre dépendance se justifie.
+- Python 3.11+. Deux natures de dépendances, à ne pas confondre :
+  - **dépendances d'exécution** — `requests`, `marklas` : elles partent dans un run,
+    donc toute addition se justifie. C'est à elles que s'applique la sobriété.
+  - **outillage de développement** — `pytest` : jamais chargé par un run, installé dans
+    le venv (`.venv\Scripts\python.exe -m pip install pytest`). Son ajout n'engage pas
+    le pipeline.
+
   Les règles détaillées sont dans `.claude/rules/python.md` (chargé sur `pipeline/**/*.py`).
+- **Le point d'entrée autonome des tests est la référence** : `python pipeline/tests/test_inventory.py`
+  doit fonctionner sur un dépôt fraîchement cloné, sans rien installer. `pytest` est un
+  confort, pas un prérequis.
+- **Aucun test ne s'appuie sur une fonctionnalité propre à pytest** — ni `fixture`, ni
+  `parametrize`, ni réécriture d'`assert`. Ce qui ne tournerait que sous pytest serait
+  invisible au point d'entrée autonome, donc vert pour toujours là où on ne l'installe pas.
+  Corollaire de nommage : **seules les fonctions que pytest doit collecter s'appellent
+  `test_*`**. Le motif par défaut est `test*`, il attrape aussi `tests_…` — une fonction
+  auxiliaire ainsi nommée est collectée comme un test, et si elle rend un compte d'échecs
+  au lieu de lever, pytest la déclare passante. Les auxiliaires se nomment `verifie_*`.
 - Markdown et documentation en **français accentué**.
   Dans le code Python : commentaires et docstrings en français sans accents, ainsi que tout
   ce qui part vers `print()` — la console Windows en cp1252 casse l'affichage. En revanche

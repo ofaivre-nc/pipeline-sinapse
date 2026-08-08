@@ -34,6 +34,34 @@ def check(condition, message):
     return 0
 
 
+# Seule fonction de ce fichier que pytest doit collecter.
+POINT_ENTREE_PYTEST = "test_multiexcerpt"
+
+
+def verifie_nommage_pytest():
+    """Aucune auxiliaire ne doit porter un nom que pytest collecte.
+
+    pytest collecte par defaut le motif `test*` — qui attrape aussi `tests_...`. Une
+    auxiliaire ainsi nommee est executee comme un test, et si elle rend un compte
+    d'echecs au lieu de lever, **pytest 9.1.1 se contente d'un avertissement et la
+    declare PASSANTE** (verifie : 1 passed, 1 warning, code de sortie 0). Il n'y a
+    donc aucun filet du cote de pytest : cette verification est la protection.
+
+    Elle tourne dans les deux mondes : run() l'appelle, et test_multiexcerpt()
+    appelle run(). Voir la meme fonction dans test_inventory.py — dupliquee a deux
+    exemplaires parce qu'elle inspecte le namespace de SON module ; un troisieme
+    fichier de tests justifierait un harnais partage.
+    """
+    collectees = sorted(nom for nom, objet in globals().items()
+                        if callable(objet)
+                        and getattr(objet, "__module__", None) == __name__
+                        and nom.startswith("test"))
+    return check(
+        collectees == [POINT_ENTREE_PYTEST],
+        f"pytest collecterait {collectees}, attendu ['{POINT_ENTREE_PYTEST}'] — "
+        "une fonction auxiliaire se nomme verifie_*, jamais test*")
+
+
 def leve(fn, message):
     """Verifie qu'un appel leve ResolutionError. Rend 1 en cas d'echec."""
     global TOTAL
@@ -88,7 +116,7 @@ CORPS = [{"type": "paragraph", "content": [{"type": "text", "text": "contenu"}]}
 
 
 def run():
-    echecs = 0
+    echecs = verifie_nommage_pytest()
     creer = collecte(charge("28344321"))       # CU-NOTE-CREER
     modifier = collecte(charge("28344344"))    # CU-NOTE-MODIFIER
 
@@ -373,10 +401,10 @@ def run():
     return 0
 
 
-if __name__ == "__main__":
-    sys.exit(run())
-
 
 def test_multiexcerpt():
     """Point d'entree pytest."""
     assert run() == 0
+
+if __name__ == "__main__":
+    sys.exit(run())

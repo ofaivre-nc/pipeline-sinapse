@@ -82,7 +82,39 @@ def check(condition, message):
     return 0
 
 
-def tests_slugification():
+# Seule fonction de ce fichier que pytest doit collecter.
+POINT_ENTREE_PYTEST = "test_inventory"
+
+
+def verifie_nommage_pytest():
+    """Aucune auxiliaire ne doit porter un nom que pytest collecte.
+
+    pytest collecte par defaut le motif `test*` — qui attrape aussi `tests_...`. Une
+    auxiliaire ainsi nommee est executee comme un test, et si elle rend un compte
+    d'echecs au lieu de lever, **pytest 9.1.1 se contente d'un avertissement et la
+    declare PASSANTE** (verifie : 1 passed, 1 warning, code de sortie 0). Il n'y a
+    donc aucun filet du cote de pytest : cette verification est la protection.
+
+    Le cas s'est produit le 8 aout : trois auxiliaires nommees tests_*/test_* etaient
+    collectees, deux passaient en silence. Ce qui l'a revele est un hasard — l'une
+    avait un parametre, pris pour une fixture introuvable. Sans ce parametre, la suite
+    aurait affiche "5 passed" en etant cassee.
+
+    Elle tourne dans les deux mondes : run() l'appelle, et test_inventory() appelle run().
+    C'est aussi pourquoi le bloc __main__ est en FIN de fichier : place avant le point
+    d'entree, il ferait tourner run() sur un namespace ou test_inventory n'existe pas encore.
+    """
+    collectees = sorted(nom for nom, objet in globals().items()
+                        if callable(objet)
+                        and getattr(objet, "__module__", None) == __name__
+                        and nom.startswith("test"))
+    return check(
+        collectees == [POINT_ENTREE_PYTEST],
+        f"pytest collecterait {collectees}, attendu ['{POINT_ENTREE_PYTEST}'] — "
+        "une fonction auxiliaire se nomme verifie_*, jamais test*")
+
+
+def verifie_slugification():
     """Les 14 cas de contracts/slugification.md §13, plus les invariants de la regle."""
     echecs = 0
     sl = inventory.slugify
@@ -188,7 +220,7 @@ def tests_slugification():
     echecs += check(inventory.detecte_collisions([page("1", "X", "100")]) == {},
                     "une page isolee ne doit pas se collisionner elle-meme")
 
-    echecs += test_non_regression_corpus()
+    echecs += verifie_non_regression_corpus()
     return echecs
 
 
@@ -244,7 +276,7 @@ def mesures_corpus(pages):
     }
 
 
-def test_non_regression_corpus():
+def verifie_non_regression_corpus():
     """Epingle les mesures du §11 sur le dump de recensement.
 
     C'est la seule verification qui porte sur le corpus reel : les cas du §13 sont
@@ -294,11 +326,11 @@ def test_non_regression_corpus():
                     f"l'invariant du point doit porter sur un echantillon consequent, "
                     f"{pointes} titres pointes trouves")
 
-    echecs += tests_mere_sans_fille_exportee(pages)
+    echecs += verifie_mere_sans_fille_exportee(pages)
     return echecs
 
 
-def tests_mere_sans_fille_exportee(pages_corpus):
+def verifie_mere_sans_fille_exportee(pages_corpus):
     """Une mere dont toutes les filles sont exclues ne prend PAS de repertoire.
 
     Contrat §10. Aucune des sept mesures du §11 ne couvre ce cas : elles sont
@@ -362,7 +394,7 @@ def tests_mere_sans_fille_exportee(pages_corpus):
 
 
 def run():
-    echecs = 0
+    echecs = verifie_nommage_pytest()
     p = INV
 
     # --- Normalisation des titres
@@ -489,7 +521,7 @@ def run():
                         for nom in inventory.TYPES_RESERVES),
                     "DOC et TAB doivent rester sans motif tant qu'aucune page n'existe")
 
-    echecs += tests_slugification()
+    echecs += verifie_slugification()
 
     if echecs:
         print(f"\n{echecs} echec(s) sur {TOTAL} verifications")
@@ -498,10 +530,10 @@ def run():
     return 0
 
 
-if __name__ == "__main__":
-    sys.exit(run())
-
 
 def test_inventory():
     """Point d'entree pytest."""
     assert run() == 0
+
+if __name__ == "__main__":
+    sys.exit(run())
