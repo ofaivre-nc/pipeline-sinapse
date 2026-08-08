@@ -39,10 +39,10 @@ CORPUS = [
     {"id": "204", "title": "Archive CU-COMPTE (version monolithique)", "version": 1,
      "parent_id": "1900545"},
     # Heritage de l'exclusion sur deux niveaux sous la page 204
-    {"id": "204a", "title": "CU-COMPTE-USER.GEST (version avant API)", "version": 1,
+    {"id": "2041", "title": "CU-COMPTE-USER.GEST (version avant API)", "version": 1,
      "parent_id": "204"},
-    {"id": "204b", "title": "API-COMPTE-USER.REINIT.PSW", "version": 1,
-     "parent_id": "204a"},
+    {"id": "2042", "title": "API-COMPTE-USER.REINIT.PSW", "version": 1,
+     "parent_id": "2041"},
     {"id": "211", "title": "DRAFT SF-NOTE: Modélisation des données (MLD)",
      "version": 1, "parent_id": "1900545"},
     {"id": "205", "title": "CU-DOSSIER-ARCHIVER", "version": 2, "parent_id": "1900545"},
@@ -296,6 +296,148 @@ def mesures_corpus(pages):
     }
 
 
+def _page(pid, titre, parent, exportee=True, groupe="A"):
+    """Fiche de classification minimale, telle que build_inventory() en produit."""
+    return {"id": pid, "title": titre, "parent_id": parent, "group": groupe,
+            "type": "CU", "module": None, "module_source": None,
+            "exported": exportee, "content_source": True, "scored": False,
+            "excluded": False, "exclusion_reason": None,
+            "exclusion_source_id": None, "exclusion_inherited": False,
+            "title_raw": None, "parent_title": None, "root_id": "1",
+            "version": 1, "warnings": []}
+
+
+def verifie_assemblage():
+    """assemble_inventory() — contrat pages_inventory.schema.json."""
+    echecs = 0
+
+    # --- L'ORDRE D'APPEL DU §9 : le test que le contrat designe comme sa seule
+    #     protection. Mere M, deux filles dont les slugs collisionnent.
+    corpus = [_page("10", "M", "1"),
+              _page("11", "Reflexion", "10"),
+              _page("12", "Réflexion", "10")]
+    inv = inventory.assemble_inventory({"pages": corpus}, complete=True)
+    pages = inv["pages"]
+    echecs += check(
+        pages["10"]["md_path"] == "specs/M/M.md",
+        f"ordre d'appel du §9 : md_path de la mere = "
+        f"{pages['10']['md_path']!r}, attendu 'specs/M/M.md'. La valeur "
+        f"'specs/M.md' signifie que meres_exportantes() a ete appelee APRES la "
+        f"mise en collision — la mere perd son repertoire alors qu'elle n'a pas "
+        f"bouge, et le rapport annonce un deplacement dont la cause est ailleurs")
+    echecs += check(pages["10"]["exported"] is True,
+                    "la mere reste exportee : la collision leve au niveau du groupe")
+    for fille in ("11", "12"):
+        echecs += check(pages[fille]["md_path"] is None,
+                        f"fille {fille} en collision : md_path doit etre None")
+        echecs += check(pages[fille]["exported"] is False,
+                        f"fille {fille} en collision : exported doit etre False")
+        echecs += check(any("collision de slug" in w
+                            for w in pages[fille]["warnings"]),
+                        f"fille {fille} : un warning doit nommer la collision")
+    echecs += check(len(inv["collisions"]) == 1,
+                    f"une seule entree de collision attendue, {len(inv['collisions'])}")
+    if inv["collisions"]:
+        g = inv["collisions"][0]
+        echecs += check(g["directory_id"] == "10", f"directory_id {g['directory_id']!r}")
+        echecs += check(g["slug"] == "reflexion", f"slug replie {g['slug']!r}")
+        echecs += check(g["page_ids"] == ["11", "12"], f"page_ids {g['page_ids']}")
+
+    # --- Cas X/X.md : le groupe entier cesse d'etre exporte, mere comprise.
+    corpus = [_page("20", "X", "1"), _page("21", "X", "20")]
+    inv = inventory.assemble_inventory({"pages": corpus}, complete=True)
+    echecs += check(len(inv["collisions"]) == 1,
+                    f"cas X/X.md : une entree attendue, {len(inv['collisions'])}")
+    if inv["collisions"]:
+        g = inv["collisions"][0]
+        echecs += check(g["directory_id"] == "20", f"X/X.md directory_id {g['directory_id']!r}")
+        echecs += check(g["page_ids"] == ["20", "21"], f"X/X.md page_ids {g['page_ids']}")
+    echecs += check(all(inv["pages"][i]["md_path"] is None for i in ("20", "21")),
+                    "cas X/X.md : les DEUX pages sans chemin, mere comprise")
+
+    # --- unclassified : les trois motifs. Une page saine, un identifiant non
+    #     numerique, un titre de blancs, et deux pages en cycle.
+    corpus = [_page("30", "CU-SAINE", "1"),
+              _page("204a", "CU-MAUVAIS-ID", "1"),
+              _page("31", "   ", "1"),
+              _page("40", "A", "41"), _page("41", "B", "40")]
+    inv = inventory.assemble_inventory({"pages": corpus}, complete=True)
+    echecs += check(list(inv["pages"]) == ["30"],
+                    f"seule la page saine reste dans pages, obtenu {list(inv['pages'])}")
+    echecs += check(len(inv["unclassified"]) == 4,
+                    f"4 entrees unclassified attendues, {len(inv['unclassified'])} — "
+                    "les deux pages du cycle en sortent toutes les deux")
+    motifs = {e["id"]: e["reason"] for e in inv["unclassified"]}
+    echecs += check("204a" in motifs and "identifiant" in motifs["204a"],
+                    f"motif de 204a : {motifs.get('204a')!r}")
+    echecs += check("31" in motifs and "titre" in motifs["31"],
+                    f"motif de 31 : {motifs.get('31')!r}")
+    echecs += check(all(i in motifs and "circulaire" in motifs[i] for i in ("40", "41")),
+                    f"motifs du cycle : {[motifs.get(i) for i in ('40', '41')]}")
+    echecs += check(all("id" in e and "reason" in e for e in inv["unclassified"]),
+                    "chaque entree unclassified porte id et reason")
+
+    # --- last_exported reporte tel quel depuis le run precedent.
+    corpus = [_page("50", "CU-Y", "1")]
+    precedent = {"pages": {"50": {"last_exported": "2026-08-01T07:00:00+11:00"}}}
+    inv = inventory.assemble_inventory({"pages": corpus}, complete=True,
+                                       precedent=precedent)
+    echecs += check(inv["pages"]["50"]["last_exported"] == "2026-08-01T07:00:00+11:00",
+                    "last_exported doit etre reporte a l'identique")
+    inv = inventory.assemble_inventory({"pages": corpus}, complete=True)
+    echecs += check(inv["pages"]["50"]["last_exported"] is None,
+                    "sans precedent, last_exported vaut None")
+
+    # --- `complete` obligatoire. Ce test protege le SEUL garde-fou contre une
+    #     suppression de masse : le jour ou quelqu'un ajoutera complete=True par
+    #     defaut « pour la commodite », c'est lui qui doit tomber.
+    try:
+        inventory.assemble_inventory({"pages": []})
+        echecs += check(False, "assemble_inventory sans `complete` doit lever TypeError")
+    except TypeError:
+        echecs += check(True, "")
+
+    # --- L'enveloppe porte bien les champs requis par le schema.
+    inv = inventory.assemble_inventory({"pages": [_page("60", "CU-Z", "1")]},
+                                       complete=False, source="x.json")
+    for champ in ("generated_at", "schema_version", "inventory_version", "pages",
+                  "unclassified", "collisions", "complete"):
+        echecs += check(champ in inv, f"champ requis absent de l'enveloppe : {champ}")
+    echecs += check(inv["complete"] is False, "complete=False doit etre reporte tel quel")
+    echecs += check(inv["source"] == "x.json", "source reportee quand fournie")
+    echecs += check("source" not in inventory.assemble_inventory(
+        {"pages": []}, complete=True), "source absente quand non fournie")
+
+    echecs += verifie_assemblage_corpus()
+    return echecs
+
+
+def verifie_assemblage_corpus():
+    """Non-regression de l'assemblage sur le corpus fige."""
+    echecs = 0
+    if not DUMP.is_file():
+        return check(False, f"fixture absente : {DUMP}")
+    pages = json.loads(DUMP.read_text(encoding="utf-8"))["pages"]
+    inv = inventory.assemble_inventory({"pages": pages}, complete=True,
+                                       source=DUMP.name)
+    attendu = {"entrees dans pages": 246, "md_path non nuls": 232,
+               "collisions": 0, "unclassified": 0}
+    obtenu = {"entrees dans pages": len(inv["pages"]),
+              "md_path non nuls": sum(1 for f in inv["pages"].values()
+                                      if f["md_path"]),
+              "collisions": len(inv["collisions"]),
+              "unclassified": len(inv["unclassified"])}
+    for nom, valeur in attendu.items():
+        echecs += check(obtenu[nom] == valeur,
+                        f"assemblage du corpus — {nom} : {obtenu[nom]}, attendu {valeur}")
+    # Le chemin doit etre nul exactement pour les pages non exportees, puisque le
+    # corpus ne porte aucune collision.
+    echecs += check(all(bool(f["md_path"]) == f["exported"]
+                        for f in inv["pages"].values()),
+                    "sans collision, md_path est renseigne si et seulement si exported")
+    return echecs
+
+
 def verifie_non_regression_corpus():
     """Epingle les mesures du §11 sur le dump de recensement.
 
@@ -472,18 +614,18 @@ def run():
                     "le prefixe DRAFT doit exclure, en laissant le type MDD")
 
     # --- Heritage de l'exclusion sur deux niveaux
-    echecs += check(p["204a"]["excluded"] is True and p["204a"]["exclusion_inherited"],
+    echecs += check(p["2041"]["excluded"] is True and p["2041"]["exclusion_inherited"],
                     "niveau 1 : enfant d'une page exclue doit etre exclu")
-    echecs += check(p["204b"]["excluded"] is True and p["204b"]["exclusion_inherited"],
+    echecs += check(p["2042"]["excluded"] is True and p["2042"]["exclusion_inherited"],
                     "niveau 2 : petit-enfant d'une page exclue doit etre exclu")
-    echecs += check(p["204b"]["exclusion_source_id"] == "204",
+    echecs += check(p["2042"]["exclusion_source_id"] == "204",
                     "le motif doit designer la page ancetre responsable")
-    echecs += check("Archive CU-COMPTE" in (p["204b"]["exclusion_reason"] or ""),
+    echecs += check("Archive CU-COMPTE" in (p["2042"]["exclusion_reason"] or ""),
                     "le motif herite doit nommer l'ancetre, pas seulement le prefixe")
-    echecs += check(p["204b"]["type"] == "API",
+    echecs += check(p["2042"]["type"] == "API",
                     "un descendant exclu garde son propre type")
-    echecs += check(p["204b"]["content_source"] is True
-                    and p["204b"]["exported"] is False and p["204b"]["scored"] is False,
+    echecs += check(p["2042"]["content_source"] is True
+                    and p["2042"]["exported"] is False and p["2042"]["scored"] is False,
                     "un descendant exclu garde content_source mais rien d'autre")
     echecs += check(p["204"]["exclusion_inherited"] is False,
                     "la page exclue directement ne doit pas etre marquee heritee")
@@ -542,6 +684,7 @@ def run():
                     "DOC et TAB doivent rester sans motif tant qu'aucune page n'existe")
 
     echecs += verifie_slugification()
+    echecs += verifie_assemblage()
 
     if echecs:
         print(f"\n{echecs} echec(s) sur {TOTAL} verifications")

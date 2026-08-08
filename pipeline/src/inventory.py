@@ -34,10 +34,16 @@ import re
 import sys
 import unicodedata
 from collections import Counter, defaultdict
+from datetime import datetime
 from pathlib import Path
 
-VERSION = "1.3"
+VERSION = "1.4"
 SCHEMA_VERSION = 1
+
+# Le schema impose des identifiants numeriques comme cles de `pages`. Une page
+# dont l'identifiant ne l'est pas part en `unclassified` : on ne peut ni la
+# suivre d'un run a l'autre, ni la ranger dans la carte.
+RE_PAGE_ID = re.compile(r"^[0-9]+$")
 
 
 # ==========================================================================
@@ -605,6 +611,99 @@ def build_inventory(pages, exclude_prefixes=DEFAULT_EXCLUDE_TITLE_PREFIXES, excl
     }
 
 
+def assemble_inventory(classification, *, complete, precedent=None, source=None):
+    """pages_inventory.json conforme a contracts/pages_inventory.schema.json.
+
+    `classification` : sortie de build_inventory() — tableau a plat.
+    `complete`       : la collecte a-t-elle couvert TOUT le perimetre. Sans
+                       valeur par defaut : voir la description du champ dans le
+                       schema. C'est la seule autorisation de detruire.
+    `precedent`      : inventaire du run precedent, pour reporter last_exported.
+                       Ce champ est renseigne par l'exportateur, pas ici : une
+                       page non reexportee doit conserver sa valeur.
+    `source`         : origine des metadonnees, pour le rapport.
+
+    N'ecrit aucun fichier et n'en lit aucun.
+    """
+    pages = classification["pages"]
+    par_id = {p["id"]: p for p in pages}
+
+    # 1. Les meres se mesurent AVANT toute mise en collision — slugification.md
+    #    §9. L'ordre inverse est plus naturel a ecrire et il est faux : une mere
+    #    dont les deux filles collisionnent perdrait son repertoire, et le
+    #    rapport annoncerait un deplacement dont la cause est ailleurs.
+    #    NE PAS DEPLACER CETTE LIGNE SOUS LA BOUCLE.
+    meres = meres_exportantes(pages)
+
+    # 2. Collisions : un fait de premier niveau, pas une chaine a relire dans
+    #    les warnings. Trois consommateurs — delta, nettoyage des orphelins,
+    #    rapport de run.
+    collisions, groupe_de_page = [], {}
+    for (directory_id, slug), lot in sorted(detecte_collisions(pages).items()):
+        groupe = {"directory_id": directory_id, "slug": slug,
+                  "page_ids": sorted(p["id"] for p in lot)}
+        collisions.append(groupe)
+        for page_id in groupe["page_ids"]:
+            groupe_de_page[page_id] = groupe
+
+    ancien = (precedent or {}).get("pages", {})
+    retenues, unclassified = {}, []
+
+    for page in pages:
+        page_id = page["id"]
+
+        # 3. Metadonnees inexploitables : la page QUITTE `pages`. Cas rare et
+        #    volontairement etroit — sortir une page de la carte la rend
+        #    indistinguable d'une suppression au run suivant.
+        motif = None
+        if not RE_PAGE_ID.match(page_id):
+            motif = "identifiant non numérique"
+        elif not (page.get("title") or "").strip():
+            motif = "titre absent"
+
+        fiche = dict(page)
+        chemin = md_path(page, par_id, meres)
+        # Une page d'un groupe exportable sans chemin n'a qu'une cause possible :
+        # md_path() a rendu None sur son garde-cycle. Le cas hors perimetre est
+        # deja ecarte, il n'appartient a aucun groupe exportable.
+        if motif is None and page.get("group") in RACINE_PAR_GROUPE and chemin is None:
+            motif = "chaîne d'ascendance circulaire"
+
+        if motif:
+            unclassified.append({"id": page_id, "title": page.get("title"),
+                                 "reason": motif})
+            continue
+
+        groupe = groupe_de_page.get(page_id)
+        if groupe:
+            autres = [i for i in groupe["page_ids"] if i != page_id]
+            fiche["exported"] = False
+            fiche["md_path"] = None
+            fiche["warnings"] = list(fiche.get("warnings", ())) + [
+                f"collision de slug avec {', '.join(autres)} : "
+                f"aucun .md produit ce run"]
+        else:
+            fiche["md_path"] = chemin if fiche["exported"] else None
+
+        # Reporte tel quel, y compris None. L'exportateur l'ecrasera pour les
+        # pages qu'il aura effectivement ecrites.
+        fiche["last_exported"] = ancien.get(page_id, {}).get("last_exported")
+        retenues[page_id] = fiche
+
+    inventaire = {
+        "generated_at": datetime.now().astimezone().isoformat(timespec="seconds"),
+        "schema_version": SCHEMA_VERSION,
+        "inventory_version": VERSION,
+        "complete": complete,
+        "collisions": collisions,
+        "pages": retenues,
+        "unclassified": unclassified,
+    }
+    if source:
+        inventaire["source"] = source
+    return inventaire
+
+
 # ==========================================================================
 # Configuration
 # ==========================================================================
@@ -757,9 +856,27 @@ def main():
     ap.add_argument("--from-recensement", required=True,
                     help="JSON produit par recense_adf.py (cle pages_analysees)")
     ap.add_argument("--report", help="rapport markdown a ecrire")
-    ap.add_argument("--json", dest="json_out", help="inventaire JSON a ecrire")
+    ap.add_argument("--dump", dest="dump_out",
+                    help="dump de classification a plat (produit la fixture de "
+                         "non-regression)")
+    ap.add_argument("--inventory", dest="inventory_out",
+                    help="pages_inventory.json conforme au contrat")
+    # `complete` n'a pas de defaut, ni en Python ni en ligne de commande : c'est la
+    # seule autorisation de detruire, et un defaut la desarmerait en silence.
+    couverture = ap.add_mutually_exclusive_group()
+    couverture.add_argument("--complete", dest="complete", action="store_true",
+                            default=None,
+                            help="la collecte a couvert TOUT le perimetre")
+    couverture.add_argument("--incomplete", dest="complete", action="store_false",
+                            help="des pages manquent (echec de collecte, run partiel)")
     ap.add_argument("--config", help="config.ini a lire (defaut : recherche automatique)")
     args = ap.parse_args()
+
+    if args.inventory_out and args.complete is None:
+        sys.exit("ERREUR : --inventory exige --complete ou --incomplete. Aucune "
+                 "valeur par defaut : `complete` est la seule autorisation de "
+                 "detruire donnee au delta, la supposer vraie effacerait des .md "
+                 "sur un run partiel.")
 
     source = Path(args.from_recensement)
     data = json.loads(source.read_text(encoding="utf-8"))
@@ -775,10 +892,19 @@ def main():
         Path(args.report).write_text(
             build_report(inventaire, source.name, prefixes, exclude_ids), encoding="utf-8")
         print(f"  rapport   : {args.report}")
-    if args.json_out:
-        Path(args.json_out).write_text(
+    if args.dump_out:
+        Path(args.dump_out).write_text(
             json.dumps(inventaire, ensure_ascii=False, indent=2), encoding="utf-8")
-        print(f"  inventaire: {args.json_out}")
+        print(f"  dump      : {args.dump_out}")
+
+    inventaire_assemble = None
+    if args.inventory_out:
+        inventaire_assemble = assemble_inventory(
+            inventaire, complete=args.complete, source=source.name)
+        Path(args.inventory_out).write_text(
+            json.dumps(inventaire_assemble, ensure_ascii=False, indent=2),
+            encoding="utf-8")
+        print(f"  inventaire: {args.inventory_out}")
 
     p = inventaire["pages"]
     print(f"\n{len(p)} pages classees")
@@ -788,6 +914,12 @@ def main():
           f"sources {sum(1 for x in p if x['content_source'])}, "
           f"scorees {sum(1 for x in p if x['scored'])}, "
           f"exclues {sum(1 for x in p if x['excluded'])}")
+    if inventaire_assemble is not None:
+        # Affiches MEME A ZERO : une collision qui n'apparait nulle part est une
+        # spec qui disparait sans trace.
+        print(f"  collisions {len(inventaire_assemble['collisions'])}, "
+              f"unclassified {len(inventaire_assemble['unclassified'])}")
+        print(f"  complete {inventaire_assemble['complete']}")
 
 
 if __name__ == "__main__":
