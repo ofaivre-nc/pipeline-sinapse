@@ -1,7 +1,7 @@
 # Pipeline SINAPSE — document de référence
 
 *Document unique de la conversation de conception. Remplace `brief-pipeline-sinapse-v3.md`, archivé dans `docs/archive/`. Il succède aussi à un document de reprise de contexte antérieur, qui n'a vécu que dans l'espace de conversation : il n'en existe aucune trace dans le dépôt, inutile de l'y chercher.*
-*Mis à jour le 7 août 2026 — étape 3 : slugification close, reste l'assemblage et le delta.*
+*Mis à jour le 9 août 2026 — étape 3 close : inventaire assemblé et delta à trois entrées.*
 
 ---
 
@@ -43,11 +43,15 @@ C:\dev\sinapse-claude\
 │   ├── src/
 │   │   ├── recense_adf.py       v1.2 — porte la couche HTTP en attendant
 │   │   │                        confluence_client
-│   │   ├── inventory.py         v1.3 — classification, slugification, md_path
-│   │   └── multiexcerpt.py      v1.1 — clés des 3 mécanismes
+│   │   ├── inventory.py         v1.4 — classification, slugification, md_path,
+│   │   │                        assemblage de pages_inventory.json
+│   │   ├── multiexcerpt.py      v1.1 — clés des 3 mécanismes
+│   │   └── delta.py             v1.0 — plan de run entre deux inventaires
 │   ├── tests/
-│   │   ├── test_inventory.py        `python pipeline/tests/test_inventory.py`
-│   │   └── test_multiexcerpt.py     ou `python -m pytest` ; sans dépendance
+│   │   ├── test_inventory.py        stdlib pure : tournent sur un dépôt
+│   │   ├── test_multiexcerpt.py     fraîchement cloné, sans rien installer
+│   │   ├── test_delta.py
+│   │   └── test_contracts.py        exige `jsonschema` — voir §9
 │   └── fixtures/
 │       ├── 9 fixtures ADF figées (.json)
 │       ├── pages_classification_20260805.json   corpus de non-régression
@@ -135,7 +139,7 @@ Export récursif, profondeur illimitée. 247 pages au total.
 | 0e — inventaire du space | ✅ |
 | 1, 2 — export d'une page, puis une par type | ⬜ |
 | 2bis — corpus doré | 🟡 9 fixtures figées ; `.md` attendus manquants |
-| **3 — inventaire et delta** | 🟡 classification ✅, slugification ✅ ; restent l'assemblage de `pages_inventory.json` et le delta |
+| **3 — inventaire et delta** | ✅ classification, slugification, assemblage, delta |
 | 4 — cache du contenu réutilisé | ⬜ |
 | 5 — index croisé (module PERSONNE) | ⬜ |
 | 6 — `mcd_sinapse_data` | ⬜ |
@@ -145,7 +149,7 @@ Export récursif, profondeur illimitée. 247 pages au total.
 
 Deux étapes ouvertes en parallèle (0d et 3) : la classification a été anticipée parce qu'elle était devenue prérequis du resolver.
 
-**Étape 3 — l'inventaire n'est pas encore assemblé.** `inventory.py` v1.3 sait calculer un `md_path` (`slugify()`, `meres_exportantes()`, `md_path()`), mais son CLI émet toujours un **tableau de pages à plat**, alors que `contracts/pages_inventory.schema.json` décrit une **carte indexée par identifiant** — la forme utile au delta. Ni `md_path` ni `last_exported` ne sont écrits. L'assemblage et le delta closent l'étape ; ce qui existe aujourd'hui est un dump de classification, pas `pages_inventory.json`.
+**Étape 3 close.** `inventory.py` v1.4 assemble `pages_inventory.json` — carte indexée par identifiant, `md_path`, `collisions`, `complete`, `unclassified`, `last_exported` — et `delta.py` v1.0 en dérive le plan d'un run. Le dump de classification à plat subsiste sous `--dump` : il produit la fixture de non-régression, et son nom dit désormais ce qu'il est. Reste à écrire `main.py`, qui exécutera le plan que `compare()` décide.
 
 ### Critères de validation par étape
 
@@ -167,20 +171,10 @@ Claude Code opérationnel, dépôt `C:\dev\sinapse-claude`. Token Atlassian en v
 
 ### Prochaines étapes
 
-1. **Assembleur de `pages_inventory.json`** — carte indexée par identifiant (la sortie actuelle d'`inventory.py` est un tableau à plat, dump de mise au point), `md_path`, `unclassified`, `last_exported`. Il appelle `slugify()` et `meres_exportantes()`.
-
-   **Contrainte de conception — tenue par anticipation, le 8 août.** Le calcul du chemin devait être une fonction pure d'`inventory.py`, prenant une page et rendant un `md_path`, sans dépendance à Confluence ni à un fichier de configuration, **pour que `pipeline/tests/test_inventory.py` l'appelle au lieu d'en recopier la logique**. C'est fait : `md_path()` vit dans le module depuis la v1.3 et la copie locale au test a disparu — **avant** l'assembleur, et non après, précisément parce que conçue plus tard elle aurait été inappelable depuis un test et la copie aurait survécu. L'assembleur n'a donc plus qu'à appeler `md_path()`, `slugify()` et `meres_exportantes()`. La duplication avait déjà piégé deux fois cette semaine — le chiffre 78 dupliqué entre contrat et commentaire, et la définition de « page avec filles » dupliquée entre `mesures_corpus()` et son propre test de non-régression, qui restait vert quand on annulait la correction. **Un test ne vaut que par ce qu'il partage avec le code qu'il surveille.**
-
-2. **Delta à deux entrées — décision arbitrée.** `version.number` détecte modifications, suppressions et renommages de contenu. Il ne détecte **pas** les déplacements de fichier, parce que ceux-ci découlent de NOS règles de nommage et non d'un événement Confluence : quand une page reçoit sa première fille exportée, son `.md` passe de `{slug}.md` à `{slug}/{slug}.md` alors que **personne ne l'a touchée** — Confluence n'a rien enregistré à son sujet, ni version ni date.
-
-   **Le delta compare donc deux champs** : `version.number` pour savoir si le contenu a changé, et le `md_path` calculé face à celui du `pages_inventory.json` du run précédent pour savoir si le fichier doit déménager. Un écart de chemin déclenche un **déplacement**, signalé comme tel au rapport, jamais une suppression suivie d'une création.
-
-   **Coût nul** : comparer des `version.number` suppose déjà de connaître ceux de la veille, donc de relire l'inventaire précédent. C'est un champ de plus dans une boucle qui tourne de toute façon.
-
-   **Pourquoi comparer le résultat et non les causes.** Déduire le déplacement de son déclencheur — « une page apparaît, donc sa mère descend d'un cran » — obligerait à écrire un détecteur par cause : première fille exportée, dernière fille archivée, page renommée, **ancêtre renommé (tout le sous-arbre bouge)**, changement de parent, exclusion posée ou levée, collision apparue ou résolue. Sept causes, dont une en cascade, et une huitième le jour où la règle de nommage évoluera — avec, à chaque oubli, des fichiers silencieusement au mauvais endroit. La comparaison des `md_path` les attrape toutes d'un coup, et les suivantes aussi, parce qu'elle porte sur la sortie.
-
-3. **Test de conversion `marklas`** sur les 9 fixtures, warnings confrontés à `contracts/normalisation_adf.md`.
-4. Puis étapes 1 et 2 (export de pages), 2bis (corpus doré complété), 4, 5…
+1. **Test de conversion `marklas`** sur les 9 fixtures, warnings confrontés à `contracts/normalisation_adf.md`. Dernier prérequis avant d'écrire le normalizer : un warning résiduel signale soit un nœud mal couvert, soit une limite de la bibliothèque à contourner.
+2. **Resolver** — arbitrer réutiliser ou réécrire, puis écrire le parcours récursif. Les clés, le `CycleGuard` et la classification en six natures sont faits ; il reste à couvrir les **trois** mécanismes, ce que le resolver d'origine n'en couvre qu'un. C'est le verrou de l'étape 4.
+3. **Étapes 1 et 2** — export d'une page CU, puis une par type. `main.py` exécute le plan que `compare()` décide : `compare()` ne touche ni Confluence ni le disque.
+4. Puis 2bis (corpus doré complété de ses `.md` attendus), 4, 5…
 
 #### La slugification — arrêtée le 7 août
 
@@ -243,7 +237,7 @@ syncBlock       (inclusion)   attrs.resourceId = "confluence-page/{PAGE_ID}/{UUI
 - Les 4 inclusions du corpus trouvent toutes leur définition, aucune orpheline.
 - Enjeu mesuré : sans résolution, `CU-NOTE-MODIFIER` sort sans aucun de ses tableaux IHM, et `structure-cu` la validerait comme une CU sans frames.
 
-**Les trois mécanismes cohabitent dans la même pile de récursion**, clés préfixées par leur mécanisme pour interdire toute collision — y compris entre une clé `multiexcerpt` et une clé `excerpt` de forme identique. `CycleGuard` implémenté dans `pipeline/src/multiexcerpt.py` v1.1, 75 tests. Le parcours récursif reste à écrire.
+**Les trois mécanismes cohabitent dans la même pile de récursion**, clés préfixées par leur mécanisme pour interdire toute collision — y compris entre une clé `multiexcerpt` et une clé `excerpt` de forme identique. `CycleGuard` implémenté dans `pipeline/src/multiexcerpt.py` v1.1, 77 tests. Le parcours récursif reste à écrire.
 
 ### `nested-table` — pas un échec de conversion
 
@@ -255,7 +249,7 @@ Le champ `reason` décrit une limitation de l'éditeur Confluence, et il est **l
 
 ### Classification des pages
 
-`pipeline/src/inventory.py` v1.3, 124 tests. La chaîne `parent_id` est complète sur 246/246 et aboutit toujours à une des 5 racines : l'appartenance groupe A/B est **dérivable localement**, sans appel API. L'endpoint ancêtres ne servira jamais.
+`pipeline/src/inventory.py` v1.4, 166 tests. La chaîne `parent_id` est complète sur 246/246 et aboutit toujours à une des 5 racines : l'appartenance groupe A/B est **dérivable localement**, sans appel API. L'endpoint ancêtres ne servira jamais.
 
 232 exportées · 196 sources de contenu · 101 scorées · 14 exclues (5 directes, 9 héritées).
 
@@ -334,7 +328,7 @@ Le dépôt est la source de vérité ; l'espace GIE est une cible de déploiemen
 - **Aucun appel Jira dans le pipeline** — données plus volatiles que les specs ; macros remises en clair, appels dans le skill `confluence-outil-lien-jira`.
 
 **Données**
-- **Delta par `version.number`**, jamais par date : `lastmodified` est à la minute, sensible au fuseau, et ne bouge pas sur certains déplacements. Le diff de versions donne en prime suppressions, renommages et déplacements.
+- **`version.number` jamais la date** : `lastmodified` est à la minute, sensible au fuseau, et ne bouge pas sur certains déplacements. Le diff de versions donne en prime suppressions et renommages. Mais `version.number` **ne suffit pas** : le delta compare trois champs, voir « L'étape 3 » ci-dessous.
 - **Index croisé construit depuis l'ADF**, pas depuis le `.md` : les tableaux markdown perdent leur structure dès qu'une cellule contient une liste ou un saut de ligne — précisément le cas des tableaux IHM 5 colonnes et MDD 9 colonnes. **Mesuré le 6 août** : 13 des 56 tableaux des 9 fixtures portent au moins une cellule à contenu de bloc, et jusqu'à ~24 après injection des `nested-table`. Deux des CU analysées (`28344321`, `28344344`) en font partie.
 - **`parse_status` obligatoire par page** : sans lui, un skill lisant `regles: []` ne peut pas distinguer « aucune règle » de « le parser a échoué », et produit un rapport entièrement faux. Une page en `parse_status ≠ ok` n'est pas scorée, elle est signalée.
 - **Pas de cache ADF brut global** — seulement `pipeline/fixtures/` pour les tests. Une évolution du convertisseur implique un run complet depuis Confluence.
@@ -433,6 +427,40 @@ Décisions :
   produire. D'où l'ordre : **construire l'inventaire et l'index croisé, puis
   migrer avec**, et non l'inverse.
 
+### L'étape 3 — inventaire assemblé et delta à trois entrées
+
+*Décisions des 8 et 9 août 2026. `inventory.py` v1.4, `delta.py` v1.0.*
+
+- **Le delta compare trois champs, pas un.** `version.number` dit si le contenu a changé. Le `md_path` calculé, face à celui du run précédent, dit si le fichier doit déménager — un déplacement ne découle pas d'un événement Confluence mais de **nos** règles de nommage : quand une page reçoit sa première fille exportée, son `.md` bouge alors que personne ne l'a touchée et que Confluence n'a rien enregistré. `last_exported` à `null` sur une page exportable dit qu'elle **n'a jamais été écrite** — l'inventaire s'écrivant après l'export, c'est la signature d'un run interrompu. Sans cette troisième entrée, un plantage à mi-export laisse des pages définitivement manquantes.
+- **Comparer le résultat, non les causes.** Déduire un déplacement de son déclencheur imposerait un détecteur par cause — première fille exportée, dernière fille archivée, page renommée, ancêtre renommé (tout le sous-arbre bouge), changement de parent, exclusion posée ou levée, collision apparue ou résolue. Sept causes, dont une en cascade, et une huitième à la prochaine évolution de la règle. Comparer les `md_path` les attrape toutes, et les suivantes aussi.
+- **`complete` est la seule autorisation de détruire.** Une collecte partielle ne supprime rien, et **dit ce qu'elle s'est interdit** : les suppressions écartées partent au rapport, sinon personne ne saura qu'un incident a eu lieu. Motif : une page absente de l'inventaire courant est indistinguable d'une page supprimée, et le cas s'est produit — `334888965` perdue sur un timeout le 4 août.
+- **Le ré-rendu complet se déclenche sur « un fichier cesse d'exister à son ancien chemin »**, pas sur « un chemin a changé ». C'est la seule chose qui casse un lien relatif entrant. Trois exclusions en découlent, toutes délibérées : une collision n'en déclenche pas — son `.md` reste en place ; une collecte incomplète non plus — elle ne détruit rien ; une **création** non plus, et l'asymétrie se démontre : pour pointer vers une page neuve, il faut avoir édité la page pointeuse, dont la `version` a donc bougé.
+- **`schema_version` différent ⟹ le précédent est remplacé par `None`.** Aucun de ses champs n'est lu, ni pour les états ni pour les suppressions : « traité comme absent » ne veut dire quelque chose que si rien n'est lu. Conséquence assumée — des `.md` devenus orphelins survivent à ce run, faute de précédent pour les repérer. Le sens de l'erreur est le bon : un orphelin se rattrape au run suivant, une spec supprimée à tort ne se rattrape pas. Et un changement de `schema_version` est un acte délibéré de développement, pas un événement de production.
+
+### Un fait de décision ne se lit jamais dans un message destiné à l'humain
+
+**Motif récurrent, rencontré deux fois en cinq jours** — le `reason` d'un `nested-table`, et le `warnings` d'une page en collision. À reconnaître avant de le reproduire une troisième.
+
+`md_path: null` était ambigu entre « page non exportée » et « page en collision ». Les deux portent aussi `exported: false` : le seul discriminant restant était le **texte d'un `warnings`**. Or la différence décide de l'effacement d'un fichier — dans un cas le `.md` antérieur est un orphelin à supprimer, dans l'autre il doit être **conservé**. D'où le tableau `collisions` de premier niveau dans `pages_inventory.json`, avec ses trois consommateurs : le delta, le nettoyage des orphelins, le rapport de run.
+
+C'est exactement la faute que `contracts/normalisation_adf.md` §2.1 interdit déjà pour `nested-table`, dont le champ `reason` est **localisé** — anglais et français observés sur le même module : détecter le cas dessus aurait marché jusqu'à la première page rédigée dans l'autre langue.
+
+**La règle générale** : un message en clair est écrit pour être lu par quelqu'un. Il est traduit, reformulé, enrichi d'un détail — sans que personne n'imagine qu'une décision en dépendait. Tout fait dont une décision dépend se porte dans un champ structuré, dédié, et dont l'absence est détectable.
+
+### Un test ne vaut que par ce qu'il partage avec le code qu'il surveille
+
+**Cinq instances en une semaine.** Le motif est toujours le même : un contrôle qui paraît protéger quelque chose, et qui reste vert quand ce qu'il surveille casse.
+
+1. **La copie de `_md_path()`.** L'assemblage du chemin vivait dans le fichier de tests, faute d'équivalent dans le module : le test vérifiait donc une seconde implémentation au lieu de la vraie. La contrainte de conception a été **tenue par anticipation** — le calcul du chemin devait être une fonction pure d'`inventory.py`, prenant une page et rendant un `md_path`, sans dépendance à Confluence ni à un fichier de configuration, précisément pour que `pipeline/tests/test_inventory.py` l'appelle au lieu d'en recopier la logique. `md_path()` est descendu dans le module **avant** l'assembleur, et non après : conçu plus tard, il aurait été inappelable depuis un test et la copie aurait survécu. Ce n'était pas un nettoyage à prévoir ensuite, c'était une contrainte à poser d'abord.
+2. **Une valeur mesurée dupliquée entre contrat et commentaire.** Le contrat annonçait un slug maximal de 78 — valeur héritée d'une règle candidate abandonnée, en liste noire, qui conservait la virgule. Corrigé en 77 dans le contrat, il est resté 78 dans le commentaire du code : un fait dupliqué en deux endroits diverge dès la première correction. C'est précisément le mode de défaillance que `contracts/` existe pour empêcher.
+3. **La définition de « page avec filles » dupliquée** entre `mesures_corpus()` et son propre test de non-régression. Le test calculait lui-même son ensemble de mères : il restait vert quand on annulait la correction dans le code mesuré. Une fonction unique et partagée l'a réglé — et la régression simulée fait désormais échouer deux vérifications sur six.
+4. **La vérification de nommage née vide.** À son premier essai, elle a rapporté `collectees == []` : le bloc `__main__` était placé avant la définition du point d'entrée, et elle inspectait un namespace où il n'existait pas encore. Elle a trouvé son propre défaut parce qu'elle est écrite en **assertion positive** — la liste doit valoir exactement le point d'entrée attendu. Un contrôle qui n'échouerait que sur un coupable identifié aurait été vert.
+5. **Le nom du fichier, angle mort de cette même vérification.** Renommé hors de `test_*.py` / `*_test.py`, un fichier n'est plus collecté du tout par pytest — en silence — pendant que le point d'entrée autonome continue d'afficher `OK`. La vérification de namespace ne voyait rien : elle inspecte un module que pytest ne visite jamais.
+
+S'y ajoute un cas voisin, qui n'est pas une duplication mais la même famille de silence : **le test de contrat qui aurait pu se sauter**. `test_contracts.py` dépend de `jsonschema` ; son absence le fait **échouer**, avec le message d'installation, jamais passer. Un test de contrat qui se saute quand son outil manque est vert partout où l'outil manque — c'est-à-dire exactement là où on aurait besoin de lui.
+
+**Deux règles en découlent**, toutes deux inscrites dans `CLAUDE.md` parce qu'elles doivent être lues à chaque session : la forme durable d'un contrôle est l'**assertion positive** — dire ce qu'on a trouvé, pas qu'on n'a rien trouvé de coupable — et **commiter avant d'injecter une régression de contrôle**, la remise en état ayant détruit du travail non enregistré deux fois le 8 août.
+
 ---
 
 ## 6. Exigences à porter dans le code
@@ -454,7 +482,9 @@ Décisions :
 - `fontSize` — relevé dans le corpus complet, absent des 9 fixtures : seul mark non arbitré. Il lève tant qu'il n'est pas tranché ;
 - **forme inline de l'Extrait natif** — le corpus compte 53 inclusions inline en multiexcerpt (`…-include-inline-macro` ×50, `multiexcerpt-include-macro` ×3). L'essai du 5 août n'a produit que des nœuds `extension` de bloc, y compris en cellule de tableau où un bloc paraît en ligne. À vérifier par une insertion **au milieu d'une phrase, hors tableau** : si Confluence l'accepte, le nœud doit être un `inlineExtension` ;
 - sort de `confluence-outil-resolve-multiexcerpt` (retiré ou conservé en secours) — dépend de la fiabilité du pipeline en production ;
-- emplacement des 3 outils existants (`tools/` ou skill) : artefact autonome → `tools/` ; déclenché en conversation → skill.
+- emplacement des 3 outils existants (`tools/` ou skill) : artefact autonome → `tools/` ; déclenché en conversation → skill ;
+- **option `--tout` de `main.py`** — un changement du **rendu** produit des `.md` différents à partir d'ADF identiques, et aucun des trois champs comparés par le delta ne le voit : ni la version Confluence, ni le chemin, ni `last_exported`. Il faudra pouvoir forcer un ré-rendu sans attendre qu'une page bouge ;
+- **index des liens entrants — optimisation, pas correction.** Le ré-rendu complet est **correct par construction** : il réécrit tout dès qu'un fichier cesse d'exister à son ancien chemin, donc aucun lien relatif ne reste cassé. Un index des liens entrants ne rendrait pas le résultat plus juste, il éviterait seulement de réécrire 232 fichiers quand une seule page bouge. À n'ouvrir que si le coût d'un run complet devient mesurable — et **jamais comme la correction d'un défaut**, il n'y en a pas.
 
 **Périmètre**
 - classification des 7 pages `A_QUALIFIER` (notes de cadrage, à qualifier une par une) ;
