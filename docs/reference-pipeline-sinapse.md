@@ -43,7 +43,7 @@ C:\dev\sinapse-claude\
 │   ├── src/
 │   │   ├── recense_adf.py       v1.2 — porte la couche HTTP en attendant
 │   │   │                        confluence_client
-│   │   ├── inventory.py         v1.2 — classification + slugification
+│   │   ├── inventory.py         v1.3 — classification, slugification, md_path
 │   │   └── multiexcerpt.py      v1.1 — clés des 3 mécanismes
 │   ├── tests/
 │   │   ├── test_inventory.py        `python pipeline/tests/test_inventory.py`
@@ -145,7 +145,7 @@ Export récursif, profondeur illimitée. 247 pages au total.
 
 Deux étapes ouvertes en parallèle (0d et 3) : la classification a été anticipée parce qu'elle était devenue prérequis du resolver.
 
-**Étape 3 — l'inventaire n'est pas encore assemblé.** `inventory.py` v1.1 émet un **tableau de pages à plat**, alors que `contracts/pages_inventory.schema.json` décrit une **carte indexée par identifiant** — la forme utile au delta. Ni `md_path` ni `last_exported` ne sont renseignés. L'assemblage arrive **avec la slugification et le delta**, qui closent l'étape ; ce qui existe aujourd'hui est un dump de classification, pas `pages_inventory.json`.
+**Étape 3 — l'inventaire n'est pas encore assemblé.** `inventory.py` v1.3 sait calculer un `md_path` (`slugify()`, `meres_exportantes()`, `md_path()`), mais son CLI émet toujours un **tableau de pages à plat**, alors que `contracts/pages_inventory.schema.json` décrit une **carte indexée par identifiant** — la forme utile au delta. Ni `md_path` ni `last_exported` ne sont écrits. L'assemblage et le delta closent l'étape ; ce qui existe aujourd'hui est un dump de classification, pas `pages_inventory.json`.
 
 ### Critères de validation par étape
 
@@ -169,7 +169,7 @@ Claude Code opérationnel, dépôt `C:\dev\sinapse-claude`. Token Atlassian en v
 
 1. **Assembleur de `pages_inventory.json`** — carte indexée par identifiant (la sortie actuelle d'`inventory.py` est un tableau à plat, dump de mise au point), `md_path`, `unclassified`, `last_exported`. Il appelle `slugify()` et `meres_exportantes()`.
 
-   **Contrainte de conception arbitrée** : le calcul du chemin doit être une fonction pure d'`inventory.py`, prenant une page et rendant un `md_path`, sans dépendance à Confluence ni à un fichier de configuration — **pour que `pipeline/tests/test_inventory.py` l'appelle au lieu d'en recopier la logique**. `_md_path()` disparaît du fichier de tests le jour où l'assembleur existe. Ce n'est pas un nettoyage à prévoir après : conçu sans cette contrainte, l'assembleur sera inappelable depuis un test et la copie survivra. Elle a déjà piégé deux fois cette semaine — le chiffre 78 dupliqué entre contrat et commentaire, et la définition de « page avec filles » dupliquée entre `mesures_corpus()` et son propre test de non-régression, qui restait vert quand on annulait la correction. **Un test ne vaut que par ce qu'il partage avec le code qu'il surveille.**
+   **Contrainte de conception — tenue par anticipation, le 8 août.** Le calcul du chemin devait être une fonction pure d'`inventory.py`, prenant une page et rendant un `md_path`, sans dépendance à Confluence ni à un fichier de configuration, **pour que `pipeline/tests/test_inventory.py` l'appelle au lieu d'en recopier la logique**. C'est fait : `md_path()` vit dans le module depuis la v1.3 et la copie locale au test a disparu — **avant** l'assembleur, et non après, précisément parce que conçue plus tard elle aurait été inappelable depuis un test et la copie aurait survécu. L'assembleur n'a donc plus qu'à appeler `md_path()`, `slugify()` et `meres_exportantes()`. La duplication avait déjà piégé deux fois cette semaine — le chiffre 78 dupliqué entre contrat et commentaire, et la définition de « page avec filles » dupliquée entre `mesures_corpus()` et son propre test de non-régression, qui restait vert quand on annulait la correction. **Un test ne vaut que par ce qu'il partage avec le code qu'il surveille.**
 
 2. **Delta à deux entrées — décision arbitrée.** `version.number` détecte modifications, suppressions et renommages de contenu. Il ne détecte **pas** les déplacements de fichier, parce que ceux-ci découlent de NOS règles de nommage et non d'un événement Confluence : quand une page reçoit sa première fille exportée, son `.md` passe de `{slug}.md` à `{slug}/{slug}.md` alors que **personne ne l'a touchée** — Confluence n'a rien enregistré à son sujet, ni version ni date.
 
@@ -255,7 +255,7 @@ Le champ `reason` décrit une limitation de l'éditeur Confluence, et il est **l
 
 ### Classification des pages
 
-`pipeline/src/inventory.py` v1.1, 56 tests. La chaîne `parent_id` est complète sur 246/246 et aboutit toujours à une des 5 racines : l'appartenance groupe A/B est **dérivable localement**, sans appel API. L'endpoint ancêtres ne servira jamais.
+`pipeline/src/inventory.py` v1.3, 124 tests. La chaîne `parent_id` est complète sur 246/246 et aboutit toujours à une des 5 racines : l'appartenance groupe A/B est **dérivable localement**, sans appel API. L'endpoint ancêtres ne servira jamais.
 
 232 exportées · 196 sources de contenu · 101 scorées · 14 exclues (5 directes, 9 héritées).
 
