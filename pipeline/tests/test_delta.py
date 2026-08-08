@@ -263,17 +263,43 @@ def verifie_scenarios():
                     "scenario 10 : une suppression retenue porte toujours un chemin")
 
     # 11 — schema_version different.
+    # COMMENTAIRE (11 converge avec 1) : ce scenario donne EXACTEMENT le meme plan
+    # que le premier run, a la raison pres. Ce n'est pas une coincidence, c'est la
+    # definition de la regle : un schema_version different fait REMPLACER le
+    # precedent par None des l'entree de compare(). Aucun de ses champs n'est
+    # ensuite lu — d'ou 246 `creation` et non 246 `inchangee`, et zero suppression.
+    # « Traite comme absent » ne veut dire quelque chose que si rien n'est lu ;
+    # calculer les etats par paires tout en refusant les suppressions ferait lire a
+    # moitie un fichier declare non fiable.
+    # Le prix est assume : des .md devenus orphelins survivent a ce run, faute de
+    # precedent pour les reperer. Un orphelin se rattrape au run suivant, une spec
+    # supprimee a tort ne se rattrape pas.
     courant = inventaire_abouti()
     courant["schema_version"] = 2
     plan = delta.compare(base, courant)
     echecs += verifie_scenario(11, "schema_version different", plan,
                                {"run_complet": True, "a_exporter": 232,
                                 "suppressions": 0, "retenues": 0,
-                                "etats": {"inchangee": 246}})
+                                "etats": {"creation": 246}})
     echecs += check(plan["precedent_ignore"] is True,
                     "scenario 11 : le precedent doit etre signale comme ignore")
     echecs += check("schema_version" in " ".join(plan["raisons_run_complet"]),
                     "scenario 11 : la raison doit nommer schema_version")
+    echecs += check(
+        "aucun inventaire precedent" not in " ".join(plan["raisons_run_complet"]),
+        "scenario 11 : la raison doit dire schema_version, pas « aucun precedent » "
+        "— il y en avait un, il a ete ecarte")
+
+    # Le plan est-il identique a celui du premier run, hors raisons ? C'est
+    # l'assertion qui tient la regle : si l'un des deux derive, ils cessent de
+    # converger et le test le dit.
+    plan_premier = delta.compare(None, inventaire_abouti())
+    comparable = lambda p: {c: p[c] for c in  # noqa: E731
+                            ("run_complet", "a_exporter", "suppressions",
+                             "suppressions_retenues", "etats")}
+    echecs += check(comparable(plan) == comparable(plan_premier),
+                    "scenario 11 doit produire le meme plan que le scenario 1, "
+                    "hors raisons")
     return echecs
 
 

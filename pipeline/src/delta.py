@@ -106,19 +106,29 @@ def compare(precedent, courant):
     pages_courant = courant.get("pages") or {}
     raisons = []
 
-    # --- Garde-fou (c) : schema_version different => precedent non fiable.
-    # Deviner la semantique de champs d'une autre version est pire que tout
-    # reexporter. Les DECISIONS se prennent alors comme sans precedent — aucune
-    # suppression, run complet — mais les ETATS restent calcules par paires : ils
-    # ne servent qu'au rapport, et dire « creation » de 246 pages qui existaient
-    # deja serait faux.
+    # --- Garde-fou (c) : schema_version different => le precedent est REMPLACE par
+    # None. Deviner la semantique de champs d'une autre version est pire que tout
+    # reexporter, et « traite comme absent » ne veut dire quelque chose que si
+    # AUCUN de ses champs n'est lu — ni pour les etats, ni pour les suppressions.
+    # Une seule ligne, en tete, et tout le reste de la fonction n'a pas a connaitre
+    # le cas.
+    #
+    # CONSEQUENCE ASSUMEE : aucune suppression n'est calculee lors d'un changement
+    # de schema_version, donc des .md devenus orphelins survivent au run. C'est le
+    # bon sens de l'erreur — un orphelin se rattrape au run suivant, une spec
+    # supprimee a tort ne se rattrape pas — et un changement de schema_version est
+    # un acte delibere de developpement, pas un evenement de production.
     precedent_ignore = bool(
         precedent is not None
         and precedent.get("schema_version") != courant.get("schema_version"))
     if precedent_ignore:
         raisons.append(
             f"schema_version different : {precedent.get('schema_version')!r} "
-            f"puis {courant.get('schema_version')!r}")
+            f"puis {courant.get('schema_version')!r} — precedent traite comme "
+            f"absent, aucun de ses champs n'est lu")
+        precedent = None
+    elif precedent is None:
+        raisons.append("aucun inventaire precedent")
 
     pages_precedent = (precedent or {}).get("pages") or {}
 
@@ -130,7 +140,7 @@ def compare(precedent, courant):
     # --- Suppressions candidates, deux branches.
     protegees = _protegees(courant)
     candidates = []
-    if precedent is not None and not precedent_ignore:
+    if precedent is not None:
         # Branche A : la page est la, elle n'a plus de chemin.
         for page_id, etat in etats.items():
             if etat == "retrait" and page_id not in protegees:
@@ -158,8 +168,6 @@ def compare(precedent, courant):
     # --- Run complet : le critere est « un fichier cesse d'exister a son ancien
     # chemin », pas « un chemin a change ». C'est la seule chose qui casse un lien
     # relatif entrant.
-    if precedent is None:
-        raisons.insert(0, "aucun inventaire precedent")
     deplacements = sorted(i for i, e in etats.items() if e in ETATS_DEPLACEMENT)
     if deplacements:
         raisons.append(f"{len(deplacements)} deplacement(s) : "
@@ -167,8 +175,9 @@ def compare(precedent, courant):
     if suppressions:
         raisons.append(f"{len(suppressions)} suppression(s) retenue(s) dans le plan")
 
-    run_complet = bool(precedent is None or precedent_ignore
-                       or deplacements or suppressions)
+    # `precedent_ignore` n'a pas a figurer ici : la substitution en tete l'a deja
+    # ramene au cas « aucun precedent ».
+    run_complet = bool(precedent is None or deplacements or suppressions)
 
     # --- Ce qu'il faut ecrire.
     if run_complet:
