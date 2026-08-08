@@ -4,7 +4,7 @@
   "title": "pages_inventory.json",
   "description": "Inventaire complet du perimetre Confluence SINAPSE, base de la detection de delta. Ecrit dans {local_path}/cache/. Produit par pipeline/src/inventory.py ; les regles de classification sont dans contracts/classification_pages.md, qui fait foi sur la semantique des champs. Le delta se fait par version.number, jamais par date : lastmodified est a la minute, sensible au fuseau, et ne bouge pas sur certains deplacements.",
   "type": "object",
-  "required": ["generated_at", "schema_version", "inventory_version", "pages"],
+  "required": ["generated_at", "schema_version", "inventory_version", "pages", "unclassified", "collisions", "complete"],
   "additionalProperties": false,
   "properties": {
     "generated_at": {
@@ -23,6 +23,35 @@
     "source": {
       "type": "string",
       "description": "Origine des metadonnees de pages : nom du fichier de recensement, ou \"confluence\" pour un run reel."
+    },
+    "complete": {
+      "type": "boolean",
+      "description": "Vrai si la collecte des metadonnees a couvert la TOTALITE du perimetre. Renseigne par l'appelant, qui seul connait le nombre d'echecs de collecte ; aucune valeur par defaut, pour que l'omission se voie au lieu de passer pour un run sain. SEULE AUTORISATION DE DETRUIRE : le delta ne peut conclure a une suppression, et la phase de nettoyage des orphelins ne peut effacer un .md, que si cette valeur est vraie. RAISON : une page absente de l'inventaire courant est indistinguable d'une page supprimee. Le cas s'est deja produit — 334888965 (SF-COORDONNEE, page RG) a ete perdue sur un timeout au recensement du 4 aout 2026 ; avec un delta destructif, son .md aurait ete efface, puis elle serait revenue comme une creation au run suivant. Ne bride PAS les ecritures : un inventaire partiel exporte normalement ce qu'il a, il ne detruit rien. Les identifiants des pages en echec appartiennent au rapport de run, pas a l'inventaire."
+    },
+    "collisions": {
+      "type": "array",
+      "description": "Groupes de pages produisant le meme chemin, au sens de contracts/slugification.md §9. Toujours present, tableau vide s'il n'y en a pas : distinguer l'absence de la vacuite est un piege gratuit. TROIS CONSOMMATEURS, et c'est ce qui justifie un champ structure plutot que la relecture des warnings : le delta, qui ne doit PAS conclure a une suppression pour ces pages ; la phase de nettoyage des orphelins, qui doit les ignorer ; le rapport de run, qui les porte en tete comme anomalie bloquante. Sans ce champ, md_path a null est ambigu entre « page non exportee » — dont le .md des runs precedents est un orphelin a supprimer — et « page en collision » — dont le .md doit etre CONSERVE. Les deux portent aussi exported a false : le seul discriminant restant serait le texte d'un warning, c'est-a-dire la meme faute que matcher le champ reason d'un nested-table.",
+      "items": {
+        "type": "object",
+        "required": ["directory_id", "slug", "page_ids"],
+        "additionalProperties": false,
+        "properties": {
+          "directory_id": {
+            "type": "string",
+            "description": "Identifiant du repertoire dans lequel le chemin dispute se trouverait. C'est le parent commun quand des freres se disputent un nom, et la page MERE elle-meme dans le cas X/X.md, ou une fille de meme slug que sa mere vise le fichier propre de celle-ci. Chaine vide pour une page sans parent connu — ce n'est donc pas un identifiant de page dans tous les cas, et le champ ne porte pas de pattern numerique."
+          },
+          "slug": {
+            "type": "string",
+            "description": "Slug en cause, sous sa forme REPLIEE par casefold(). C'est la seule forme qui identifie le groupe : deux pages peuvent collisionner en ne differant que par la casse, il n'existe alors aucun « le » slug commun. Les formes lisibles se lisent dans les titres des pages designees."
+          },
+          "page_ids": {
+            "type": "array",
+            "description": "Pages du groupe, triees par identifiant. Au moins deux : un groupe d'une seule page n'est pas une collision.",
+            "minItems": 2,
+            "items": { "type": "string", "pattern": "^[0-9]+$" }
+          }
+        }
+      }
     },
     "pages": {
       "type": "object",
@@ -140,7 +169,7 @@
         },
         "md_path": {
           "type": ["string", "null"],
-          "description": "REFERENCE UNIQUE DU CHEMIN du .md, relatif a local_path. Fabrication : contracts/slugification.md, qui fait foi. Les skills le LISENT ICI et ne le recalculent JAMAIS depuis le titre : la profondeur, le slug du parent et la forme fichier-ou-repertoire ne sont pas derivables d'un titre de page. Une page AVEC filles vit dans \"{slug}/{slug}.md\" ; une page SANS fille donne un simple \"{slug}.md\" — pas de repertoire a fichier unique. Consequence : l'ajout d'une premiere fille DEPLACE le .md de la page parente sans que son contenu ni sa version.number aient change ; le run doit le traiter comme un deplacement identifie et le signaler comme tel au rapport, jamais comme une suppression suivie d'une creation. null dans deux cas seulement : page non exportee, ou page membre d'un groupe en collision de slug — dans ce second cas la page conserve son entree et ses .md des runs precedents ne sont PAS supprimes."
+          "description": "REFERENCE UNIQUE DU CHEMIN du .md, relatif a local_path. Fabrication : contracts/slugification.md, qui fait foi. Les skills le LISENT ICI et ne le recalculent JAMAIS depuis le titre : la profondeur, le slug du parent et la forme fichier-ou-repertoire ne sont pas derivables d'un titre de page. Une page AVEC filles vit dans \"{slug}/{slug}.md\" ; une page SANS fille donne un simple \"{slug}.md\" — pas de repertoire a fichier unique. Consequence : l'ajout d'une premiere fille DEPLACE le .md de la page parente sans que son contenu ni sa version.number aient change ; le run doit le traiter comme un deplacement identifie et le signaler comme tel au rapport, jamais comme une suppression suivie d'une creation. null dans deux cas, que le tableau collisions de premier niveau permet de distinguer — c'est sa raison d'etre : page non exportee, ou page membre d'un groupe en collision de slug. Les deux portent aussi exported a false, donc ce champ seul ne dit pas lequel des deux, et la difference decide de la destruction d'un fichier : dans le second cas la page conserve son entree, ses identifiants figurent dans collisions, et ses .md des runs precedents ne sont PAS supprimes."
         },
         "last_exported": {
           "type": ["string", "null"],
@@ -155,5 +184,5 @@
       }
     }
   },
-  "$comment": "ETAT D'IMPLEMENTATION au 7 aout 2026 — inventory.py v1.2 produit tous les champs de classification, ainsi que slugify() et la detection de collision de contracts/slugification.md §2 et §9. Son CLI emet encore un tableau de pages a plat (dump de mise au point), pas la carte indexee par identifiant decrite ici, et ne renseigne ni md_path ni last_exported ni unclassified : l'assemblage reste a ecrire, avec le delta, ce qui clot l'etape 3. La regle de fabrication de md_path, elle, est arretee."
+  "$comment": "ETAT D'IMPLEMENTATION au 8 aout 2026 — inventory.py v1.3 produit tous les champs de classification, slugify() et la detection de collision (contracts/slugification.md §2 et §9), et md_path() qui assemble le chemin en fonction pure, appelee par pipeline/tests/test_inventory.py au lieu d'y etre recopiee. Son CLI emet encore un tableau de pages a plat (dump de mise au point), pas la carte indexee par identifiant decrite ici, et ne renseigne ni md_path, ni last_exported, ni unclassified, ni collisions, ni complete : l'assemblage reste a ecrire, avec le delta, ce qui clot l'etape 3. Aucun pages_inventory.json n'a encore ete produit — ce schema n'a donc aucun fichier existant a migrer, et l'ajout de trois champs requis ne coute rien."
 }

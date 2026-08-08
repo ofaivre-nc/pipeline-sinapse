@@ -193,11 +193,40 @@ frères : les collisions ne peuvent naître que de la règle elle-même.
 - ne produit **aucun** `.md` ce run ;
 - garde son entrée dans `pages`, avec `md_path: null`, `exported: false` et un
   `warnings` nommant les pages concernées ;
+- figure dans le tableau `collisions` de premier niveau de
+  `pages_inventory.json`, avec le répertoire, le slug replié et les
+  identifiants du groupe. C'est **ce tableau, et non le texte du `warnings`**,
+  que lisent le delta et le nettoyage des orphelins : `md_path: null` et
+  `exported: false` sont produits à l'identique par une page simplement non
+  exportée, et la différence décide de l'effacement d'un fichier ;
 - **n'entraîne pas la suppression** des `.md` produits par les runs précédents :
   la phase de nettoyage des orphelins ignore les pages en collision. Sans cette
   précaution, une collision effacerait deux specs au lieu d'en manquer une ;
 - figure **en tête du rapport de run**, comme anomalie bloquante à corriger dans
   Confluence.
+
+### Ordre d'appel : les mères se mesurent AVANT la mise en collision
+
+`meres_exportantes()` doit être appelée sur la classification, **avant** que les
+pages en collision ne passent à `exported: false`. L'ordre inverse est le plus
+naturel à écrire, et il est faux.
+
+Une mère dont les deux filles entrent en collision perdrait sinon son
+répertoire : son propre `.md` passerait de `{slug}/{slug}.md` à `{slug}.md`
+alors qu'elle n'a pas bougé, et le rapport annoncerait un déplacement dont la
+cause est une anomalie éditoriale située ailleurs. C'est exactement ce que
+« la collision lève au niveau du groupe, pas du run » interdit : le groupe
+concerné cesse d'être exporté, le reste du corpus ne bronche pas.
+
+Prix assumé : au **premier** run seulement, une mère dans cette situation reçoit
+un répertoire ne contenant que son propre fichier — ce que le §10 évite partout
+ailleurs. Aux runs suivants, les `.md` des filles produits antérieurement sont
+toujours là, puisqu'ils ne sont pas supprimés.
+
+Ce point ne se signale dans aucune des sept mesures du §11, et pas davantage
+dans un run sans collision — le corpus en compte **zéro** aujourd'hui. Il ne
+tient donc que par un test : une mère à deux filles en collision doit conserver
+`{slug}/{slug}.md`.
 
 Le reste du run se poursuit. C'est l'application de la règle « une page en échec
 n'interrompt pas le run » : la collision lève au niveau du groupe, pas du run.
