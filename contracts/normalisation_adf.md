@@ -158,8 +158,9 @@ et remontent au rapport.
 
 Le parcours récursif complet attend l'arbitrage **réutiliser ou réécrire le resolver**
 multiexcerpt (question ouverte n°3 du brief) et la couche de récupération des pages.
-`multiexcerpt.py` v1.0 ne contient que ce qui est indépendant de cet arbitrage : clés,
-extraction de paramètres, garde-fou de cycle.
+`multiexcerpt.py` v1.1 ne contient que ce qui est indépendant de cet arbitrage : clés
+des trois mécanismes, classification en six natures, extraction de paramètres,
+garde-fou de cycle. 77 tests.
 
 ### 1.8 Une seconde famille de macros — `excerpt` natif
 

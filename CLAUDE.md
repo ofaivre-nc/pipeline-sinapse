@@ -199,7 +199,7 @@ travail à domicile devient nécessaire.
 
 Avant le premier `push` : vérifier ce qui part (`git status`, `git diff --cached`).
 
-## État d'avancement — mis à jour le 7 août 2026
+## État d'avancement — mis à jour le 9 août 2026
 
 Séquencement, position détaillée et questions ouvertes : sections 2 et 7 du document de
 référence. Position en bref :
@@ -210,17 +210,23 @@ référence. Position en bref :
   `layoutColumn` (290), `bodiedExtension` (260) sont tous présents, `pyadf` les jetterait.
 - **`contracts/normalisation_adf.md` est complet** : les 33 types de nœuds du corpus sont
   couverts, un type non couvert lève. Seul `fontSize` reste non arbitré — relevé dans le
-  corpus complet, absent des 9 fixtures.
+  corpus complet, absent des 9 fixtures. Décisions de rendu du 9 août : `panel`
+  transparent, macro `toc` en commentaire, cellule fusionnée faisant basculer le
+  tableau en HTML, cellules d'un tableau HTML rendues en HTML.
+- **Aucune bibliothèque ADF.** Essai de `marklas` 0.8.6 le 9 août : aucun warning émis,
+  renderer échappant la syntaxe markdown injectée, JQL et couleurs perdus. Le rendu
+  est écrit sur l'ADF brut, mesuré à 394 lignes pour les 9 fixtures.
 - **Slugification close** — `contracts/slugification.md`. Liste blanche `[A-Za-z0-9._-]`,
   point conservé, accents repliés, casse conservée, collisions détectées sur `casefold()`
   et levées au niveau du groupe de pages. Mesuré : 0 collision sur les 246 pages.
-- **Étape 3 en cours** — `inventory.py` (v1.2) classifie les 246 pages et produit
-  `slugify()` + la détection de collision. Restent l'**assemblage de
-  `pages_inventory.json`** (carte indexée par identifiant, `md_path`, `last_exported`)
-  et le **delta par `version.number`**.
+- **Étape 3 close** — `inventory.py` (v1.4) classifie les 246 pages, produit `slugify()`,
+  la détection de collision, `md_path()` en fonction pure, et l'assemblage de
+  `pages_inventory.json`. `delta.py` (v1.0) en dérive le plan d'un run, en comparant
+  **trois** champs : `version.number`, `md_path` et `last_exported`. Reste `main.py`,
+  qui exécutera le plan que `compare()` décide.
 - **Resolver** — `multiexcerpt.py` (v1.1) fournit les clés des trois mécanismes de
-  réutilisation et le garde-fou de cycle, 75 tests. Le parcours récursif reste à écrire,
-  avec l'arbitrage réutiliser/réécrire.
+  réutilisation, la classification en six natures et le garde-fou de cycle, 77 tests.
+  Le parcours récursif reste à écrire, avec l'arbitrage réutiliser/réécrire.
 - `.claude/rules/skills.md` n'existe pas encore : il accueillera les conventions de nommage
   des skills, la limite des 500 lignes et le barème, au moment du rapatriement des skills
   (étape 10).
