@@ -839,10 +839,11 @@ Deux lectures de « la cellule contient » ont été calculées — enfants dire
 sous-arbre entier : elles donnent le même résultat. Aucun bloc ne se cache en
 profondeur sans être visible au premier niveau ; la lecture directe suffit.
 
-**Ces 23 % justifient à eux seuls la décision « index croisé construit depuis
+**Ces 26 % justifient à eux seuls la décision « index croisé construit depuis
 l'ADF, pas depuis le `.md` ».** Il suffit d'une cellule à liste pour qu'un
 tableau ne survive pas à un aller-retour par le markdown — et deux des CU
-analysées, `28344321` et `28344344`, sont dans ce cas.
+analysées sont largement dans ce cas : `28344321` porte 4 tableaux complexes sur
+6, `28344344` 2 sur 4.
 
 #### Cellules restant en pipes
 

@@ -1,7 +1,7 @@
 # Pipeline SINAPSE — document de référence
 
 *Document unique de la conversation de conception. Remplace `brief-pipeline-sinapse-v3.md`, archivé dans `docs/archive/`. Il succède aussi à un document de reprise de contexte antérieur, qui n'a vécu que dans l'espace de conversation : il n'en existe aucune trace dans le dépôt, inutile de l'y chercher.*
-*Mis à jour le 9 août 2026 — étape 3 close : inventaire assemblé et delta à trois entrées.*
+*Mis à jour le 9 août 2026 — abandon de la bibliothèque ADF : le rendu est écrit sur l'ADF brut.*
 
 ---
 
@@ -171,7 +171,7 @@ Claude Code opérationnel, dépôt `C:\dev\sinapse-claude`. Token Atlassian en v
 
 ### Prochaines étapes
 
-1. **Test de conversion `marklas`** sur les 9 fixtures, warnings confrontés à `contracts/normalisation_adf.md`. Dernier prérequis avant d'écrire le normalizer : un warning résiduel signale soit un nœud mal couvert, soit une limite de la bibliothèque à contourner.
+1. **Remise de `pipeline/src/renderer.py`** et de ses tests, transcription de `contracts/normalisation_adf.md` sur l'ADF brut. L'essai de conversion du 9 août tient lieu de prototype : 9 fixtures sur 9, 394 lignes, aucune dépendance. Restent à écrire les tests de non-régression, dont ceux des cas absents du corpus doré — cellules fusionnées, famille `excerpt`, `fontSize`.
 2. **Resolver** — arbitrer réutiliser ou réécrire, puis écrire le parcours récursif. Les clés, le `CycleGuard` et la classification en six natures sont faits ; il reste à couvrir les **trois** mécanismes, ce que le resolver d'origine n'en couvre qu'un. C'est le verrou de l'étape 4.
 3. **Étapes 1 et 2** — export d'une page CU, puis une par type. `main.py` exécute le plan que `compare()` décide : `compare()` ne touche ni Confluence ni le disque.
 4. Puis 2bis (corpus doré complété de ses `.md` attendus), 4, 5…
@@ -329,7 +329,7 @@ Le dépôt est la source de vérité ; l'espace GIE est une cible de déploiemen
 
 **Données**
 - **`version.number` jamais la date** : `lastmodified` est à la minute, sensible au fuseau, et ne bouge pas sur certains déplacements. Le diff de versions donne en prime suppressions et renommages. Mais `version.number` **ne suffit pas** : le delta compare trois champs, voir « L'étape 3 » ci-dessous.
-- **Index croisé construit depuis l'ADF**, pas depuis le `.md` : les tableaux markdown perdent leur structure dès qu'une cellule contient une liste ou un saut de ligne — précisément le cas des tableaux IHM 5 colonnes et MDD 9 colonnes. **Mesuré le 6 août** : 13 des 56 tableaux des 9 fixtures portent au moins une cellule à contenu de bloc, et jusqu'à ~24 après injection des `nested-table`. Deux des CU analysées (`28344321`, `28344344`) en font partie.
+- **Index croisé construit depuis l'ADF**, pas depuis le `.md` : les tableaux markdown perdent leur structure dès qu'une cellule contient une liste ou un saut de ligne — précisément le cas des tableaux IHM 5 colonnes et MDD 9 colonnes. Un quart des tableaux du corpus doré sont concernés, dont ceux de deux CU analysées. Décompte tenu à un seul endroit, `contracts/normalisation_adf.md` §9.1 : un chiffre recopié ici divergerait à la première remesure, ce qui s'est produit le 9 août.
 - **`parse_status` obligatoire par page** : sans lui, un skill lisant `regles: []` ne peut pas distinguer « aucune règle » de « le parser a échoué », et produit un rapport entièrement faux. Une page en `parse_status ≠ ok` n'est pas scorée, elle est signalée.
 - **Pas de cache ADF brut global** — seulement `pipeline/fixtures/` pour les tests. Une évolution du convertisseur implique un run complet depuis Confluence.
 - **Aucun nœud ADF ignoré silencieusement** : tout nœud non couvert remonte en erreur au rapport. Un warning résiduel de la lib = un bug du normalizer.
