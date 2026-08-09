@@ -140,8 +140,9 @@ Instance `sinapse-gie-nc.atlassian.net`, space `SINAPSE`, export récursif, prof
 ## Conventions
 
 - Python 3.11+. Deux natures de dépendances, à ne pas confondre :
-  - **dépendances d'exécution** — `requests`, `marklas` : elles partent dans un run,
+  - **dépendances d'exécution** — `requests`, et elle seule : elle part dans un run,
     donc toute addition se justifie. C'est à elles que s'applique la sobriété.
+    Aucune bibliothèque ADF : le rendu est écrit dans `pipeline/src/renderer.py`.
   - **outillage de développement** — `pytest` : jamais chargé par un run, installé dans
     le venv (`.venv\Scripts\python.exe -m pip install pytest`). Son ajout n'engage pas
     le pipeline.

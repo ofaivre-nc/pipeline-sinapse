@@ -105,7 +105,7 @@ Un script Python autonome, planifié quotidiennement à 7h, qui établit l'inven
 - Atlassian Cloud : `sinapse-gie-nc.atlassian.net`, API REST v2 (`/wiki/api/v2`)
 - Auth Basic (email + token API), token en variable d'environnement — **jamais versionné, jamais transmis en conversation**
 - Python 3.11+, point d'entrée `.venv\Scripts\python.exe` (`requests` absent du Python système)
-- Conversion ADF → MD : `marklas`
+- Conversion ADF → MD : **aucune bibliothèque** — `renderer.py`, écrit sur l'ADF brut
 
 ### Périmètre Confluence
 
@@ -196,7 +196,7 @@ Une piste a été mesurée puis fermée : tronquer le titre à son préfixe d'id
 
 247 pages, 498 appels API, 93 s : 36 types de nœuds, 12 macros, 15 marks, 3 formes de liens Jira. `recense_adf.py` v1.2. 9 fixtures dans `pipeline/fixtures/` couvrant 33 des 36 types.
 
-- **`marklas` retenu** pour la conversion. `layoutSection`, `layoutColumn`, `bodiedExtension`, `expand`, `media`, `rule` sont tous présents dans le corpus ; `pyadf` les perdrait silencieusement.
+- **Aucune bibliothèque ADF.** Le recensement portait sur la couverture de parsing — `layoutSection`, `layoutColumn`, `bodiedExtension`, `expand`, `media`, `rule` sont tous présents dans le corpus, et `pyadf` comme `atlas-doc-parser` les perdraient. `marklas` passait ce critère, mais l'essai du 9 août a montré qu'il n'émet aucun warning et que son renderer échappe la syntaxe markdown injectée : il ne peut produire ni les tableaux HTML du §9.1, ni le marqueur d'image du §5, et il perd le JQL et les couleurs. Le rendu est propre à SINAPSE ; il est écrit dans `pipeline/src/renderer.py`, mesuré à 394 lignes pour les 9 fixtures.
 - **Trois formes de liens Jira** : `blockCard` avec table JQL (82), `inlineCard` (6), macro historique `extension :: jira` (8). 64 tickets REC-* cartographiés page ↔ ticket **sans aucun appel Jira** — la décision tient.
 - **`colspan` (6) et `rowspan` (10) existent**, plus 467 cellules à liste ou tableau imbriqué. Confirme « index croisé depuis l'ADF, pas depuis le `.md` ».
 - **Décodage générique obligatoire** : `html.unescape()` — le corpus contient `&period;` et `&lowbar;`.
@@ -333,7 +333,7 @@ Le dépôt est la source de vérité ; l'espace GIE est une cible de déploiemen
 - **`parse_status` obligatoire par page** : sans lui, un skill lisant `regles: []` ne peut pas distinguer « aucune règle » de « le parser a échoué », et produit un rapport entièrement faux. Une page en `parse_status ≠ ok` n'est pas scorée, elle est signalée.
 - **Pas de cache ADF brut global** — seulement `pipeline/fixtures/` pour les tests. Une évolution du convertisseur implique un run complet depuis Confluence.
 - **Aucun nœud ADF ignoré silencieusement** : tout nœud non couvert remonte en erreur au rapport. Un warning résiduel de la lib = un bug du normalizer.
-- **`marklas`** pour la conversion ADF → Markdown.
+- **Aucune bibliothèque ADF en exécution.** `requests` reste la seule dépendance du run. Le rendu ADF → Markdown transcrit `contracts/normalisation_adf.md` dans `pipeline/src/renderer.py`. Motif : les règles de rendu sont des décisions métier SINAPSE, qu'aucune bibliothèque ne peut connaître ; et le seul candidat qui passait le critère de parsing (`marklas`) n'émet aucun warning, ce qui prive la règle « aucun nœud ignoré silencieusement » de tout appui.
 - **Trois mécanismes de contenu réutilisé, deux formes de clé** : par titre pour les macros `multiexcerpt` **et** `excerpt` natif — clé `(page, nom)` ; par identifiant pour le `syncBlock` — clé `(page_id, uuid)`. Les index de définitions restent **séparés par mécanisme** : les croiser produirait un `.md` plus complet que la page réelle, et masquerait un affichage cassé que les rédacteurs voient à l'écran.
 - **Le slug est une clé d'adressage, pas un libellé** : liste blanche `[A-Za-z0-9._-]`, point conservé, accents repliés, casse conservée, collisions détectées sur `casefold()`. Une collision **lève au niveau du groupe de pages, pas du run** : les pages concernées ne sont pas exportées, leurs `.md` antérieurs ne sont pas supprimés, et le fait ouvre le rapport. Aucune désambiguïsation automatique — un suffixe renommerait silencieusement une spec qui n'a pas bougé. Contrat : `contracts/slugification.md`.
 - **OpenAPI hors périmètre** → maxLength abandonné assumé.

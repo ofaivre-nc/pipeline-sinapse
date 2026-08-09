@@ -31,7 +31,6 @@ exclude_title_prefixes = Archive, ARCHIVE_, Copie de, -NEW-, DRAFT
 local_path = C:\sinapse-specs-test
 
 [convert]
-library = marklas            ; marklas | pyadf
 strict_unknown_nodes = true  ; tout noeud non couvert par le normalizer = erreur au rapport
 
 [run]
