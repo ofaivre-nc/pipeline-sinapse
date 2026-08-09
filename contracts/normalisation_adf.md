@@ -284,6 +284,34 @@ Le seul cas qui justifierait `parse_status: partial` serait donc un `nested-tabl
 `ResolutionError`, et la page part en `partial` avec son motif. **Aucune occurrence à ce
 jour** — le cas est couvert par un test, pas par une observation.
 
+### 2.3 Les autres macros `extension` — `toc`
+
+Un nœud `extension` peut porter une macro qui n'est **ni** de la réutilisation (§1)
+**ni** un `nested-table` (§2). Le corpus en compte une seule à ce jour : `toc`, la
+table des matières, **8 occurrences sur 8 des 9 fixtures** — c'est un élément de
+cartouche, pas une exception.
+
+| `extensionKey` | Occ. | Rendu |
+|---|---|---|
+| `toc` | 8 | `<!-- toc -->` |
+
+Un sommaire Confluence est **généré à l'affichage** à partir des titres de la page :
+il n'a aucun contenu propre à convertir, et un lecteur de `.md` reconstruit la même
+information depuis les `#`. Le commentaire HTML conserve la trace de la macro sans
+polluer le rendu.
+
+**Ordre de reconnaissance des `extension`**, à respecter strictement :
+
+1. `extensionKey == "nested-table"` → §2 ;
+2. `multiexcerpt` en sous-chaîne de `extensionKey` → famille `multiexcerpt`, §1 ;
+3. sinon `excerpt` en sous-chaîne → famille `excerpt`, §1.8 ;
+4. sinon, clé présente dans la table ci-dessus → rendu indiqué ;
+5. sinon → **lève**, conformément à la règle dominante.
+
+Cette table est une **liste blanche**, au même titre que celle des marks (§8.2) :
+une macro non listée lève, elle ne passe pas en silence. C'est ce qui a permis de
+découvrir `toc`, resté invisible tant que rien ne l'exigeait.
+
 ---
 
 ## 3. Nettoyage des noms de multiexcerpt
@@ -746,11 +774,33 @@ Un tableau markdown en pipes ne peut contenir que de l'inline. Or le corpus port
 des cellules à contenu de bloc : listes à puces, tableaux imbriqués (§2),
 paragraphes multiples, images.
 
-**Règle : si une seule cellule du tableau contient du contenu de bloc, le tableau
-entier est rendu en HTML.** Sinon, tableau en pipes.
+**Règle : si une seule cellule du tableau contient du contenu de bloc ou porte une
+fusion, le tableau entier est rendu en HTML.** Sinon, tableau en pipes.
 
 Est du contenu de bloc, dans une cellule : `bulletList`, `orderedList`, `table`,
 `panel`, `codeBlock`, `blockquote`, `mediaSingle`, ou plus d'un `paragraph`.
+
+Est une fusion : `attrs.colspan > 1` (fusion horizontale) ou `attrs.rowspan > 1`
+(fusion verticale). Un tableau markdown en pipes n'a **aucune syntaxe** pour les
+exprimer : un en-tête fusionné sur trois colonnes ne peut qu'être remis dans la
+première, les deux autres vides, et la fusion disparaît sans trace. En HTML,
+`colspan` et `rowspan` sont rendus tels quels, et aucune logique de grille n'est à
+écrire. Volume : 6 `colspan` et 10 `rowspan` au corpus complet, **zéro dans les 9
+fixtures** — la règle ne sera donc pas exercée par le corpus doré, elle demande un
+test dédié.
+
+**Un tableau rendu en HTML rend aussi ses cellules en HTML.** À l'intérieur d'une
+balise, le markdown n'est plus interprété : `<th>**Libellé**</th>` affiche deux
+astérisques, et une liste à puces sort en tirets non rendus. Le contenu d'une
+cellule suit donc une seconde table de rendu — `strong` → `<strong>`, `em` → `<em>`,
+`code` → `<code>`, `underline` → `<u>`, `strike` → `<del>`, `link` → `<a href>`,
+`paragraph` → `<p>`, `bulletList` → `<ul><li>`, `orderedList` → `<ol><li>`,
+`blockquote` → `<blockquote>`, `codeBlock` → `<pre><code>`, `rule` → `<hr>`,
+`media` → `<img>`, `caption` → `<em>` — et `&`, `<`, `>` sont échappés dans le
+texte. Les marks conservés du §8.1 gardent leur forme, qui est déjà du HTML.
+
+Mesuré : 58 cellules des 9 fixtures portaient du markdown non interprété avant que
+cette règle ne soit posée. Le défaut est silencieux et ne se voit qu'au rendu.
 
 Le tout-ou-rien est délibéré : un tableau à moitié en pipes et à moitié en HTML
 n'est valide dans aucun des deux formats. Le HTML est verbeux mais sans perte, et
@@ -770,18 +820,19 @@ la fois.
 
 #### Ampleur mesurée
 
-Sur les 9 fixtures, **13 des 56 tableaux** portent au moins une cellule complexe,
-soit 630 cellules dont 71 réellement complexes (11 %). Motifs : `bulletList` (56
-cellules), plus d'un `paragraph` (18), `mediaSingle` (13).
+Mesuré le 9 août 2026, **après injection des `nested-table`** — c'est le seul
+décompte qui vaut, l'ordonnancement ci-dessus l'impose : **15 tableaux sur 58**
+portent au moins une cellule complexe, soit 84 cellules complexes sur 1633 (5 %).
+Motifs : `bulletList` (74 cellules), plus d'un `paragraph` (18), `mediaSingle`
+(15), `table` (2).
 
-Ce décompte est **sous-estimé** : il porte sur l'arbre principal, avant injection.
-Les 11 tableaux logés dans `parameters.adf` des nœuds `nested-table` sont par
-construction des tableaux dans des cellules ; après injection, leurs tableaux
-hôtes basculent aussi. Le total réel approche 24 tableaux sur 56.
+Les 9 fixtures ne contiennent que **2** `nested-table` ; les 11 relevées au §2.2
+portent sur les 248 fixtures du corpus complet. Un décompte antérieur annonçait
+« environ 24 sur 56 » en extrapolant depuis ces 11 — il est corrigé ici.
 
-La concentration est extrême : une seule fixture (`10485761`) porte 49 des 71
-cellules complexes dans 2 tableaux, tandis que `560201732`, avec 19 tableaux, n'en
-a qu'une.
+La répartition est très inégale : `28344321` a 4 tableaux complexes sur 6,
+`380567556` 3 sur 5, tandis que `241532980` n'en a aucun sur 10 et `560201732`
+un seul sur 19.
 
 Deux lectures de « la cellule contient » ont été calculées — enfants directs, ou
 sous-arbre entier : elles donnent le même résultat. Aucun bloc ne se cache en
@@ -802,7 +853,7 @@ Sans cet échappement, un `|` rompt la structure du tableau : notations `R/O/P` 
 tableaux de contrats DTO, expressions logiques dans les règles. Le défaut est
 silencieux et ne se voit qu'au rendu, sur une page à la fois.
 
-### 9.2 `panel`
+### 9.2 `panel` — conteneur transparent
 
 7 occurrences, sur 7 fixtures — c'est un élément récurrent des cartouches, pas une
 exception.
@@ -811,17 +862,25 @@ exception.
 {"type": "panel", "attrs": {"panelType": "info"}, "content": [ ... ]}
 ```
 
-Rendu : citation markdown précédée d'une ligne d'étiquette.
+**Rendu : transparent.** Le contenu est émis à la place du nœud, comme au §4 ; le
+contenant disparaît. `attrs.panelType` est jeté, ainsi que `panelIcon`,
+`panelIconId`, `panelIconText` et `panelColor` s'ils sont présents.
 
-```
-> **[INFO]**
-> {contenu}
-```
+Une version antérieure de ce contrat rendait le panel en citation étiquetée
+(`> **[INFO]**`) pour « donner une ancre aux skills ». Le besoin réel est le
+**contenu** du panel, pas la connaissance du contenant : aucun contrôle de
+validation ne dépend de savoir qu'une donnée était dans un panel. Deux mesures ont
+appuyé l'abandon : les 7 panels du corpus doré sont **tous** en `panelType: info`
+— l'étiquette ne distinguait donc rien — et le corpus ne compte que 2 `blockquote`,
+dont le panel était censé se distinguer.
 
-L'étiquette reprend `attrs.panelType` en capitales. Elle distingue un `panel` d'un
-`blockquote` ordinaire (§9), que le préfixe `>` seul confondrait, et donne une
-ancre aux skills. Un `panelType` inconnu est repris tel quel en capitales — il ne
-lève pas, contrairement à un type de nœud inconnu.
+**Un `panelType` inconnu ne lève pas** : il est jeté comme les autres, le contenu
+sort intact.
+
+**Conséquence sur le §9.1** : `panel` reste dans la liste des contenus de bloc qui
+font basculer un tableau en HTML. Un panel en cellule porte des paragraphes, donc
+du bloc ; c'est le contenu qui commande, pas le contenant. Aucune occurrence dans
+les fixtures.
 
 ---
 
