@@ -1,7 +1,7 @@
 # Pipeline SINAPSE — document de référence
 
 *Document unique de la conversation de conception. Remplace `brief-pipeline-sinapse-v3.md`, archivé dans `docs/archive/`. Il succède aussi à un document de reprise de contexte antérieur, qui n'a vécu que dans l'espace de conversation : il n'en existe aucune trace dans le dépôt, inutile de l'y chercher.*
-*Mis à jour le 11 août 2026 — contrat de rendu : marks lus par porteur, `date` / `emoji` / `mediaInline` couverts, `normalizer` fondu dans `renderer`.*
+*Mis à jour le 11 août 2026 — contrat de rendu : marqueur de réutilisation rendu visible, marks lus par porteur, `date` / `emoji` / `mediaInline` couverts, `normalizer` fondu dans `renderer`.*
 
 ---
 
@@ -344,7 +344,7 @@ Le dépôt est la source de vérité ; l'espace GIE est une cible de déploiemen
 - Cadence quotidienne, 7h. First run avec `last_run = 2020-01-01`, puis delta.
 - Écriture atomique (temporaire + rename) ; **write-if-changed**, sinon SharePoint resynchronise tout chaque jour.
 - Une page en échec n'interrompt pas le run : listée au rapport, retentée au run suivant.
-- Frontmatter YAML visible ; contenu réutilisé marqué visiblement dans le `.md`.
+- Frontmatter YAML visible ; **contenu réutilisé encadré de marqueurs visibles dans un lecteur markdown**, et non d'un commentaire HTML — forme en `contracts/normalisation_adf.md` §1.9.
 - `exported_at` affiché dans l'en-tête de **tous** les comptes-rendus de skills.
 
 **Organisation**
@@ -533,6 +533,26 @@ C'est exactement la faute que `contracts/normalisation_adf.md` §2.1 interdit d�
 S'y ajoute un cas voisin, qui n'est pas une duplication mais la même famille de silence : **le test de contrat qui aurait pu se sauter**. `test_contracts.py` dépend de `jsonschema` ; son absence le fait **échouer**, avec le message d'installation, jamais passer. Un test de contrat qui se saute quand son outil manque est vert partout où l'outil manque — c'est-à-dire exactement là où on aurait besoin de lui.
 
 **Deux règles en découlent**, toutes deux inscrites dans `CLAUDE.md` parce qu'elles doivent être lues à chaque session : la forme durable d'un contrôle est l'**assertion positive** — dire ce qu'on a trouvé, pas qu'on n'a rien trouvé de coupable — et **commiter avant d'injecter une régression de contrôle**, la remise en état ayant détruit du travail non enregistré deux fois le 8 août.
+
+### Un nombre mesuré entre dans un contrat avec sa méthode
+
+*11 août 2026. Le patch de contrat de ce jour a remplacé des chiffres justes par des faux.*
+
+Une remesure a annoncé 1667 cellules et 97 complexes là où le contrat portait 1633 et 84. L'écart — exactement 34 et 13 — a été lu comme du contenu jusque-là non compté, celui des tables imbriquées. C'était l'inverse : les 34 cellules des deux tableaux injectés étaient comptées **deux fois**, une fois pour le tableau interne et une fois pour son hôte. Les deux hypothèses produisent le même écart, et rien dans le nombre transmis ne permettait de les départager.
+
+**« 1633 cellules » ne veut rien dire ; « 1633 cellules, chacune rattachée à son `table` le plus proche, comptée une fois, parcours entrant dans `parameters.adf` » se vérifie et se rejoue.** Toute valeur mesurée inscrite dans un contrat porte désormais sa méthode. Et une remesure qui contredit un chiffre existant doit expliquer **l'écart**, pas seulement produire le nouveau nombre — c'est l'explication, pas le résultat, qui distingue une correction d'une erreur.
+
+Le motif est voisin des cinq de la section précédente sans s'y confondre : ce n'est pas un fait dupliqué qui diverge, c'est un fait transmis sans ce qui permettrait de le vérifier.
+
+### Une décision formulée pour un usage se vérifie contre la façon dont cet usage a lieu
+
+*11 août 2026, découvert en relisant la décision « contenu réutilisé marqué visiblement ».*
+
+La décision était bonne : un lecteur doit voir qu'un passage vient d'ailleurs, faute de quoi il tenterait de le corriger sur la mauvaise page. Sa transcription — un commentaire HTML `<!-- inclusion : … -->` — a rendu le marqueur **invisible dans un lecteur markdown**, c'est-à-dire dans le seul mode où les specs sont lues. Le dispositif satisfaisait le mot « visiblement » au sens du fichier brut, que personne n'ouvre.
+
+Le mot juste dans une décision ne garantit rien : il faut le confronter à la manière dont le résultat sera consommé. La question qui manquait tenait en six mots — **avec quel outil vas-tu lire ?**
+
+Corollaire opérationnel : le défaut a été trouvé en projetant un cas concret sous les yeux de celui qui lira, pas en relisant la décision. Une décision de rendu se valide sur un extrait rendu.
 
 ---
 

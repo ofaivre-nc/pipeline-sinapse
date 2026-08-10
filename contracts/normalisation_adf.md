@@ -2,17 +2,19 @@
 
 Ce que le pipeline fait de chaque nœud ADF du corpus SINAPSE.
 
-**État : table de normalisation complète.** Les 33 types de nœuds relevés dans
-le corpus sont couverts : contenu réutilisé (§1), `nested-table` (§2),
-nettoyage des noms (§3), seconde famille de macros (§1.8), mise en page (§4),
-médias (§5), cartes (§6), `status` / `taskList` / `mention` (§7), marks (§8),
-nœuds structurels (§9). Les types absents du corpus sont énumérés en §10 et
-lèvent. Les points encore ouverts, listés en §11, ne portent plus sur la
-normalisation elle-même mais sur ses prérequis — slugification, resolver,
-arbitrage du mécanisme de réutilisation.
+**État : table de normalisation complète.** Les **36 types de nœuds du corpus
+complet** sont couverts : contenu réutilisé (§1), `nested-table` (§2), nettoyage
+des noms (§3), seconde famille de macros (§1.8), marqueur de réutilisation (§1.9),
+mise en page (§4), médias (§5 et §5.1), cartes (§6), `status` / `taskList` /
+`mention` / `date` / `emoji` (§7), marks (§8), nœuds structurels (§9). Le §10
+distingue **deux** listes : les types absents du corpus complet, qui lèvent, et ceux
+qui sont couverts sans être exercés par les 9 fixtures. Les points encore ouverts,
+listés en §11, ne portent plus sur la normalisation elle-même mais sur ses
+prérequis — slugification, resolver, arbitrage du mécanisme de réutilisation.
 
 Base factuelle : 248 fixtures ADF pour §1 à §3 ; les 9 fixtures du corpus doré,
-8045 nœuds, inventaire exhaustif de 33 types, pour §4 à §10.
+8288 nœuds, pour §4 à §10. Trois types — `date`, `emoji`, `mediaInline` — ne
+figurent dans aucune des 9 fixtures et sont documentés depuis le corpus complet.
 
 **Règle qui domine tout le reste** : aucun nœud n'est ignoré silencieusement. Un nœud
 non couvert par cette table remonte en erreur au rapport de run.
@@ -71,7 +73,7 @@ page source. C'est précisément ce qui en fait un piège — voir §1.8.
 | Sensible au renommage | oui — voir §1.4 | **non** |
 | Occurrences | 908 | 4 inclusions, 5 définitions |
 
-### 1.1 Ces deux mécanismes relèvent du resolver, pas du normalizer
+### 1.1 Ces deux mécanismes relèvent du resolver, pas du rendu
 
 La résolution du contenu réutilisé précède la normalisation dans la chaîne :
 
@@ -268,8 +270,57 @@ nœud.
 Elle décrit ce que le corpus contient et ce que le code reconnaît. **Elle ne vaut
 pas adoption** : le sort de l'essai du 5 août — conservé, annulé ou généralisé —
 reste ouvert (§11). Documenter la famille est indépendant de la décision, au même
-titre que le §10 énumère les nœuds absents pour que leur apparition ne passe pas
-inaperçue.
+titre que le §10 énumère les types absents du corpus complet pour que leur
+apparition ne passe pas inaperçue.
+
+### 1.9 Le marqueur de contenu réutilisé — visible, pas commenté
+
+*Décision du 11 août 2026, qui en corrige une antérieure.*
+
+Le contenu résolu est encadré de deux marqueurs, **rendus visibles par un lecteur
+markdown**. Ils répondent à une question que le lecteur d'une spec se pose en
+permanence : *puis-je corriger cette phrase ici, ou dois-je aller sur la page source ?*
+
+| Position | Rendu |
+|---|---|
+| ouverture | `*↳ inclusion : {nom} — source : {page}*` |
+| fermeture | `*↳ fin inclusion : {nom}*` |
+
+Pour un `syncBlock`, `{nom}` vaut `bloc synchronisé {8 premiers caractères de l'UUID}`
+et `{page}` le titre de la page source.
+
+**Le resolver émet un `paragraph` portant un nœud `text` marqué `em`** — jamais des
+astérisques littérales. C'est ce qui fait que le marqueur suit la machinerie déjà en
+place sans aucun cas particulier : `*…*` en markdown, `<em>…</em>` dans une cellule de
+tableau HTML. Des astérisques écrites en clair s'afficheraient telles quelles à
+l'intérieur d'une balise.
+
+**Le libellé ne contient ni `|`, ni `<`, ni `>`** — les trois caractères que ce document
+échappe (§9.1). Un marqueur qui en porterait serait déformé en cellule, et l'on
+retomberait sur le défaut que cette section supprime. `↳` passe dans les deux modes.
+
+**Aucune décision ne se prend sur le texte du marqueur.** Le libellé est fabriqué au
+rendu à partir du mécanisme, du nom et de la page source ; il peut être reformulé sans
+qu'aucune règle en dépende. C'est la contrepartie de la règle générale du §5 du document
+de référence — un fait dont une décision dépend vit dans un champ structuré, pas dans
+une phrase.
+
+**Le marqueur est un `paragraph`.** Une cellule portant une inclusion en compte donc au
+moins deux, ce qui la rend complexe au sens du §9.1 et fait basculer son tableau en HTML.
+C'est assumé : le contenu inclus apporte de toute façon le plus souvent une liste.
+
+#### Ce que cette décision corrige
+
+Le marqueur était auparavant un commentaire HTML — `<!-- inclusion : … -->`. Il
+satisfaisait la décision « contenu réutilisé marqué visiblement » **au sens du fichier
+brut**, et la contredisait au sens de l'usage : un lecteur markdown ne l'affiche pas, et
+c'est avec un lecteur markdown que les specs sont lues. La décision était bonne, sa
+transcription trahissait le besoin.
+
+Elle produisait en outre un défaut mesuré à 30 occurrences : en cellule de tableau HTML,
+l'échappement de `<` et `>` transformait le commentaire en texte affiché
+`&lt;!-- inclusion : … --&gt;`. Ce défaut n'existe plus, non parce qu'on l'a réparé, mais
+parce que le marqueur est désormais du texte que l'on veut voir.
 
 ---
 
@@ -588,7 +639,10 @@ Aucune occurrence dans le corpus, mais la forme est légale. Traitement :
 
 ### 6.3 `inlineCard` — renvois entre pages
 
-53 occurrences, réparties en trois familles :
+69 occurrences, dont 53 hors tables imbriquées. La ventilation ci-dessous porte sur ces
+53 : elle a été relevée par un parcours qui n'entrait pas dans `parameters.adf`. **La
+répartition des 16 autres reste à mesurer** — elle n'est pas extrapolée ici, la règle de
+traitement étant de toute façon la même pour les trois familles.
 
 | Famille | Occ. | Forme |
 |---|---|---|
@@ -657,7 +711,7 @@ vers une page hors périmètre d'export, fait à consigner.
 d'identifiant doit tolérer le segment `edit-v2/` sans le confondre avec un
 identifiant, et le fait est à remonter au rapport de run.
 
-`embedCard` : absent du corpus — voir §10.
+`embedCard` : absent du corpus complet — voir §10.
 
 ---
 
@@ -871,12 +925,14 @@ Convention à confirmer auprès des BA — voir
 | `breakout` | 36 | `{"mode": "wide", "width": 1800}` | largeur d'affichage |
 | `alignment` | 32 | `{"align": "end"}` | alignement |
 | `fragment` | 19 | `{"name": "Table 2", "localId": "…"}` | identité interne Confluence |
-| `annotation` | 21 | `{"annotationType": "inlineComment", "id": "…"}` | commentaire dont le corps n'est pas dans l'ADF |
+| `annotation` | 23 | `{"annotationType": "inlineComment", "id": "…"}` | commentaire dont le corps n'est pas dans l'ADF — 21 sur `text`, 2 sur `inlineCard` |
 | `border` | 2 | `{"size": 2, "color": "#091e4224"}` | bordure d'image |
 | `subsup` | 1 | `{"type": "sup"}` | exposant, sans équivalent markdown |
 | `fontSize` | 0 (3 au corpus) | `{"fontSize": "small"}` | taille d'affichage — mise en forme, pas un fait |
 
-Le texte porté est conservé intact dans tous les cas.
+Le texte porté est conservé intact dans tous les cas — **pour ces sept marks-là**. Un
+mark à rendu posé sur un porteur qui ne l'admet pas est un incident (§8), et le nœud
+concerné ne produit alors rien.
 
 **Aucun mark ne fait échouer une page.** Mais la liste des marks traités est une
 **liste blanche explicite** : un mark absent des quinze lève, conformément à la
@@ -912,10 +968,14 @@ même jeu de marks. L'ADF rendu par l'API est déjà normalisé de ce point de v
 Confluence fusionne à la source les textes contigus de même formatage. Le risque
 `**a****b**` n'existe pas sur ce corpus.
 
-**Aucune passe de fusion n'est donc écrite** — mais le renderer porte une
-**assertion** sur cette propriété plutôt qu'une confiance tacite : rien ne la
-garantit contractuellement du côté d'Atlassian, et sa violation produirait un
-balisage cassé silencieux.
+**Aucune passe de fusion n'est donc écrite** — mais le renderer **contrôle** cette
+propriété à chaque rendu plutôt que de s'y fier tacitement : rien ne la garantit
+contractuellement du côté d'Atlassian, et sa violation produirait un balisage cassé
+silencieux.
+
+La violation est un **constat**, pas un incident : le balisage sort laid, aucun contenu
+n'est perdu, et la page reste scorable. Faire échouer une page pour un défaut cosmétique
+serait hors de proportion.
 
 ---
 
@@ -925,28 +985,30 @@ Les types suivants n'appellent pas d'arbitrage : leur rendu markdown est direct.
 Ils figurent ici pour que la table du document soit **exhaustive**.
 
 **Portée de l'exhaustivité : le document entier, pas la seule table ci-dessous.** Les
-33 types du corpus sont couverts, 16 ici et 17 dans les sections précédentes — les
-nœuds de réutilisation en §1 (`extension`, `bodiedExtension`, `inlineExtension`,
+36 types du corpus complet sont couverts, 16 ici et 20 dans les sections précédentes —
+les nœuds de réutilisation en §1 (`extension`, `bodiedExtension`, `inlineExtension`,
 `syncBlock`, `bodiedSyncBlock`), la mise en page en §4 (`layoutSection`,
-`layoutColumn`, `expand`), les médias en §5 (`media`, `mediaSingle`, `caption`), les
-cartes en §6 (`blockCard`, `inlineCard`), et `status` / `taskList` / `taskItem` /
-`mention` en §7. **Un type que ne couvre aucune section lève** ; ceux qu'on sait
-absents du corpus sont énumérés en §10.
+`layoutColumn`, `expand`), les médias en §5 et §5.1 (`media`, `mediaSingle`,
+`caption`, `mediaInline`), les cartes en §6 (`blockCard`, `inlineCard`), et
+`status` / `taskList` / `taskItem` / `mention` / `date` / `emoji` en §7. **Un type que
+ne couvre aucune section lève** ; le §10 énumère d'une part ceux qu'on sait absents du
+corpus complet, d'autre part ceux qui sont couverts sans être exercés par les 9
+fixtures.
 
 | Type | Occ. | Rendu |
 |---|---|---|
 | `doc` | 9 | racine, transparent |
-| `text` | 2791 | texte, marks appliqués selon §8 |
-| `paragraph` | 2218 | bloc, ligne vide de séparation |
+| `text` | 2869 | texte, marks appliqués selon §8 |
+| `paragraph` | 2271 | bloc, ligne vide de séparation |
 | `heading` | 96 | `#` répété `attrs.level` fois |
-| `bulletList` / `listItem` | 175 / 413 | `- ` avec indentation par niveau |
+| `bulletList` / `listItem` | 188 / 445 | `- ` avec indentation par niveau |
 | `orderedList` | 3 | `1. ` avec indentation par niveau |
 | `blockquote` | 2 | `> ` en préfixe de chaque ligne |
 | `codeBlock` | 1 | bloc clôturé, langage depuis `attrs.language` si présent |
 | `rule` | 39 | `---`, **précédé d'une ligne vide obligatoire** |
 | `hardBreak` | 34 | `<br>` |
 | `panel` | 7 | voir §9.2 |
-| `table` / `tableRow` / `tableHeader` / `tableCell` | 56 / 370 / 212 / 1387 | voir §9.1 |
+| `table` / `tableRow` / `tableHeader` / `tableCell` | 58 / 387 / 216 / 1417 | voir §9.1 |
 
 **`rule`** : sans la ligne vide qui le précède, `---` placé sous un paragraphe est
 interprété comme un titre setext de niveau 2 par la plupart des moteurs markdown.
@@ -955,6 +1017,11 @@ Le paragraphe précédent deviendrait un titre.
 **`hardBreak`** : `<br>` plutôt que deux espaces en fin de ligne. Les deux espaces
 sont supprimés par la plupart des éditeurs et des linters, et ne fonctionnent pas
 dans une cellule de tableau.
+
+**`heading` sans `attrs.level`** : rendu au niveau 1, et **constat** au rapport de run.
+Le niveau ne se devine pas, et aucune occurrence n'existe au corpus. Perdre un niveau de
+titre est bénin ; faire partir la page en `partial` pour un attribut manquant ne l'est
+pas.
 
 ### 9.1 Tableaux — deux rendus selon le contenu des cellules
 
@@ -1004,7 +1071,7 @@ cellule suit donc une seconde table de rendu :
 | `inlineCard` | `<a href="{cible §6.3}">{titre}</a>` — même résolution qu'en markdown |
 | `status` / `date` / `emoji` | texte nu, comme en markdown |
 | `mention` | `@…`, comme en markdown |
-| `taskList` | `<ul><li>` ; l'état se rend `[x]` ou `[ ]` en tête du texte |
+| `taskList` / `taskItem` | `<ul>` / `<li>` ; l'état se rend `[x]` ou `[ ]` en tête du texte du `taskItem` |
 | `panel` | transparent, comme au §9.2 |
 | `table` imbriqué | `<table>` complet, mêmes règles, récursivement |
 
@@ -1049,15 +1116,16 @@ la fois.
 
 Mesuré le 9 août 2026, **après injection des `nested-table`** — c'est le seul
 décompte qui vaut, l'ordonnancement ci-dessus l'impose : **15 tableaux sur 58**
-portent au moins une cellule complexe, soit 97 cellules complexes sur 1667 (6 %).
-Motifs : `bulletList` (87 cellules), plus d'un `paragraph` (18), `mediaSingle`
-(15), `table` (2).
+portent au moins une cellule complexe, soit 84 cellules complexes sur 1633 (5 %).
+Motifs, en occurrences de nœud : `bulletList` (74, réparties sur 69 cellules), plus
+d'un `paragraph` (18), `mediaSingle` (15, sur 13 cellules), `table` (2), `rule` (1).
 
-*Comptes de cellules corrigés le 11 août.* Le relevé du 9 août annonçait 84 sur 1633,
-motif `bulletList` à 74 : il comptait les deux tableaux injectés **sans compter leurs
-cellules**, le parcours n'entrant pas dans `parameters.adf`. L'écart est exactement le
-contenu caché — 30 `tableCell` et 4 `tableHeader`, 13 `bulletList`. Les comptes de
-tableaux, eux, étaient justes.
+**Méthode du décompte** : chaque cellule est rattachée à son `table` le plus proche et
+comptée une seule fois ; le parcours entre dans `parameters.adf`. La précision n'est pas
+ornementale — une remesure du 11 août, collectant les cellules sur tout le sous-arbre de
+chaque tableau, a compté deux fois les 34 cellules des deux tableaux injectés et conclu
+à 1667 cellules dont 97 complexes. Les chiffres ci-dessus ont été rétablis. **Un nombre
+mesuré n'entre dans ce contrat qu'avec la façon dont il a été compté.**
 
 Les 9 fixtures ne contiennent que **2** `nested-table` ; les 11 relevées au §2.2
 portent sur les 248 fixtures du corpus complet. Un décompte antérieur annonçait
@@ -1143,7 +1211,7 @@ les fixtures.
 
 ---
 
-## 10. Nœuds absents du corpus
+## 10. Types non exercés — deux listes à ne pas confondre
 
 **Deux listes, et non une.** Le titre de cette section a longtemps dit « absents du
 corpus » alors qu'elle ne mesurait que les 9 fixtures. L'imprécision a produit une

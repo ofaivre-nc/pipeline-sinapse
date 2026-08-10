@@ -126,8 +126,12 @@ En parallèle : `pages_inventory.json`, `multiexcerpt_cache.json`,
 - **Aucun nœud ADF ignoré silencieusement** — tout nœud non couvert remonte en erreur.
 - **Aucun skill SINAPSE dans `~/.claude/skills/`.** Le personnel l'emporte sur le projet :
   une copie oubliée gagnerait silencieusement sur celle du dépôt.
-- Écriture atomique + write-if-changed ; frontmatter YAML visible ; multiexcerpts marqués
-  visiblement dans le `.md`.
+- Écriture atomique + write-if-changed ; frontmatter YAML visible.
+- **Le contenu réutilisé est encadré de marqueurs rendus par un lecteur markdown** —
+  une ligne en italique à l'ouverture et à la fermeture, portant le nom du contenu et
+  sa page source. Forme exacte : `contracts/normalisation_adf.md` §1.9. Le marqueur
+  était auparavant un commentaire HTML, invisible dans un lecteur `.md` : il satisfaisait
+  la décision au sens du fichier brut et la contredisait au sens de l'usage.
 
 ## Sécurité
 
