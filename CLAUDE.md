@@ -199,7 +199,7 @@ travail à domicile devient nécessaire.
 
 Avant le premier `push` : vérifier ce qui part (`git status`, `git diff --cached`).
 
-## État d'avancement — mis à jour le 9 août 2026
+## État d'avancement — mis à jour le 10 août 2026
 
 Séquencement, position détaillée et questions ouvertes : sections 2 et 7 du document de
 référence. Position en bref :
@@ -224,9 +224,12 @@ référence. Position en bref :
   `pages_inventory.json`. `delta.py` (v1.0) en dérive le plan d'un run, en comparant
   **trois** champs : `version.number`, `md_path` et `last_exported`. Reste `main.py`,
   qui exécutera le plan que `compare()` décide.
-- **Resolver** — `multiexcerpt.py` (v1.1) fournit les clés des trois mécanismes de
-  réutilisation, la classification en six natures et le garde-fou de cycle, 77 tests.
-  Le parcours récursif reste à écrire, avec l'arbitrage réutiliser/réécrire.
+- **Resolver clos** — `multiexcerpt.py` (v1.1) porte la couche déterministe, 77
+  contrôles ; `resolver.py` (v1.0) porte le parcours et la récupération, 117 contrôles.
+  Un parcours unique injecte les tables imbriquées et résout les trois mécanismes de
+  réutilisation. Les pages sources arrivent par un fournisseur injecté : `resolver.py`
+  n'appelle jamais Confluence, et ses tests tournent hors réseau. Le resolver d'origine
+  du skill n'a pas été porté — motifs en §5 du document de référence.
 - `.claude/rules/skills.md` n'existe pas encore : il accueillera les conventions de nommage
   des skills, la limite des 500 lignes et le barème, au moment du rapatriement des skills
   (étape 10).

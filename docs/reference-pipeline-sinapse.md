@@ -1,7 +1,7 @@
 # Pipeline SINAPSE — document de référence
 
 *Document unique de la conversation de conception. Remplace `brief-pipeline-sinapse-v3.md`, archivé dans `docs/archive/`. Il succède aussi à un document de reprise de contexte antérieur, qui n'a vécu que dans l'espace de conversation : il n'en existe aucune trace dans le dépôt, inutile de l'y chercher.*
-*Mis à jour le 9 août 2026 — abandon de la bibliothèque ADF : le rendu est écrit sur l'ADF brut.*
+*Mis à jour le 10 août 2026 — étape 0b close : le resolver est réécrit, les trois mécanismes couverts.*
 
 ---
 
@@ -133,7 +133,7 @@ Export récursif, profondeur illimitée. 247 pages au total.
 | Étape | État |
 |---|---|
 | 0a — accès REST | ✅ |
-| 0b — resolver : réutiliser ou réécrire | 🟡 à trancher en écrivant le parcours récursif — **trois mécanismes** à couvrir désormais |
+| **0b — resolver** | ✅ réécrit — `resolver.py` v1.0, les trois mécanismes, 117 contrôles |
 | 0c — environnement | ✅ |
 | **0d — recensement + table de normalisation** | ✅ les 33 types du corpus sont couverts ; un type non couvert lève |
 | 0e — inventaire du space | ✅ |
@@ -150,6 +150,8 @@ Export récursif, profondeur illimitée. 247 pages au total.
 Deux étapes ouvertes en parallèle (0d et 3) : la classification a été anticipée parce qu'elle était devenue prérequis du resolver.
 
 **Étape 3 close.** `inventory.py` v1.4 assemble `pages_inventory.json` — carte indexée par identifiant, `md_path`, `collisions`, `complete`, `unclassified`, `last_exported` — et `delta.py` v1.0 en dérive le plan d'un run. Le dump de classification à plat subsiste sous `--dump` : il produit la fixture de non-régression, et son nom dit désormais ce qu'il est. Reste à écrire `main.py`, qui exécutera le plan que `compare()` décide.
+
+**Étape 0b close.** `resolver.py` v1.0 couvre les trois mécanismes en un parcours unique, sur l'ADF brut. 117 contrôles, verts au point d'entrée autonome comme sous `pytest`. Le resolver d'origine n'a pas été porté : voir §5. Restent, avant l'étape 4, la remise de `renderer.py` et l'écriture de `main.py`.
 
 ### Critères de validation par étape
 
@@ -172,8 +174,8 @@ Claude Code opérationnel, dépôt `C:\dev\sinapse-claude`. Token Atlassian en v
 ### Prochaines étapes
 
 1. **Remise de `pipeline/src/renderer.py`** et de ses tests, transcription de `contracts/normalisation_adf.md` sur l'ADF brut. L'essai de conversion du 9 août tient lieu de prototype : 9 fixtures sur 9, 394 lignes, aucune dépendance. Restent à écrire les tests de non-régression, dont ceux des cas absents du corpus doré — cellules fusionnées, famille `excerpt`, `fontSize`.
-2. **Resolver** — arbitrer réutiliser ou réécrire, puis écrire le parcours récursif. Les clés, le `CycleGuard` et la classification en six natures sont faits ; il reste à couvrir les **trois** mécanismes, ce que le resolver d'origine n'en couvre qu'un. C'est le verrou de l'étape 4.
-3. **Étapes 1 et 2** — export d'une page CU, puis une par type. `main.py` exécute le plan que `compare()` décide : `compare()` ne touche ni Confluence ni le disque.
+2. **Étapes 1 et 2** — export d'une page CU, puis une par type. `main.py` exécute le plan que `compare()` décide : `compare()` ne touche ni Confluence ni le disque, et instancie le resolver **une fois** pour tout le run — c'est ce qui rend l'index des pages sources réutilisable d'une page à l'autre.
+3. **Remesurer le §9.1 de `contracts/normalisation_adf.md` au premier run complet.** Les 15 tableaux complexes sur 58 ont été comptés **avant** résolution, et 27 des 32 inclusions du corpus doré sont logées dans une cellule de tableau : une inclusion résolue y apporte souvent une liste, ce qui fait basculer le tableau hôte en HTML. Le chiffre est un plancher. Il ne peut pas être repris sur le corpus doré seul — 12 inclusions sur 32 s'y résolvent, les 19 autres visant des pages absentes des 9 fixtures ; un décompte pris là serait plus faux que l'actuel.
 4. Puis 2bis (corpus doré complété de ses `.md` attendus), 4, 5…
 
 #### La slugification — arrêtée le 7 août
@@ -427,6 +429,77 @@ Décisions :
   produire. D'où l'ordre : **construire l'inventaire et l'index croisé, puis
   migrer avec**, et non l'inverse.
 
+### Le resolver — réécrit, parce que l'original n'était pas réparable
+
+*Décision du 9 août 2026. `resolver.py` v1.0, 117 contrôles.*
+
+La question posée était « réutiliser ou réécrire ». Elle s'est tranchée en lisant le
+resolver d'origine : ses quatre défauts ne sont pas des bugs, ce sont ses fondations.
+
+- **Sa clé de résolution est le nom seul.** `habilitation` est défini sur 3 des 9
+  fixtures ; l'injection se faisant par `str.replace()` sur le markdown déjà produit,
+  le dernier contenu lu est recopié dans **tous** les emplacements. Aucune erreur n'est
+  levée : trois habilitations différentes deviennent la même.
+- **Il injecte après avoir converti**, quand la chaîne du contrat résout avant de
+  normaliser. Le contenu injecté sort donc d'un convertisseur qui n'est pas celui qui
+  produit le `.md`.
+- **Il ne décode pas les entités HTML.** ` RG-NOTE-ASSOCATION&period;PERSONNE` ne joint
+  jamais sa définition, et l'échec est imputé à une page source introuvable.
+- **Il ne redescend pas dans ce qu'il injecte**, et n'a pas de garde-fou de cycle. Deux
+  des 32 inclusions du corpus doré sont pourtant logées dans un corps de définition.
+
+Ce qui en a été gardé : la **forme du compte-rendu** — un statut par inclusion, qui
+alimente `parse_status` — et ses quatre défauts, devenus les quatre premiers tests.
+C'est sa vraie valeur : la spécification empirique du problème, découverte en usage.
+
+**Trois décisions de structure en découlent.**
+
+- **Un parcours unique** traite l'injection des tables imbriquées et la résolution de
+  la réutilisation à la même descente. Chacune peut révéler du travail pour l'autre —
+  une table imbriquée peut contenir une inclusion, un corps de définition peut contenir
+  une table imbriquée — et tout ordre séquentiel laisse un cas dehors. Aucun de ces deux
+  croisements n'a d'occurrence dans les 9 fixtures : le parcours unique est une
+  précaution gratuite, pas une nécessité mesurée.
+- **`resolver.py` n'appelle jamais Confluence.** Il reçoit un fournisseur à deux
+  méthodes, `par_titre()` et `par_identifiant()`. C'est ce qui rend les tests
+  exécutables hors réseau : celui des tests lit `pipeline/fixtures/`. Sans cette
+  séparation, éprouver la résolution imposerait de joindre Confluence, donc de ne plus
+  l'éprouver.
+- **Une définition est indexée puis traversée, jamais remplacée.** Une définition
+  s'affiche aussi là où elle est écrite : la page RG montre ses propres règles. La
+  remplacer viderait les pages sources de leur contenu.
+
+**Une page source hors périmètre est lue, pas exportée.** Le titre est d'abord cherché
+dans la carte titre → identifiant bâtie depuis `pages_inventory.json` — gratuite, aucun
+appel ; à défaut seulement, un appel par titre exact. Les définitions de la page trouvée
+sont alors indexées **d'un coup** : on paie un appel par page source distincte, pas un
+par inclusion. Mesuré sur le corpus doré : `241532980` porte 7 inclusions pour 3 appels.
+Deux pages du périmètre de même titre, ou deux réponses à une recherche par titre,
+**lèvent** — contrôle à la construction de l'index, comme la détection de collision de
+slug.
+
+**La carte indexe les deux formes du titre, `title` et `title_raw`.** Motif mesuré :
+`299499522` (`CU-PERSONNE-RECHERCHER`) porte un tiret insécable U+2011 que la
+slugification replie et que `clean_page_title()` ne replie pas. Un seul cas sur 246,
+mais il suffit à rendre la page introuvable par titre. La leçon dépasse le cas : deux
+normalisations indépendantes de la même chaîne divergent, et la divergence ne se voit
+que là où les deux se rencontrent.
+
+**Deux assertions écrites pour ce module ont d'abord survécu à la régression qui aurait
+dû les tuer**, et c'est le seul motif pour lequel elles ont été trouvées : dix
+régressions ont été injectées dans une copie du dépôt, pas dans les fichiers réels.
+L'une comparait deux injections par leur seule racine — or le parcours reconstruit les
+dictionnaires qu'il traverse, donc deux injections partageant tout leur sous-arbre ont
+malgré tout des racines distinctes. L'autre éprouvait une collision de `resourceId` sur
+une page source vide, où les deux résolutions échouaient pareillement.
+
+**Une consigne de cette instruction était elle-même fausse** : elle annonçait des
+contenus différents pour `habilitation` sur `28344321` et `28344344`. Ils sont
+identiques au `localId` près. Suivie à la lettre, elle produisait une assertion de
+différence verte grâce à un identifiant interne — un contrôle qui ne mesure rien. Le
+couple `28344321` / `380567556`, dont les contenus diffèrent réellement, porte
+l'assertion. Une consigne ne dispense pas de vérifier la donnée qu'elle invoque.
+
 ### L'étape 3 — inventaire assemblé et delta à trois entrées
 
 *Décisions des 8 et 9 août 2026. `inventory.py` v1.4, `delta.py` v1.0.*
@@ -478,7 +551,7 @@ S'y ajoute un cas voisin, qui n'est pas une duplication mais la même famille de
 ## 7. Ce qui reste ouvert
 
 **Technique**
-- **réutiliser ou réécrire le resolver** (étape 0b) — deux voies : injecter des fonctions `requests` en place des fonctions connecteur dans `confluence_adf_multiexcerpt_resolver.py`, **ou** réimplémenter comme visiteur de l'AST. **Ne pas maintenir deux logiques.** Les clés, le `CycleGuard` et la classification en six natures sont faits ; le parcours récursif reste à écrire, et il doit couvrir **trois mécanismes**, ce que le resolver d'origine n'en couvre qu'un ;
+- **croisement réutilisation ↔ table imbriquée** — le parcours unique de `resolver.py` le traite, mais le corpus doré ne l'exerce pas : aucune inclusion dans une table imbriquée, aucune table imbriquée dans un corps de définition. Deux tests synthétiques en tiennent lieu. À reprendre sur le corpus complet, où les 11 tables imbriquées offrent plus de matière que les 2 des fixtures ;
 - `fontSize` — relevé dans le corpus complet, absent des 9 fixtures : seul mark non arbitré. Il lève tant qu'il n'est pas tranché ;
 - **forme inline de l'Extrait natif** — le corpus compte 53 inclusions inline en multiexcerpt (`…-include-inline-macro` ×50, `multiexcerpt-include-macro` ×3). L'essai du 5 août n'a produit que des nœuds `extension` de bloc, y compris en cellule de tableau où un bloc paraît en ligne. À vérifier par une insertion **au milieu d'une phrase, hors tableau** : si Confluence l'accepte, le nœud doit être un `inlineExtension` ;
 - sort de `confluence-outil-resolve-multiexcerpt` (retiré ou conservé en secours) — dépend de la fiabilité du pipeline en production ;

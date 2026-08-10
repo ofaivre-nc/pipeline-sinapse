@@ -156,11 +156,13 @@ et remontent au rapport.
 
 ### 1.7 Ce qui reste à écrire
 
-Le parcours récursif complet attend l'arbitrage **réutiliser ou réécrire le resolver**
-multiexcerpt (question ouverte n°3 du brief) et la couche de récupération des pages.
-`multiexcerpt.py` v1.1 ne contient que ce qui est indépendant de cet arbitrage : clés
-des trois mécanismes, classification en six natures, extraction de paramètres,
-garde-fou de cycle. 77 tests.
+La résolution est faite. `multiexcerpt.py` v1.1 porte la couche déterministe — clés des
+trois mécanismes, classification en six natures, extraction de paramètres, garde-fou de
+cycle, 77 contrôles. `resolver.py` v1.0 porte le parcours et la récupération : une
+descente unique qui injecte les tables imbriquées et résout les inclusions, les pages
+sources étant fournies par un objet extérieur, jamais par un appel direct à Confluence.
+117 contrôles. L'arbitrage « réutiliser ou réécrire » a conclu à réécrire ; motifs en
+§5 du document de référence.
 
 ### 1.8 Une seconde famille de macros — `excerpt` natif
 
