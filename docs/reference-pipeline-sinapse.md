@@ -1,7 +1,7 @@
 # Pipeline SINAPSE — document de référence
 
 *Document unique de la conversation de conception. Remplace `brief-pipeline-sinapse-v3.md`, archivé dans `docs/archive/`. Il succède aussi à un document de reprise de contexte antérieur, qui n'a vécu que dans l'espace de conversation : il n'en existe aucune trace dans le dépôt, inutile de l'y chercher.*
-*Mis à jour le 10 août 2026 — étape 0b close : le resolver est réécrit, les trois mécanismes couverts.*
+*Mis à jour le 11 août 2026 — contrat de rendu : marks lus par porteur, `date` / `emoji` / `mediaInline` couverts, `normalizer` fondu dans `renderer`.*
 
 ---
 
@@ -63,7 +63,7 @@ C:\dev\sinapse-claude\
                                  sert aussi de boîte de dépôt — voir §9
 ```
 
-Les modules annoncés par le brief archivé et encore absents — `main`, `confluence_client`, `normalizer`, `renderer`, `index_builder`, `mcd`, `report` — sont tous en aval de l'étape 3. `pipeline/CLAUDE.md`, prévu par l'arborescence du brief, n'a jamais été créé : `.claude/rules/python.md`, ciblé par chemin, remplit le même rôle.
+Les modules annoncés par le brief archivé et encore absents — `main`, `confluence_client`, `renderer`, `index_builder`, `mcd`, `report` — sont tous en aval de l'étape 3. **`normalizer` a été retiré de cette liste le 11 août** : normalisation et rendu ne se coupent pas sans inventer un nœud marqueur pour la séparation des colonnes (§4.1 du contrat) ni sans risquer de décider du mode d'un tableau après avoir aplati ses `panel` (§9.1 / §9.2). Un seul module, `renderer.py`, avec le mode de sortie — markdown ou HTML — en paramètre. `pipeline/CLAUDE.md`, prévu par l'arborescence du brief, n'a jamais été créé : `.claude/rules/python.md`, ciblé par chemin, remplit le même rôle.
 
 **Règle** : si ce document et le dépôt divergent sur un fait technique, le dépôt a raison. S'ils divergent sur une décision ou sa justification, ce document a raison.
 

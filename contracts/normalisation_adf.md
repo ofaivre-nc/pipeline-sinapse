@@ -17,6 +17,36 @@ Base factuelle : 248 fixtures ADF pour §1 à §3 ; les 9 fixtures du corpus dor
 **Règle qui domine tout le reste** : aucun nœud n'est ignoré silencieusement. Un nœud
 non couvert par cette table remonte en erreur au rapport de run.
 
+### Deux niveaux de signalement — `incident` et `constat`
+
+« Lève » désigne dans ce document le comportement du **nœud**, jamais celui de la page.
+Le nœud fautif ne produit rien, le parcours se poursuit, et la page sort avec ce qui a
+pu être rendu.
+
+| Niveau | Effet sur `parse_status` | Ce qu'il signale |
+|---|---|---|
+| **incident** | `partial` | du contenu manque dans le `.md` — la page n'est plus scorable |
+| **constat** | aucun, la page reste `ok` | un fait à consigner au rapport, sans perte de contenu |
+
+Le renderer **collecte** les incidents au lieu de s'arrêter au premier. Motif : en
+tout-ou-rien, le premier type inconnu masque tous les suivants, et il faut un run complet
+par type à découvrir. En collecte, un seul run donne la liste entière.
+
+Le parcours ne rattrape que l'exception typée du renderer. **Toute autre exception
+remonte** : c'est un défaut du code, pas un fait du corpus, et l'absorber en incident le
+rendrait indiscernable d'un nœud Confluence inattendu.
+
+Sont des **incidents** : un type de nœud non couvert, un mark hors de la liste blanche,
+un mark à rendu sur un porteur qui ne l'admet pas (§8), un `nested-table` sans `adf`
+exploitable (§2.2), une `mention` sans `text` ni `id` (§7.3), un `blockCard` sans
+`datasource` ni `url` (§6.2), un type sans règle de rendu HTML rencontré dans une cellule
+de tableau HTML (§9.1).
+
+Sont des **constats** : un JQL contenant `{{` (§6.1), un identifiant de page absent de
+`pages_inventory.json` (§6.3), une URL d'édition `edit-v2` (§6.3), deux nœuds `text`
+adjacents portant le même jeu de marks (§8.3), un mark enveloppant appliqué à un nœud
+autre que `text` (§8), un `heading` sans `attrs.level` (§9).
+
 ---
 
 ## 1. Contenu réutilisé — trois mécanismes, deux formes de clé
@@ -49,9 +79,9 @@ La résolution du contenu réutilisé précède la normalisation dans la chaîne
 ADF brut → résolution du contenu réutilisé → normalisation → rendu markdown
 ```
 
-Étendre le normalizer aux `syncBlock` serait une erreur d'étage : le normalizer aplatit
-des nœuds dont il a le contenu sous la main, alors qu'ici **le contenu est absent de la
-page consommatrice** et exige un appel réseau. C'est la définition même du travail du
+Étendre le rendu aux `syncBlock` serait une erreur d'étage : le renderer aplatit des
+nœuds dont il a le contenu sous la main, alors qu'ici **le contenu est absent de la page
+consommatrice** et exige un appel réseau. C'est la définition même du travail du
 resolver.
 
 **Un visiteur limité aux nœuds `Extension` manquerait les syncBlock en silence** : ce ne
@@ -477,7 +507,31 @@ interprétation.
 Ce choix est sans effet sur le scoring : les captures d'écran ne sont jamais
 pénalisées par les skills de validation.
 
-`mediaGroup`, `mediaInline` : absents du corpus — voir §10.
+### 5.1 `mediaInline` — image au fil du texte
+
+6 occurrences au corpus complet, 3 pages, **aucune dans les 9 fixtures**.
+
+```json
+{"type": "mediaInline",
+ "attrs": {"id": "d73b9bbd-bafe-4209-95fa-bd3d96738e23",
+           "collection": "contentId-428113938",
+           "localId": "662318527c9f"}}
+```
+
+| Élément | Traitement |
+|---|---|
+| `mediaInline` | `![](adf-media://{id}?collection={collection})` |
+| `attrs.localId` | jeté — absent d'une occurrence sur six, ne sert à rien |
+
+**Nœud inline**, contrairement au `mediaSingle` du §5 qui est un bloc : il se rend dans
+la chaîne inline de son paragraphe, sans ligne vide autour.
+
+**Le marqueur ne porte pas d'`alt`, parce que le nœud n'en a pas.** Le §5 conserve `alt`
+là où il existe ; en fabriquer un ici — l'identifiant recopié, un mot générique — serait
+inventer une description. Un `alt` vide est de la syntaxe markdown légale, et la
+traçabilité voulue par le §5 tient déjà dans `id` et `collection`.
+
+`mediaGroup` : absent du corpus complet — voir §10.
 
 ---
 
@@ -642,7 +696,73 @@ mark `code`, massivement utilisé par ailleurs, pour ne rien ajouter au sens.
 `@{attrs.id}`. **Si ni l'un ni l'autre n'est présent, le nœud lève** — plutôt que
 d'émettre une mention vide qui passerait pour du texte manquant.
 
-`decisionList`, `decisionItem` : absents du corpus — voir §10.
+### 7.4 `date`
+
+47 occurrences au corpus complet, **une seule page** — `298385410`, type DOCUMENTATION,
+exportée non scorée. Aucune dans les 9 fixtures. Les 47 sont les cellules d'un même
+tableau de planning, toutes au chemin `tableCell > paragraph`.
+
+```json
+{"type": "date",
+ "attrs": {"localId": "8adb9609-4552-4fe8-b854-2c8fd2803296",
+           "timestamp": "1776816000000"}}
+```
+
+Deux clés, jamais plus. `timestamp` est un epoch en **millisecondes**, encodé en chaîne.
+
+**Rendu : `2026-04-22` — ISO 8601.** Le nœud ne porte aucun attribut de format : la forme
+d'affichage n'existe pas dans l'ADF, Confluence la calcule à l'écran. Le choix est donc
+une décision, pas une transcription. `22/04/2026` et `04/22/2026` sont indiscernables sur
+une valeur isolée ; l'ISO est trié, non ambigu, indépendant de la locale, et se relit
+aussi bien par un skill que par un humain.
+
+**La conversion se fait en UTC explicite** —
+`datetime.fromtimestamp(ms / 1000, tz=timezone.utc)`. La forme naïve emploie le fuseau de
+la machine : sans effet à Nouméa, où minuit UTC reste le même jour, mais un exécutant
+placé dans un fuseau négatif décalerait les 47 dates d'un jour, sans un mot. Le défaut ne
+se voit jamais sur le poste où il a été écrit.
+
+`timestamp` absent, vide ou non numérique → **incident**.
+
+**Nœud inline.** Il ne vit pas seul dans son paragraphe : les 47 occurrences sont suivies
+d'un `text` valant une espace. Un renderer qui jetterait le nœud laisserait 47 cellules
+ne contenant qu'une espace — perte muette, et le tableau resterait en pipes puisque la
+cellule n'a qu'un `paragraph`.
+
+### 7.5 `emoji`
+
+21 occurrences au corpus complet, 7 pages, dont **une seule scorée** — `120160278`
+API-COMPTE-UTILISATEUR.IMPORT. Aucune dans les 9 fixtures.
+
+```json
+{"type": "emoji",
+ "attrs": {"id": "atlassian-warning", "text": ":warning:",
+           "shortName": ":warning:", "localId": "3b0be13ae440"}}
+```
+
+Quatre clés, toujours les quatre. Deux familles : `id` préfixé `atlassian-` (19
+occurrences, `text` vaut le shortcode) ou codepoint hexadécimal (2 occurrences, `text`
+porte le vrai caractère).
+
+**Rendu : `attrs.text`, sans distinguer les deux familles.** Repli sur `attrs.shortName`
+s'il est absent ; ni l'un ni l'autre → **incident**.
+
+Conséquence assumée : sur 19 des 21 occurrences, le `.md` porte `:warning:` et non le
+caractère. C'est un **shortcode GitHub Flavored Markdown valide**, rendu comme emoji par
+les moteurs visés — de la syntaxe, pas un artefact. L'alternative serait une table
+`atlassian-* → caractère`, c'est-à-dire l'interprétation figée que ce document refuse
+déjà pour les couleurs (§8.1) ; elle imposerait en outre de décider du sort d'un
+`atlassian-` inconnu, et faire partir une page en `partial` pour un emoji décoratif
+serait hors de proportion.
+
+*Si un jour un `.md` affiche `:warning:` littéralement chez un consommateur, c'est cette
+décision qui se rouvre — et elle se rouvre en une ligne.*
+
+**Nœud inline.** Une occurrence vit dans un corps de définition multiexcerpt : le
+resolver la recopie à chaque inclusion, une source unique peut donc produire plusieurs
+occurrences au rendu.
+
+`decisionList`, `decisionItem` : absents du corpus complet — voir §10.
 
 ---
 
@@ -651,6 +771,45 @@ d'émettre une mention vide qui passerait pour du texte manquant.
 **15 marks couverts** : les 14 relevés dans les 9 fixtures, plus `fontSize`, qui n'existe
 que sur le corpus complet (§8.2). C'est le compte de la liste blanche — un mark absent des
 quinze lève. Six ont un rendu direct :
+
+**Le renderer lit `marks` sur tous les nœuds, sans exception** — et non sur les seuls
+nœuds `text`. Mesuré sur les 9 fixtures : 89 marks portés par un nœud autre que `text`,
+sur 10 couples (mark, porteur). `breakout` se porte sur six types différents, dont `rule`
+et `codeBlock` ; s'en tenir aux conteneurs en manquerait 18 sur 36. Et `annotation` se
+porte sur un `inlineCard`, qui est inline : **« porteur autre que `text` » n'est pas
+synonyme de « nœud de bloc »**, et une règle écrite sur cette équivalence serait fausse.
+
+La règle se lit par **porteur**, en quatre lignes :
+
+| Cas | Traitement |
+|---|---|
+| mark hors des 15 | **incident**, quel que soit le porteur |
+| un des 7 marks jetés (§8.2) | jeté, quel que soit le porteur ; le contenu est intact |
+| `strong`, `em`, `strike`, `underline`, `backgroundColor`, `textColor` sur `text`, `paragraph`, `heading`, `inlineCard`, `status` ou `mention` | **enveloppe le contenu rendu une seule fois** ; sur un porteur autre que `text`, **constat** |
+| tout autre couple (mark à rendu, porteur) | **incident** |
+
+**« Une seule fois » n'est pas un détail de forme.** Sur un `paragraph`, le mark
+enveloppe le paragraphe **rendu**, pas chacun de ses nœuds `text` :
+
+```
+correct  : <mark …>La date **doit être** de la forme JJ/MM/AAAA</mark>
+faux     : <mark …>La date</mark><mark …> doit être </mark><mark …>de la forme…</mark>
+```
+
+**Pourquoi ces six-là et pas les huit.** Un paragraphe entier surligné est le cas le plus
+probable, et le §8.1 lui donne un sens métier : le jeter ou le fragmenter perdrait
+l'information. `strike` relève du même registre en sens inverse. En revanche `code` et
+`link` **lèvent sur tout porteur autre que `text`** : une portion de code ne peut contenir
+aucun autre balisage, l'appliquer à un paragraphe avalerait en silence son gras, ses liens
+et son surlignage ; et un lien ne peut pas en contenir un autre, donc la règle ne
+marcherait que selon le contenu du paragraphe — c'est-à-dire qu'elle échouerait un jour
+sans prévenir.
+
+**Un mark à rendu porté par un conteneur de blocs — `table`, `bulletList`, `expand`,
+`layoutSection`, `panel`, `blockquote` — est un incident**, y compris parmi les six. Un
+mark inline ne franchit pas une frontière de bloc : `**` ne traverse pas une ligne vide et
+laisserait des marqueurs orphelins, et `<mark>` est du contenu de phrasé, auquel HTML
+interdit de contenir un `<ul>`.
 
 | Mark | Rendu | Note |
 |---|---|---|
@@ -674,17 +833,22 @@ non encore vrai.
 
 | Mark | Occ. | Valeurs distinctes | Rendu |
 |---|---|---|---|
-| `backgroundColor` | 147 | 5 | `<mark style="background:{color}">…</mark>` |
+| `backgroundColor` | 167 | 5 | `<mark style="background:{color}">…</mark>` |
 | `textColor` | 7 | 1 (`#bf2600`) | `<span style="color:{color}">…</span>` |
 
 **Le hex est conservé brut, sans table de correspondance couleur → sens.** Le
 pipeline produit un fait ; l'interprétation reste aux skills et aux BA. Une table
 figée dans le pipeline se périmerait au premier changement de convention.
 
-Valeurs relevées, pour mémoire et sans valeur normative :
-`#dfd8fd` (47), `#fedec8` (46), `#d3f1a7` (40), `#c6edfb` (9), `#f8e6a0` (5) en
-fond ; `#bf2600` (7) en texte, sur des libellés de contrainte du type « La date
-doit être de la forme "JJ/MM/AAAA" ».
+Valeurs relevées, pour mémoire et sans valeur normative : `#dfd8fd`, `#fedec8`,
+`#d3f1a7`, `#c6edfb`, `#f8e6a0` en fond ; `#bf2600` en texte, sur des libellés de
+contrainte du type « La date doit être de la forme "JJ/MM/AAAA" ».
+
+**Ventilation par couleur à remesurer.** Le décompte du 9 août — 47 / 46 / 40 / 9 / 5,
+somme 147 — a été pris par un parcours de `content` seul, qui n'entre pas dans
+`parameters.adf`. Le total corrigé étant 167, il ne somme plus et n'est donc pas repris
+ici. À remesurer au premier balayage entrant dans les tables imbriquées ; les cinq valeurs
+distinctes, elles, sont confirmées.
 
 **Le barré pose la même question, en sens inverse.** Le surlignage signale du
 futur non encore développé ; un passage barré signale vraisemblablement du
@@ -707,7 +871,7 @@ Convention à confirmer auprès des BA — voir
 | `breakout` | 36 | `{"mode": "wide", "width": 1800}` | largeur d'affichage |
 | `alignment` | 32 | `{"align": "end"}` | alignement |
 | `fragment` | 19 | `{"name": "Table 2", "localId": "…"}` | identité interne Confluence |
-| `annotation` | 8 | `{"annotationType": "inlineComment", "id": "…"}` | commentaire dont le corps n'est pas dans l'ADF |
+| `annotation` | 21 | `{"annotationType": "inlineComment", "id": "…"}` | commentaire dont le corps n'est pas dans l'ADF |
 | `border` | 2 | `{"size": 2, "color": "#091e4224"}` | bordure d'image |
 | `subsup` | 1 | `{"type": "sup"}` | exposant, sans équivalent markdown |
 | `fontSize` | 0 (3 au corpus) | `{"fontSize": "small"}` | taille d'affichage — mise en forme, pas un fait |
@@ -802,7 +966,13 @@ paragraphes multiples, images.
 fusion, le tableau entier est rendu en HTML.** Sinon, tableau en pipes.
 
 Est du contenu de bloc, dans une cellule : `bulletList`, `orderedList`, `table`,
-`panel`, `codeBlock`, `blockquote`, `mediaSingle`, ou plus d'un `paragraph`.
+`panel`, `codeBlock`, `blockquote`, `mediaSingle`, `rule`, `heading`, ou plus d'un
+`paragraph`.
+
+`rule` et `heading` ont été ajoutés le 11 août : sans eux, une cellule n'en contenant
+qu'un est jugée simple et son `---` ou son `## x` sort au milieu d'une ligne de pipes,
+qu'il rompt. Le corpus doré compte un `rule` en cellule, qui ne bascule en HTML que parce
+que son tableau hôte est complexe pour un autre motif — la couverture y était fortuite.
 
 Est une fusion : `attrs.colspan > 1` (fusion horizontale) ou `attrs.rowspan > 1`
 (fusion verticale). Un tableau markdown en pipes n'a **aucune syntaxe** pour les
@@ -816,12 +986,45 @@ test dédié.
 **Un tableau rendu en HTML rend aussi ses cellules en HTML.** À l'intérieur d'une
 balise, le markdown n'est plus interprété : `<th>**Libellé**</th>` affiche deux
 astérisques, et une liste à puces sort en tirets non rendus. Le contenu d'une
-cellule suit donc une seconde table de rendu — `strong` → `<strong>`, `em` → `<em>`,
-`code` → `<code>`, `underline` → `<u>`, `strike` → `<del>`, `link` → `<a href>`,
-`paragraph` → `<p>`, `bulletList` → `<ul><li>`, `orderedList` → `<ol><li>`,
-`blockquote` → `<blockquote>`, `codeBlock` → `<pre><code>`, `rule` → `<hr>`,
-`media` → `<img>`, `caption` → `<em>` — et `&`, `<`, `>` sont échappés dans le
-texte. Les marks conservés du §8.1 gardent leur forme, qui est déjà du HTML.
+cellule suit donc une seconde table de rendu :
+
+| Nœud ou mark | Rendu HTML |
+|---|---|
+| `strong` / `em` / `code` | `<strong>` / `<em>` / `<code>` |
+| `underline` / `strike` | `<u>` / `<del>` |
+| `link` | `<a href>` |
+| `paragraph` | `<p>` |
+| `bulletList` / `orderedList` | `<ul><li>` / `<ol><li>` |
+| `blockquote` / `codeBlock` | `<blockquote>` / `<pre><code>` |
+| `rule` | `<hr>` |
+| `heading` | `<h{level}>` |
+| `media` / `mediaInline` | `<img>` |
+| `caption` | `<em>` |
+| `hardBreak` | `<br>` |
+| `inlineCard` | `<a href="{cible §6.3}">{titre}</a>` — même résolution qu'en markdown |
+| `status` / `date` / `emoji` | texte nu, comme en markdown |
+| `mention` | `@…`, comme en markdown |
+| `taskList` | `<ul><li>` ; l'état se rend `[x]` ou `[ ]` en tête du texte |
+| `panel` | transparent, comme au §9.2 |
+| `table` imbriqué | `<table>` complet, mêmes règles, récursivement |
+
+`&`, `<` et `>` sont échappés dans le texte, `&` en premier. Les marks conservés du §8.1
+gardent leur forme, qui est déjà du HTML.
+
+Structure émise : `<table>`, `<tr>`, `<th>` et `<td>`. Ni `<thead>` ni `<tbody>` — rien
+ne les consomme. `colspan` et `rowspan` ne sont émis que s'ils valent plus de 1.
+
+**Aucun repli sur le rendu markdown.** Un type rencontré dans une cellule de tableau HTML
+sans règle HTML est un **incident** ; il ne retombe pas sur le rendu markdown. Le repli
+est tentant parce qu'il produit toujours quelque chose — mais ce quelque chose est
+`**Libellé**` affiché avec ses astérisques, c'est-à-dire le défaut même que cette section
+existe pour supprimer, revenu par la porte de derrière et invisible autrement qu'en
+ouvrant le fichier.
+
+**Les deux modes couvrent le même ensemble de types**, et cette égalité est vérifiée par
+une assertion, en forme positive : c'est la seule forme qui reste rouge quand un type est
+ajouté d'un côté et oublié de l'autre. La duplication markdown / HTML est le vrai risque
+structurel de ce renderer ; elle n'est pas évitable, elle est surveillée.
 
 Mesuré : 58 cellules des 9 fixtures portaient du markdown non interprété avant que
 cette règle ne soit posée. Le défaut est silencieux et ne se voit qu'au rendu.
@@ -846,9 +1049,15 @@ la fois.
 
 Mesuré le 9 août 2026, **après injection des `nested-table`** — c'est le seul
 décompte qui vaut, l'ordonnancement ci-dessus l'impose : **15 tableaux sur 58**
-portent au moins une cellule complexe, soit 84 cellules complexes sur 1633 (5 %).
-Motifs : `bulletList` (74 cellules), plus d'un `paragraph` (18), `mediaSingle`
+portent au moins une cellule complexe, soit 97 cellules complexes sur 1667 (6 %).
+Motifs : `bulletList` (87 cellules), plus d'un `paragraph` (18), `mediaSingle`
 (15), `table` (2).
+
+*Comptes de cellules corrigés le 11 août.* Le relevé du 9 août annonçait 84 sur 1633,
+motif `bulletList` à 74 : il comptait les deux tableaux injectés **sans compter leurs
+cellules**, le parcours n'entrant pas dans `parameters.adf`. L'écart est exactement le
+contenu caché — 30 `tableCell` et 4 `tableHeader`, 13 `bulletList`. Les comptes de
+tableaux, eux, étaient justes.
 
 Les 9 fixtures ne contiennent que **2** `nested-table` ; les 11 relevées au §2.2
 portent sur les 248 fixtures du corpus complet. Un décompte antérieur annonçait
@@ -873,10 +1082,35 @@ analysées sont largement dans ce cas : `28344321` porte 4 tableaux complexes su
 `tableHeader` produit la ligne d'en-tête ; un tableau sans `tableHeader` reçoit
 une ligne d'en-tête vide, faute de quoi la syntaxe en pipes est invalide.
 
+**Une ligne d'en-tête mixte fait basculer le tableau en HTML** — troisième déclencheur,
+après le contenu de bloc et la fusion. Est mixte une première ligne qui n'est pas
+composée à 100 % de `tableHeader`, ou un tableau portant un `tableHeader` hors de sa
+première ligne. Les 60 tableaux du corpus doré ont une première ligne homogène et aucun
+`tableHeader` ailleurs : la règle n'y est pas exercée, elle demande un test dédié. Sans
+elle, le cas dégrade en silence — tout l'en-tête passe en corps et une ligne d'en-tête
+vide est émise. En HTML, `<th>` et `<td>` cohabitent sans contrainte et il n'y a rien à
+réparer.
+
 **Tout caractère `|` présent dans le contenu d'une cellule est échappé en `\|`.**
 Sans cet échappement, un `|` rompt la structure du tableau : notations `R/O/P` des
 tableaux de contrats DTO, expressions logiques dans les règles. Le défaut est
 silencieux et ne se voit qu'au rendu, sur une page à la fois.
+
+#### Aucun autre échappement
+
+**Le texte n'est jamais échappé, hors les deux cas ci-dessus** : le `|` d'une cellule en
+pipes, et `&` `<` `>` dans une cellule en HTML. Les caractères actifs du markdown —
+`*`, `_`, `[`, `!`, `#`, `` ` `` — sortent tels quels.
+
+La règle n'est pas une négligence, c'est une condition de fonctionnement. Le pipeline
+**fabrique** de la syntaxe markdown, y compris à l'intérieur du contenu qu'il injecte :
+un échappement générique transformerait `![alt](adf-media://…)` en `!\[alt\](…)`, affiché
+littéralement. C'est l'un des motifs pour lesquels `marklas` a été écarté le 9 août — son
+renderer échappait la syntaxe injectée.
+
+Elle est écrite ici parce qu'un lecteur qui découvre du texte non échappé y verra un
+oubli, ajoutera une protection générique, et cassera le rendu sans qu'aucune fixture ne
+change de forme visible.
 
 ### 9.2 `panel` — conteneur transparent
 
@@ -911,14 +1145,27 @@ les fixtures.
 
 ## 10. Nœuds absents du corpus
 
-`nestedExpand`, `mediaGroup`, `mediaInline`, `embedCard`, `decisionList`,
-`decisionItem` : zéro occurrence sur les 9 fixtures.
+**Deux listes, et non une.** Le titre de cette section a longtemps dit « absents du
+corpus » alors qu'elle ne mesurait que les 9 fixtures. L'imprécision a produit une
+erreur : `mediaInline` y figurait comme absent, alors qu'il compte 6 occurrences au
+corpus complet. La distinction est désormais explicite.
 
-**Aucune règle n'est écrite pour eux.** Le normalizer les traite comme n'importe
-quel type non couvert : il lève, la page part en `parse_status: partial` avec son
-motif, et le rapport de run le signale. Écrire une règle spéculative reviendrait à
-faire passer leur apparition inaperçue, ce que la règle dominante du document
-interdit.
+**Absents du corpus complet — aucune règle, ils lèvent** : `nestedExpand`,
+`mediaGroup`, `embedCard`, `decisionList`, `decisionItem`. Écrire une règle spéculative
+reviendrait à faire passer leur apparition inaperçue, ce que la règle dominante du
+document interdit. Le renderer les traite comme n'importe quel type non couvert :
+incident, la page part en `parse_status: partial` avec son motif, et le rapport de run le
+signale.
+
+**Couverts, mais absents des 9 fixtures — donc non exercés par le corpus doré** :
+`date` (§7.4), `emoji` (§7.5), `mediaInline` (§5.1), `fontSize` (§8.2), et la fusion de
+cellules `colspan` / `rowspan` (§9.1). Cette liste **est** la liste des tests dédiés à
+écrire : rien dans le corpus de non-régression ne les éprouvera tant que le
+rafraîchissement prévu n'y aura pas versé une page porteuse.
+
+Avec `date`, `emoji` et `mediaInline`, le contrat couvre **les 36 types du corpus
+complet** : les 33 des 9 fixtures et ces trois-là. Aucun type connu ne peut plus faire
+partir une page en `partial` au premier run complet.
 
 **Quatre types à occurrence unique** méritent une vigilance particulière —
 `codeBlock`, `mention`, `status`, `taskList` : leur règle est écrite sur un seul

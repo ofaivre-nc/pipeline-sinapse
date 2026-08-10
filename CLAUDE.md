@@ -41,7 +41,7 @@ contracts/             LE CONTRAT pipeline ↔ skills
   reused_content_cache.schema.json multiexcerpt + syncBlock, deux clés
   index_croise.schema.json         agrégation par module
   mcd_sinapse_data.schema.json     données MCD — PROVISOIRE, voir le fichier
-pipeline/src/          main, confluence_client, inventory, multiexcerpt, normalizer,
+pipeline/src/          main, confluence_client, inventory, multiexcerpt, resolver,
                        renderer, index_builder, mcd, report
 pipeline/tests/        rejouent les fixtures
 pipeline/fixtures/     5-10 ADF figés + .md attendus
@@ -72,11 +72,20 @@ Le dépôt est la source de vérité ; l'espace GIE est une cible de déploiemen
 
 ```
 ADF brut (API v2, body-format=atlas_doc_format)
-  → résolution du contenu réutilisé (multiexcerpt + syncBlock)
-  → normalisation Confluence        (aplatissement des nœuds spécifiques)
-  → rendu markdown
-  → frontmatter YAML + écriture atomique du .md
+  → résolution du contenu réutilisé (multiexcerpt + syncBlock)   resolver.py
+  → normalisation et rendu markdown (un seul parcours)           renderer.py
+  → frontmatter YAML + écriture atomique du .md                  main.py
 ```
+
+*Le renderer est une **fonction pure** : aucun accès disque, aucune lecture de
+`pages_inventory.json`. Les données d'inventaire dont il a besoin — `md_path` de la page
+porteuse, titre et `md_path` des cibles de lien — lui sont **injectées**, comme le
+resolver reçoit son fournisseur de pages sources. C'est ce qui rend ses tests exécutables
+sans inventaire réel sur le disque.*
+
+*Normalisation et rendu ne se coupent pas : la ligne vide entre deux colonnes (§4.1 du
+contrat) n'existe qu'à l'émission, et le mode d'un tableau doit être décidé avant que ses
+`panel` soient aplatis (§9.1 / §9.2). `normalizer.py` n'existera pas.*
 
 **Le corpus contient deux mécanismes de réutilisation de contenu**, et non un seul :
 les multiexcerpts, portés par des nœuds `Extension` (6 variantes : trois de définition,
