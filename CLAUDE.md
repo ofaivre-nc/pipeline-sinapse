@@ -233,5 +233,5 @@ référence. Position en bref :
 - `.claude/rules/skills.md` n'existe pas encore : il accueillera les conventions de nommage
   des skills, la limite des 500 lignes et le barème, au moment du rapatriement des skills
   (étape 10).
-- `docs/anomalies-confluence.md` n'existe pas encore : il accueillera les anomalies à
-  remonter aux BA, listées en section 8 du document de référence.
+- `docs/anomalies-confluence.md` est ouvert : il porte les anomalies à remonter aux BA,
+  et il est le seul endroit où elles vivent. Le §8 du document de référence y renvoie.

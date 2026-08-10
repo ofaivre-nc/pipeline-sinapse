@@ -586,19 +586,10 @@ Côté **périmètre**, s'ajoutent :
 
 ## 8. Anomalies Confluence à remonter aux BA
 
-À tenir dans `docs/anomalies-confluence.md` :
-
-- **`CU-NOTE-TYPENOTE.CREER` (396361729) est une copie de `CU-NOTE-CREER` (28344321) qui a hérité de ses identifiants de bloc** — même `resourceId`, même `localId`, contenus divergents. Deux specs vivantes prétendent définir le même bloc. Le pipeline s'en sort par la clé `(page_id, uuid)`, mais l'édition de l'une des deux réserve des surprises ;
-- 5 requêtes JQL avec gabarit `{{page.url}}` non substitué — ces tables Jira ne ciblent aucune page réelle ;
-- 3 `blockCard` sans datasource, en fait des liens SharePoint — **sur le corpus complet des 246 pages** ; les 9 fixtures du corpus doré n'en contiennent aucun, leurs 5 `blockCard` portent tous un `datasource` ;
-- **`habilitation` défini deux fois sur `27787265`** — deux `bodiedExtension :: excerpt` de même nom, contenu identique à ce jour. Sans effet visible jusqu'au jour où les deux divergeront ; ni le plugin ni la macro native ne disent laquelle gagne. Le pipeline lève à la construction de l'index ;
-- **`380567556` porte un `inlineCard` vers une URL d'édition** — `…/pages/edit-v2/380567556#IHM-concernant-la-gestion-du-profil…`, pointant vers la page elle-même. Un lien d'édition n'a rien à faire dans une spec ;
-- `Règles génériques utilisables pour les recherches` (28803126) rangée sous `4. Patterns`, au milieu du sous-arbre Design System, alors que ses quatre sœurs sont directement sous la racine ;
-- écart module titre/ascendance sur `SF-DOCUMENT` et `ARCHIVE_CU-DOSS-CONSULT` (titre annonce DOSS, arbre dit PERSONNE) ;
-- `-NEW- CU-COMPTE-PROFIL.GEST` — préfixe à retirer si c'est la version vivante ;
-- spécifications archivées encore rattachées à la racine `Spécifications fonctionnelles` (1474581) — leur déplacement hors du périmètre serait le geste propre, l'héritage d'exclusion en tient lieu en attendant.
-
-*Non retenu comme anomalie : l'emplacement de `SF-DOSS: Messages système consolidés` sous « 2. Fondation et tokens » est volontaire (multiexcerpt source à terme).*
+**Tenues dans `docs/anomalies-confluence.md`**, seul endroit où cette liste vit. Le
+registre a été ouvert le 10 août ; la liste ci-dessous **en a été retirée** — elle n'est
+conservée ici sous aucune forme, y compris abrégée. Deux entrées neuves l'ont rejointe :
+deux règles incluses et jamais définies, sorties du premier passage de `resolver.py`.
 
 ---
 
