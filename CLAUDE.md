@@ -208,11 +208,11 @@ référence. Position en bref :
   36 types de nœuds, 12 macros, 15 marks. Sorties dans `recensement/` (non versionné,
   régénérable). **`marklas` confirmé contre `pyadf`** : `layoutSection` (112),
   `layoutColumn` (290), `bodiedExtension` (260) sont tous présents, `pyadf` les jetterait.
-- **`contracts/normalisation_adf.md` est complet** : les 33 types de nœuds du corpus sont
-  couverts, un type non couvert lève. Seul `fontSize` reste non arbitré — relevé dans le
-  corpus complet, absent des 9 fixtures. Décisions de rendu du 9 août : `panel`
-  transparent, macro `toc` en commentaire, cellule fusionnée faisant basculer le
-  tableau en HTML, cellules d'un tableau HTML rendues en HTML.
+- **`contracts/normalisation_adf.md` est complet et entièrement arbitré** : les 33 types
+  de nœuds et les 15 marks du corpus sont couverts, un type ou un mark non couvert lève.
+  Décisions de rendu du 9 août : `panel` transparent, macro `toc` en commentaire, cellule
+  fusionnée faisant basculer le tableau en HTML, cellules d'un tableau HTML rendues en
+  HTML. Du 10 août : `fontSize` jeté, texte conservé — plus aucun mark en attente.
 - **Aucune bibliothèque ADF.** Essai de `marklas` 0.8.6 le 9 août : aucun warning émis,
   renderer échappant la syntaxe markdown injectée, JQL et couleurs perdus. Le rendu
   est écrit sur l'ADF brut, mesuré à 394 lignes pour les 9 fixtures.

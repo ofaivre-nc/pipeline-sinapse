@@ -648,7 +648,9 @@ d'émettre une mention vide qui passerait pour du texte manquant.
 
 ## 8. Marks
 
-14 marks distincts. Six ont un rendu direct :
+**15 marks couverts** : les 14 relevés dans les 9 fixtures, plus `fontSize`, qui n'existe
+que sur le corpus complet (§8.2). C'est le compte de la liste blanche — un mark absent des
+quinze lève. Six ont un rendu direct :
 
 | Mark | Rendu | Note |
 |---|---|---|
@@ -708,13 +710,32 @@ Convention à confirmer auprès des BA — voir
 | `annotation` | 8 | `{"annotationType": "inlineComment", "id": "…"}` | commentaire dont le corps n'est pas dans l'ADF |
 | `border` | 2 | `{"size": 2, "color": "#091e4224"}` | bordure d'image |
 | `subsup` | 1 | `{"type": "sup"}` | exposant, sans équivalent markdown |
+| `fontSize` | 0 (3 au corpus) | `{"fontSize": "small"}` | taille d'affichage — mise en forme, pas un fait |
 
 Le texte porté est conservé intact dans tous les cas.
 
 **Aucun mark ne fait échouer une page.** Mais la liste des marks traités est une
-**liste blanche explicite** : un mark absent des quatorze lève, conformément à la
-règle qui domine ce document. `fontSize`, relevé ailleurs dans le corpus complet
-mais absent des 9 fixtures, en fait partie tant qu'il n'a pas été arbitré.
+**liste blanche explicite** : un mark absent des quinze lève, conformément à la
+règle qui domine ce document.
+
+`fontSize` a été arbitré le 10 août : jeté, texte conservé. Le critère est celui
+qui sépare un fait d'une forme — le surlignage des BA signale une évolution non
+encore développée, donc un fait ; une taille de police est de la mise en forme.
+
+**Un point de vigilance, qui ne relève pas du renderer.** Si un rédacteur a
+agrandi du texte pour simuler un titre au lieu d'employer un `heading`, jeter le
+mark fait perdre cette hiérarchie : le texte survit et se lit comme un paragraphe
+ordinaire. Le rendu reste le bon — aucun skill ne peut déduire une structure d'une
+taille de police, et une exception dans le renderer ne ferait que déplacer le
+problème. Le geste correct est une entrée dans `docs/anomalies-confluence.md`, à
+poser si la mesure montre que le cas existe.
+
+**Mesuré le 10 août sur le corpus complet : le cas n'existe pas.** Les 3
+occurrences valent toutes `small` — du texte **réduit**, jamais agrandi — et
+portent la même légende de statuts sur trois pages UX (`521142301`, `521797667`,
+`522092547`). Aucune entrée au registre d'anomalies. À noter pour le renderer :
+ce mark est porté par un `paragraph`, pas par un nœud `text` ; le jeter laisse
+donc le paragraphe et tout son contenu intacts, `status` compris.
 
 `annotation` signale qu'un commentaire en ligne existe, mais son contenu se
 récupère par une API distincte, hors périmètre. Le nombre d'annotations
@@ -907,10 +928,6 @@ exemple, et une erreur ne se verrait qu'en production sur le corpus complet.
 
 ## 11. Ce qui reste à trancher
 
-- **`fontSize`**, relevé dans le corpus complet mais absent des 9 fixtures.
-- **L'arbitrage réutiliser ou réécrire le resolver** multiexcerpt (question
-  ouverte n°3 du brief), désormais élargi : le corpus porte **deux familles de
-  macros** de réutilisation (§1.8) en plus du mécanisme `syncBlock`.
 - **Le sort de l'essai « Extrait natif »** du 5 août sur `180256775` et
   `27787265` : conservé, annulé, ou généralisé.
 - Le sort de `API-COMPTE-USER.REINIT.PSW` (`110231568`) — voir
