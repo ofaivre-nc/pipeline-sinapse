@@ -76,24 +76,11 @@ Un nœud `nested-table` ne déclasse **pas** la page en `partial` : son contenu 
 
 Une inclusion résolue n'est jamais fondue dans le texte : le lecteur doit voir que le contenu vient d'ailleurs, et le skill doit pouvoir le rattacher à sa source.
 
-```markdown
-> 📎 *Multiexcerpt **RG-PERSONNE-CARACTERES.AUTORISES** — source : [SF-PERSONNE: Règles de gestion consolidées](https://.../265453570)*
-
-Les caractères autorisés sont : ...
-
-> *(fin multiexcerpt RG-PERSONNE-CARACTERES.AUTORISES)*
-```
+**La forme exacte des marqueurs vit dans `contracts/normalisation_adf.md` §1.9, et nulle part ailleurs.** Elle y est arrêtée pour les trois mécanismes de réutilisation, en forme de bloc comme en forme inline. Ce contrat-ci ne la reproduit pas : deux descriptions d'une même forme divergent, et c'est ce qui s'est produit — ce §5 a décrit pendant six jours un blockquote à libellé 📎 quand le §1.9 décrivait une ligne en italique.
 
 Le nom affiché est le nom **nettoyé** (`html.unescape()` puis `.strip()`), pas la forme brute : c'est celui sur lequel la jointure a été faite, donc celui que le skill retrouvera dans `reused_content_cache.json`.
 
-Deux mécanismes, donc deux marquages — le lecteur doit pouvoir distinguer la nature de la source, et sa clé :
-
-| Mécanisme | Désignation de la source dans le marquage |
-|---|---|
-| multiexcerpt | nom + **titre** de la page source |
-| syncBlock | **identifiant** de la page source + UUID du bloc |
-
-Une inclusion **inline** se substitue dans un paragraphe : elle ne peut pas être encadrée par des blocs `>`. Le marquage inline reste à arrêter — voir §7.
+**Aucun marqueur ne porte de lien vers Confluence.** La source est désignée par son titre, jamais par une URL : un seul chemin de lecture pour les skills, les `.md` locaux.
 
 ## 6. Macros Jira remises en clair
 
@@ -125,10 +112,8 @@ renommage comme au déplacement.
 
 ---
 
-## 8. Ce qui reste à arrêter
+## 8. État d'implémentation
 
-- **le marquage d'une inclusion inline**, qui ne peut pas utiliser la forme en bloc ci-dessus ;
-- la forme exacte du marquage `syncBlock`, aucune page n'ayant encore été exportée ;
-- la **slugification** elle-même : les titres contiennent des caractères interdits sous Windows (`SF-PERSONNE: …`). Slugification obligatoire, collisions détectées et signalées. La *forme* de l'arborescence est tranchée, le *gabarit du slug* ne l'est pas.
+Les trois points que cette section laissait ouverts sont refermés : le marquage d'une inclusion inline et celui du `syncBlock` par `contracts/normalisation_adf.md` §1.9, la slugification par `contracts/slugification.md` le 7 août.
 
-**État d'implémentation au 5 août 2026** : aucun `.md` n'a encore été produit. Ce contrat est écrit avant l'étape 1 (export d'une page CU) pour que le premier export s'y conforme au lieu de le définir par accident.
+**Au 11 août 2026, aucun `.md` n'a encore été produit.** Ce contrat a été écrit avant l'étape 1 pour que le premier export s'y conforme au lieu de le définir par accident.

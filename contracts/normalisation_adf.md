@@ -295,9 +295,16 @@ place sans aucun cas particulier : `*…*` en markdown, `<em>…</em>` dans une 
 tableau HTML. Des astérisques écrites en clair s'afficheraient telles quelles à
 l'intérieur d'une balise.
 
-**Le libellé ne contient ni `|`, ni `<`, ni `>`** — les trois caractères que ce document
-échappe (§9.1). Un marqueur qui en porterait serait déformé en cellule, et l'on
-retomberait sur le défaut que cette section supprime. `↳` passe dans les deux modes.
+**Le libellé est nettoyé à la fabrication.** `{nom}` et `{page}` traversent la fonction
+qui compose le libellé, laquelle remplace `|`, `<` et `>` par une espace, puis compacte
+les espaces et rogne les extrémités. Ce sont les trois caractères que ce document échappe
+(§9.1) : un marqueur qui en porterait serait déformé en cellule, et l'on retomberait sur
+le défaut que cette section supprime. `↳` passe dans les deux modes.
+
+La garantie est **par construction, pas par l'état des données**. Une formulation
+antérieure affirmait que le libellé ne contenait aucun des trois : c'était vrai du corpus
+du jour, et faux au premier renommage de page. Le remplacement se fait par une espace et
+non par une suppression, qui souderait deux mots.
 
 **Aucune décision ne se prend sur le texte du marqueur.** Le libellé est fabriqué au
 rendu à partir du mécanisme, du nom et de la page source ; il peut être reformulé sans
@@ -305,9 +312,106 @@ qu'aucune règle en dépende. C'est la contrepartie de la règle générale du �
 de référence — un fait dont une décision dépend vit dans un champ structuré, pas dans
 une phrase.
 
-**Le marqueur est un `paragraph`.** Une cellule portant une inclusion en compte donc au
-moins deux, ce qui la rend complexe au sens du §9.1 et fait basculer son tableau en HTML.
-C'est assumé : le contenu inclus apporte de toute façon le plus souvent une liste.
+**Le marqueur de bloc est un `paragraph`.** Une cellule portant une inclusion en compte
+donc au moins deux, ce qui la rend complexe au sens du §9.1 et fait basculer son tableau
+en HTML — **y compris quand le contenu inclus est un simple paragraphe**, les deux
+marqueurs suffisant à eux seuls.
+
+**Mesuré** au corpus doré, après injection des `nested-table` et résolution des
+inclusions joignables localement : **4 cellules** deviennent complexes sans qu'aucun
+contenu de bloc n'y soit entré. C'est assumé, et c'est le prix chiffré de la décision.
+
+Ce coût ne doit pas être confondu avec le passage de 15 à 17 tableaux complexes mesuré au
+§9.1 entre les deux stades : celui-là ne doit rien au marqueur — ce sont deux tableaux
+entièrement nouveaux, apportés par la résolution de deux `syncBlock` sur une même page, et
+complexes par leur propre contenu. **Aucun tableau préexistant ne bascule du fait du
+marqueur.**
+
+#### L'inclusion inline — même libellé, autre porteur
+
+Une inclusion inline se substitue **dans** un paragraphe : elle ne peut pas être encadrée
+par des `paragraph`, qui couperaient la phrase. Le marqueur y est porté par des nœuds
+`text` marqués `em`, déposés dans le paragraphe hôte de part et d'autre du contenu
+substitué. **Le libellé est le même qu'en bloc** — une seule fonction de fabrication, une
+seule surface de test — seul le porteur change.
+
+```markdown
+Habilitations : *↳ inclusion : habilitation — source : CU-COORDONNEE-PAYS.GERER*
+administration:parametre:gerer *↳ fin inclusion : habilitation*
+```
+
+Le marqueur est plus long que le contenu, et c'est délibéré. L'absence de marqueur serait
+elle-même une information — elle dirait qu'aucun multiexcerpt n'a été employé là où le
+rédacteur aurait dû en employer un. Une exception au marquage systématique en appellerait
+d'autres, et le lecteur ne saurait plus ce que l'absence signifie. La désignation de la
+page source ne peut pas non plus être abrégée : les 43 inclusions `habilitation` du corpus
+visent **25 pages sources distinctes**, le nom seul ne désigne rien.
+
+**La forme inline se reconnaît par une union, jamais par la seule clé de macro** : est
+inline une inclusion portée par un nœud `inlineExtension`, **ou** dont l'`extensionKey`
+contient `include-inline`. La famille, elle, se reconnaît par sous-chaîne comme au §2.3 ;
+c'est la *forme* qui demande l'union. Mesuré sur le corpus complet : 54 inclusions inline,
+dont **4** en `multiexcerpt-include-macro` — forme historique, portée par un
+`inlineExtension` dont la clé ne contient pas `include-inline`. Un test sur la seule clé
+en perdrait 4 sur 54, et le corpus doré ne le signalerait jamais : il n'en porte aucune.
+
+**Ce que la substitution dépose**, selon ce que la définition résout :
+
+| Contenu résolu | Traitement | Signalement |
+|---|---|---|
+| un **seul** `paragraph` ne portant que de l'inline | ses nœuds inline sont déposés en place dans le paragraphe hôte, marks comprises | aucun |
+| tout le reste — plusieurs nœuds de premier niveau, ou un nœud de bloc | le paragraphe hôte est **scindé**, l'inclusion est rendue en forme de bloc entre ses marqueurs de bloc, et le texte qui suivait devient son propre paragraphe | **constat** |
+
+Le second cas est un constat et non un incident : rien n'est perdu, seule une phrase que
+le rédacteur a écrite d'un seul tenant sort en deux morceaux. La page reste `ok` et
+scorable, mais le fait doit être visible sans relire la page.
+
+**Mesuré sur le corpus complet** : 54 inclusions inline, 48 résolubles. **45 sur 48**
+résolvent vers un unique `paragraph` de texte pur — seul type de nœud rencontré : `text`,
+avec `backgroundColor` sur 24 d'entre elles, les valeurs d'habilitation étant surlignées.
+Longueurs : médiane **17 caractères**, 38 des 45 sous 20 caractères, un seul cas à 268.
+**3 sur 48** apportent du bloc, toutes en cellule de tableau ; deux vivent sur une page
+exclue par le préfixe `ARCHIVE_` (`contracts/classification_pages.md` §5), ce qui en
+laisse **une seule dans le périmètre d'export** : `RG-API-VALIDATION.REQUETE` sur
+`468779009`, qui apporte deux `bulletList` au milieu d'une cellule. Une règle explicite
+pour un cas réel, pas un traitement générique.
+
+**25 inclusions résolubles se substituent au milieu d'une phrase.** C'est la mesure qui
+commande la forme : y déposer un nœud de bloc couperait ces 25 phrases en deux.
+
+#### Le marqueur de non-résolution suit la même forme
+
+Une inclusion dont la définition est introuvable, ou dont la page source est absente, ne
+disparaît pas : elle laisse un marqueur, de même forme et de même fabrication que celui du
+contenu résolu, portant le nom demandé et la page source déclarée. Bloc ou inline selon la
+forme de l'inclusion.
+
+Un contenu manquant est encore plus utile à voir qu'un contenu emprunté : dans Confluence,
+une macro non résolue s'affiche **vide**, sans rien signaler — c'est précisément ce que le
+registre `docs/anomalies-confluence.md` existe pour rattraper.
+
+**Un nom défini deux fois sur une même page est traité comme une définition absente.** La
+clé `(page, nom)` devient ambiguë ; aucune inclusion qui la demande ne se résout, et le
+fait remonte au rapport de run. Le pipeline ne choisit pas entre les deux corps : sur
+`334888965`, les deux définitions homonymes portent **deux règles distinctes et toutes
+deux légitimes**, et en retenir une ferait disparaître l'autre du corpus sans trace.
+L'ambiguïté est constatée à l'indexation mais **n'échoue qu'au point d'usage** : une page
+source qui porte un doublon reste exportable, et seules les inclusions qui demandent
+réellement cette clé sont touchées.
+
+#### Ce qui se rend visible, ce qui reste en commentaire
+
+Le sommaire (`toc`, §2.3) reste rendu en `<!-- toc -->`, le marqueur d'inclusion est du
+texte. Les deux décisions ne se contredisent pas : le critère n'est pas la nature du nœud,
+c'est l'usage.
+
+**Est rendu visible ce dont le lecteur a besoin pour agir.** Savoir qu'une phrase ne se
+corrige pas ici mais sur une autre page change ce qu'il fait.
+
+**Reste en commentaire ce qui n'est qu'une trace de macro.** Un sommaire est régénéré à
+l'affichage depuis les titres de la page ; un lecteur de `.md` reconstruit la même
+information depuis les `#`, et savoir qu'une macro était là ne change rien à ce qu'il
+fait.
 
 #### Ce que cette décision corrige
 
@@ -697,10 +801,15 @@ Aucun encodage n'est nécessaire : la liste blanche de `contracts/slugification.
 réservé de la syntaxe Markdown. C'est la raison d'être de cette liste blanche
 autant que la compatibilité Windows.
 
-**Conséquence de séquencement** : le normalizer dépend de `pages_inventory.json`
-pour une **seconde** raison, après la résolution du contenu réutilisé par titre
-(§1) — et il en dépend pour `md_path` des deux extrémités du lien, source
-comprise. Il ne peut donc pas tourner page par page en ignorant l'inventaire.
+**Conséquence de séquencement** : le rendu a besoin de données d'inventaire pour une
+**seconde** raison, après la résolution du contenu réutilisé par titre (§1) — et il lui
+faut `md_path` des **deux** extrémités du lien, source comprise. Une page ne peut donc pas
+être rendue en ignorant l'inventaire.
+
+**Le renderer ne lit pourtant aucun fichier** : ces données lui sont **injectées**, comme
+le resolver reçoit son fournisseur de pages sources. C'est une fonction pure, et c'est ce
+qui rend ses tests exécutables sans inventaire réel sur le disque. Voir `CLAUDE.md`,
+« Chaîne de traitement ».
 
 Un ID absent de l'inventaire n'est pas une erreur de parsing : c'est un renvoi
 vers une page hors périmètre d'export, fait à consigner.
@@ -1114,18 +1223,43 @@ la fois.
 
 #### Ampleur mesurée
 
-Mesuré le 9 août 2026, **après injection des `nested-table`** — c'est le seul
-décompte qui vaut, l'ordonnancement ci-dessus l'impose : **15 tableaux sur 58**
-portent au moins une cellule complexe, soit 84 cellules complexes sur 1633 (5 %).
-Motifs, en occurrences de nœud : `bulletList` (74, réparties sur 69 cellules), plus
-d'un `paragraph` (18), `mediaSingle` (15, sur 13 cellules), `table` (2), `rule` (1).
+**Un nombre mesuré n'entre dans ce contrat qu'avec sa méthode et avec le stade de la
+chaîne où il a été pris.** Sans le stade, deux mesures justes se lisent comme une
+contradiction — ce qui s'est produit ici entre un « 15 sur 58 » et un « 60 tableaux »
+tous deux exacts.
 
-**Méthode du décompte** : chaque cellule est rattachée à son `table` le plus proche et
-comptée une seule fois ; le parcours entre dans `parameters.adf`. La précision n'est pas
-ornementale — une remesure du 11 août, collectant les cellules sur tout le sous-arbre de
-chaque tableau, a compté deux fois les 34 cellules des deux tableaux injectés et conclu
-à 1667 cellules dont 97 complexes. Les chiffres ci-dessus ont été rétablis. **Un nombre
-mesuré n'entre dans ce contrat qu'avec la façon dont il a été compté.**
+**Méthode du décompte**, identique aux deux stades : chaque cellule est rattachée à son
+`table` le plus proche et comptée une seule fois ; le parcours entre dans
+`parameters.adf`. La précision n'est pas ornementale — une remesure du 11 août, collectant
+les cellules sur tout le sous-arbre de chaque tableau, a compté deux fois les 34 cellules
+des deux tableaux injectés et conclu à 1667 cellules dont 97 complexes. Le même défaut
+affectait le « 1717 » qui a circulé pour le stade 2 : c'est 1683, à 34 cellules près.
+
+| Stade | Tableaux | Complexes | Cellules | Cellules complexes |
+|---|---|---|---|---|
+| ADF brut | 56 | — | — | — |
+| après injection des `nested-table` | 58 | 15 | 1633 | 84 |
+| **après injection et résolution** | **60** | **17** | **1683** | **100** |
+
+**Le stade qui fait foi est le dernier** : le paragraphe « Ordonnancement » ci-dessus
+interdit d'évaluer la complexité avant la résolution. Le stade intermédiaire est conservé
+comme point de contrôle de la méthode — il a été remesuré le 11 août et retombe
+exactement sur ses quatre valeurs.
+
+Motifs au stade final, en occurrences de nœud : plus d'un `paragraph` (110, sur 31
+cellules), `bulletList` (96, sur 83 cellules), `mediaSingle` (15, sur 13), `table` (2),
+`orderedList` (1), `rule` (1). Au stade intermédiaire : `bulletList` (74, sur 69), plus
+d'un `paragraph` (39, sur 18), `mediaSingle` (15, sur 13), `table` (2), `rule` (1).
+
+**D'où viennent les +2 tableaux complexes** : aucun tableau préexistant ne bascule. Ce
+sont deux tableaux **entièrement nouveaux**, injectés sur `28344344` par la résolution de
+ses deux `syncBlock`, complexes par leur propre contenu. Des 16 cellules complexes de
+plus, 5 leur appartiennent et 11 basculent dans un tableau préexistant — **4 du seul fait
+des paragraphes-marqueurs** (§1.9), 7 du fait du contenu injecté.
+
+Le corpus doré est un plancher pour ces chiffres : 12 de ses 32 inclusions seulement s'y
+résolvent, les autres visant des pages absentes des 9 fixtures. À remesurer au premier run
+complet.
 
 Les 9 fixtures ne contiennent que **2** `nested-table` ; les 11 relevées au §2.2
 portent sur les 248 fixtures du corpus complet. Un décompte antérieur annonçait
@@ -1136,8 +1270,15 @@ La répartition est très inégale : `28344321` a 4 tableaux complexes sur 6,
 un seul sur 19.
 
 Deux lectures de « la cellule contient » ont été calculées — enfants directs, ou
-sous-arbre entier : elles donnent le même résultat. Aucun bloc ne se cache en
-profondeur sans être visible au premier niveau ; la lecture directe suffit.
+sous-arbre entier. Elles donnent le même résultat **au stade intermédiaire** (84 et 84) :
+aucun bloc ne s'y cache en profondeur sans être visible au premier niveau, et la lecture
+directe suffit. Après résolution, elles divergent : 100 et 102.
+
+**Cet écart est un contrôle, pas une imprécision à corriger.** Il ne peut apparaître que
+si un nœud de bloc a été déposé à une place inline — un `paragraph` enfant direct d'un
+`paragraph`, que la lecture directe juge simple. Les deux cellules concernées le sont pour
+cette raison exacte. Une assertion comparant les deux lectures après résolution est donc
+la façon la moins chère de surveiller la substitution inline du §1.9.
 
 **Ces 26 % justifient à eux seuls la décision « index croisé construit depuis
 l'ADF, pas depuis le `.md` ».** Il suffit d'une cellule à liste pour qu'un
@@ -1153,8 +1294,9 @@ une ligne d'en-tête vide, faute de quoi la syntaxe en pipes est invalide.
 **Une ligne d'en-tête mixte fait basculer le tableau en HTML** — troisième déclencheur,
 après le contenu de bloc et la fusion. Est mixte une première ligne qui n'est pas
 composée à 100 % de `tableHeader`, ou un tableau portant un `tableHeader` hors de sa
-première ligne. Les 60 tableaux du corpus doré ont une première ligne homogène et aucun
-`tableHeader` ailleurs : la règle n'y est pas exercée, elle demande un test dédié. Sans
+première ligne. Les tableaux du corpus doré ont tous une première ligne homogène et aucun
+`tableHeader` ailleurs — vérifié aux deux stades, 58 sur 58 puis 60 sur 60. La règle n'y
+est pas exercée, elle demande un test dédié. Sans
 elle, le cas dégrade en silence — tout l'en-tête passe en corps et une ligne d'en-tête
 vide est émise. En HTML, `<th>` et `<td>` cohabitent sans contrainte et il n'y a rien à
 réparer.
@@ -1226,10 +1368,17 @@ incident, la page part en `parse_status: partial` avec son motif, et le rapport 
 signale.
 
 **Couverts, mais absents des 9 fixtures — donc non exercés par le corpus doré** :
-`date` (§7.4), `emoji` (§7.5), `mediaInline` (§5.1), `fontSize` (§8.2), et la fusion de
-cellules `colspan` / `rowspan` (§9.1). Cette liste **est** la liste des tests dédiés à
-écrire : rien dans le corpus de non-régression ne les éprouvera tant que le
-rafraîchissement prévu n'y aura pas versé une page porteuse.
+`date` (§7.4), `emoji` (§7.5), `mediaInline` (§5.1), `fontSize` (§8.2), la fusion de
+cellules `colspan` / `rowspan` (§9.1), la **ligne d'en-tête mixte** (§9.1), le `heading`
+**sans `attrs.level`** (§9), et la **résolution d'une inclusion inline** (§1.9). La liste
+porte des types comme des cas : ce qui la définit n'est pas leur nature, c'est de n'être
+éprouvés par rien. Elle **est** la liste des tests dédiés à écrire.
+
+Un rafraîchissement du corpus doré suffira pour la plupart. **Pas pour la résolution
+inline** : les 5 inclusions inline des 9 fixtures visent toutes des pages sources absentes
+du corpus doré, aucune ne s'y résout, et verser une page porteuse n'y changerait rien tant
+que sa source n'entre pas aussi. Ce cas demande un **test synthétique**, et le corpus
+complet montre qu'il n'est pas marginal : 48 des 54 inclusions inline s'y résolvent.
 
 Avec `date`, `emoji` et `mediaInline`, le contrat couvre **les 36 types du corpus
 complet** : les 33 des 9 fixtures et ces trois-là. Aucun type connu ne peut plus faire
