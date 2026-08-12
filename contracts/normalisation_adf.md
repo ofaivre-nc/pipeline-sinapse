@@ -344,16 +344,22 @@ Le marqueur est plus long que le contenu, et c'est délibéré. L'absence de mar
 elle-même une information — elle dirait qu'aucun multiexcerpt n'a été employé là où le
 rédacteur aurait dû en employer un. Une exception au marquage systématique en appellerait
 d'autres, et le lecteur ne saurait plus ce que l'absence signifie. La désignation de la
-page source ne peut pas non plus être abrégée : les 43 inclusions `habilitation` du corpus
-visent **25 pages sources distinctes**, le nom seul ne désigne rien.
+page source ne peut pas non plus être abrégée : sur les 248 fixtures du recensement, les
+43 inclusions `habilitation` visent **25 pages sources distinctes**. Le nom seul ne
+désigne rien — c'est la même raison qui fait que la clé de résolution est le couple
+`(page, nom)`.
 
 **La forme inline se reconnaît par une union, jamais par la seule clé de macro** : est
 inline une inclusion portée par un nœud `inlineExtension`, **ou** dont l'`extensionKey`
 contient `include-inline`. La famille, elle, se reconnaît par sous-chaîne comme au §2.3 ;
-c'est la *forme* qui demande l'union. Mesuré sur le corpus complet : 54 inclusions inline,
-dont **4** en `multiexcerpt-include-macro` — forme historique, portée par un
-`inlineExtension` dont la clé ne contient pas `include-inline`. Un test sur la seule clé
-en perdrait 4 sur 54, et le corpus doré ne le signalerait jamais : il n'en porte aucune.
+c'est la *forme* qui demande l'union. La forme historique `multiexcerpt-include-macro` est
+portée par un `inlineExtension` dont la clé ne contient pas `include-inline` : un test sur
+la seule clé la manque. Mesuré : **1 occurrence au périmètre d'export**, 4 sur les 248
+fixtures.
+
+Un seul cas suffit à imposer l'union, et le corpus doré ne l'aurait jamais signalé — il
+n'en porte aucune. C'est précisément la configuration où une règle se perd : un défaut
+rare, qu'aucun test de non-régression n'exerce.
 
 **Ce que la substitution dépose**, selon ce que la définition résout :
 
@@ -366,18 +372,33 @@ Le second cas est un constat et non un incident : rien n'est perdu, seule une ph
 le rédacteur a écrite d'un seul tenant sort en deux morceaux. La page reste `ok` et
 scorable, mais le fait doit être visible sans relire la page.
 
-**Mesuré sur le corpus complet** : 54 inclusions inline, 48 résolubles. **45 sur 48**
-résolvent vers un unique `paragraph` de texte pur — seul type de nœud rencontré : `text`,
-avec `backgroundColor` sur 24 d'entre elles, les valeurs d'habilitation étant surlignées.
-Longueurs : médiane **17 caractères**, 38 des 45 sous 20 caractères, un seul cas à 268.
-**3 sur 48** apportent du bloc, toutes en cellule de tableau ; deux vivent sur une page
-exclue par le préfixe `ARCHIVE_` (`contracts/classification_pages.md` §5), ce qui en
-laisse **une seule dans le périmètre d'export** : `RG-API-VALIDATION.REQUETE` sur
-`468779009`, qui apporte deux `bulletList` au milieu d'une cellule. Une règle explicite
-pour un cas réel, pas un traitement générique.
+**Mesuré au périmètre d'export** — les pages exclues par `contracts/classification_pages.md`
+§5 en sont retirées, héritage compris : **47 inclusions inline, 45 résolubles**. **44 sur
+45** résolvent vers un unique `paragraph` de texte pur — seul type de nœud rencontré :
+`text`, avec `backgroundColor` sur les valeurs d'habilitation, qui sont surlignées.
+Longueurs : médiane **17 caractères**, un seul cas à 268. **1 sur 45** apporte du bloc :
+`RG-API-VALIDATION.REQUETE`, inclusion sur `468779009` API-PERSONNE-REFERENTIEL,
+définition sur `148602884`, qui dépose deux `bulletList` au milieu d'une cellule de
+tableau. Une règle explicite pour un cas réel, pas un traitement générique.
 
-**25 inclusions résolubles se substituent au milieu d'une phrase.** C'est la mesure qui
-commande la forme : y déposer un nœud de bloc couperait ces 25 phrases en deux.
+**24 inclusions résolubles se substituent au milieu d'une phrase**, soit plus de la moitié
+de celles du périmètre. C'est la mesure qui commande la forme : y déposer un nœud de bloc
+couperait ces 24 phrases en deux.
+
+**Les deux seules inclusions inline du périmètre qui ne se résoudront pas** sont un seul et
+même défaut de rédaction, consigné dans `docs/anomalies-confluence.md` : une page source
+désignée par `SINAPSE:CU-COMPTE-USER.GEST`, préfixe d'espace du wiki markup et page
+renommée depuis. Rien que le pipeline doive traiter.
+
+**Périmètre des chiffres de cette section.** Trois périmètres coexistent dans le dépôt et
+donnent trois comptes justes ; un nombre qui ne dit pas le sien est indistinguable d'une
+erreur.
+
+| Périmètre | Inclusions inline | dont `multiexcerpt-include-macro` |
+|---|---|---|
+| 248 fixtures du recensement | 54 | 4 |
+| 246 pages classées — ce que comptent le §1.5 et le §7 du document de référence | 53 | 3 |
+| **pages exportées — le périmètre de cette section** | **47** | **1** |
 
 #### Le marqueur de non-résolution suit la même forme
 
@@ -1294,12 +1315,11 @@ une ligne d'en-tête vide, faute de quoi la syntaxe en pipes est invalide.
 **Une ligne d'en-tête mixte fait basculer le tableau en HTML** — troisième déclencheur,
 après le contenu de bloc et la fusion. Est mixte une première ligne qui n'est pas
 composée à 100 % de `tableHeader`, ou un tableau portant un `tableHeader` hors de sa
-première ligne. Les tableaux du corpus doré ont tous une première ligne homogène et aucun
-`tableHeader` ailleurs — vérifié aux deux stades, 58 sur 58 puis 60 sur 60. La règle n'y
-est pas exercée, elle demande un test dédié. Sans
-elle, le cas dégrade en silence — tout l'en-tête passe en corps et une ligne d'en-tête
-vide est émise. En HTML, `<th>` et `<td>` cohabitent sans contrainte et il n'y a rien à
-réparer.
+première ligne. Les tableaux du corpus doré ont tous une première ligne homogène et
+aucun `tableHeader` ailleurs — vérifié aux deux stades, 58 sur 58 puis 60 sur 60. La
+règle n'y est pas exercée, elle demande un test dédié. Sans elle, le cas dégrade en
+silence — tout l'en-tête passe en corps et une ligne d'en-tête vide est émise. En HTML,
+`<th>` et `<td>` cohabitent sans contrainte et il n'y a rien à réparer.
 
 **Tout caractère `|` présent dans le contenu d'une cellule est échappé en `\|`.**
 Sans cet échappement, un `|` rompt la structure du tableau : notations `R/O/P` des
@@ -1377,8 +1397,8 @@ porte des types comme des cas : ce qui la définit n'est pas leur nature, c'est 
 Un rafraîchissement du corpus doré suffira pour la plupart. **Pas pour la résolution
 inline** : les 5 inclusions inline des 9 fixtures visent toutes des pages sources absentes
 du corpus doré, aucune ne s'y résout, et verser une page porteuse n'y changerait rien tant
-que sa source n'entre pas aussi. Ce cas demande un **test synthétique**, et le corpus
-complet montre qu'il n'est pas marginal : 48 des 54 inclusions inline s'y résolvent.
+que sa source n'entre pas aussi. Ce cas demande un **test synthétique**, et il n'est pas
+marginal : au périmètre d'export, 45 des 47 inclusions inline se résolvent.
 
 Avec `date`, `emoji` et `mediaInline`, le contrat couvre **les 36 types du corpus
 complet** : les 33 des 9 fixtures et ces trois-là. Aucun type connu ne peut plus faire

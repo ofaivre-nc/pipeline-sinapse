@@ -9,7 +9,8 @@ renvoie.
 
 ## Règles incluses et jamais définies
 
-Quatre emplacements où un BA voit un blanc à l'écran, sans message ni indice.
+Un nom inclus dont la définition n'existe nulle part. Le BA voit un blanc à l'écran, sans
+message ni indice.
 
 | Nom inclus | Défini | Pages consommatrices | État |
 |---|---|---|---|
@@ -29,9 +30,14 @@ La seconde porte un **double tiret** : c'est une faute de frappe de
 `180256775`. La première n'a pas de définition approchante — la règle n'a
 vraisemblablement jamais été écrite.
 
-Ces deux entrées sont sorties du premier passage de `resolver.py` sur le corpus doré,
-en statut `definition_absente`. C'est le mécanisme qui les rend visibles : une macro
-non résolue s'affiche vide dans Confluence, sans rien signaler.
+Les deux premières entrées sont sorties du premier passage de `resolver.py` sur le corpus
+doré, en statut `definition_absente` ; les deux suivantes d'une mesure du 11 août sur les
+248 fixtures du recensement. C'est le même mécanisme qui les rend visibles : une macro non
+résolue s'affiche vide dans Confluence, sans rien signaler.
+
+**Aucune des deux dernières n'est dans le périmètre d'export** — `IHM_module` vit sur une
+page exclue, `MSG-DOSS.CHA-026` sur une page en `ARCHIVE_`. Elles restent au registre : une
+page exclue aujourd'hui peut être réintégrée, et l'anomalie l'attendrait.
 
 ## Identifiants de bloc dupliqués
 
