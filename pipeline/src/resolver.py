@@ -2,7 +2,7 @@
 """
 Resolution du contenu reutilise — les trois mecanismes, en un seul parcours.
 
-VERSION : 1.1
+VERSION : 1.2
 
 Ce module remplace le contenu reutilise par sa valeur et injecte les tables imbriquees,
 AVANT toute normalisation et tout rendu markdown. L'ordre importe : le contrat resout
@@ -40,7 +40,7 @@ import copy
 
 import multiexcerpt as mx
 
-VERSION = "1.1"
+VERSION = "1.2"
 
 
 # ==========================================================================
@@ -66,6 +66,23 @@ MOTIFS = {
     STATUT_DEFINITION_ABSENTE: "définition introuvable sur la page source",
     STATUT_PAGE_SOURCE_ABSENTE: "page source introuvable",
 }
+
+FORME_BLOC = "bloc"
+FORME_INLINE = "inline"
+SUBSTITUTION_INLINE = "inline"
+SUBSTITUTION_SCINDEE = "scindee"
+
+# Types inline du corpus, couverts par contracts/normalisation_adf.md §5.1, §6, §7 et §9.
+# Sert UNIQUEMENT a qualifier le contenu d'une substitution inline. Un enfant de
+# paragraphe hors de cet ensemble fait basculer la substitution en bloc, avec constat :
+# le cas devient visible au rapport au lieu de produire un ADF invalide en silence.
+#
+# Si renderer.py finit par avoir besoin de la meme partition, elle DEMENAGE dans un
+# endroit partage — elle ne se recopie pas. Un fait duplique en deux endroits diverge a
+# la premiere correction (§5 du document de reference).
+TYPES_INLINE = frozenset({
+    "text", "hardBreak", "emoji", "date", "status", "mention", "inlineCard", "mediaInline",
+})
 
 
 # ==========================================================================
@@ -123,6 +140,88 @@ def _texte_em(libelle):
 
 def marqueur_bloc(libelle):
     return {"type": "paragraph", "content": [_texte_em(libelle)]}
+
+
+def _marqueur(inline, libelle):
+    """Le meme libelle, l'autre porteur. §1.9 : une seule surface de test."""
+    return _texte_em(libelle) if inline else marqueur_bloc(libelle)
+
+
+# ==========================================================================
+# Substitution inline : qualification et enveloppe d'echappement
+# ==========================================================================
+# Une inclusion inline vit DANS le content d'un paragraphe. Y deposer un `paragraph` —
+# ce que faisait la v1.0 — met un noeud de bloc a une place inline : 5 occurrences
+# mesurees au corpus dore, a l'origine de la divergence 100 / 102 du §9.1.
+#
+# Quand le contenu resolu ne qualifie pas pour la substitution en place, il faut donc
+# SCINDER le paragraphe hote. La scission n'est jamais pilotee par un test « ce noeud
+# est-il de bloc ? » applique aux enfants existants de l'hote : un noeud preexistant que
+# le resolver n'a pas injecte ne doit pas pouvoir la declencher. Elle est pilotee par ce
+# que LA SUBSTITUTION ELLE-MEME a produit — d'ou cette enveloppe, deposee par
+# _transforme_noeud et consommee par le conteneur qui l'assemble.
+#
+# L'enveloppe n'a PAS de cle `type` : elle n'est confondable avec aucun noeud ADF, et
+# une enveloppe qui survivrait au parcours est une erreur interne, pas un rendu degrade.
+
+CLE_ECHAPPEMENT = "__blocs_a_scinder__"
+
+
+def _echappement(blocs, fait):
+    """Enveloppe les blocs qu'une inclusion inline non qualifiante doit deposer.
+
+    Elle transporte aussi le fait de cette inclusion : c'est le conteneur qui scinde
+    qui sait le type de l'hote, pas le point de resolution.
+    """
+    return {CLE_ECHAPPEMENT: list(blocs), "fait": fait}
+
+
+def _est_echappement(valeur):
+    return isinstance(valeur, dict) and CLE_ECHAPPEMENT in valeur
+
+
+def _deplie(noeuds):
+    """Remplace chaque enveloppe par les blocs qu'elle porte, a plat.
+
+    Employe la ou l'on assemble deja une liste de BLOCS — corps de definition, contenu
+    du document. Y scinder n'aurait pas de sens : il n'y a pas de phrase a couper.
+    """
+    if not any(_est_echappement(n) for n in noeuds):
+        return list(noeuds)
+    sortie = []
+    for noeud in noeuds:
+        if _est_echappement(noeud):
+            sortie.extend(noeud[CLE_ECHAPPEMENT])
+        else:
+            sortie.append(noeud)
+    return sortie
+
+
+def _qualifie_inline(injecte):
+    """Le contenu resolu peut-il etre depose EN PLACE dans le paragraphe hote ?
+
+    Les trois criteres du §1.9, dans l'ordre : un seul noeud de premier niveau, qui est
+    un `paragraph`, dont tous les enfants directs sont d'un type inline. Mesure de
+    reference : 44 des 45 inclusions inline resolubles du perimetre d'export qualifient.
+    """
+    if len(injecte) != 1:
+        return False
+    seul = injecte[0]
+    if not isinstance(seul, dict) or seul.get("type") != "paragraph":
+        return False
+    return all(isinstance(enfant, dict) and enfant.get("type") in TYPES_INLINE
+               for enfant in (seul.get("content") or []))
+
+
+def _contient_echappement(noeud):
+    """Une enveloppe subsiste-t-elle dans l'arbre ? Invariant interne du parcours."""
+    if _est_echappement(noeud):
+        return True
+    if isinstance(noeud, dict):
+        return any(_contient_echappement(valeur) for valeur in noeud.values())
+    if isinstance(noeud, list):
+        return any(_contient_echappement(valeur) for valeur in noeud)
+    return False
 
 
 # ==========================================================================
@@ -190,6 +289,7 @@ class Resolveur:
         self.titres_absents = set()                 # titres deja cherches en vain
         self.ids_absents = set()                    # identifiants deja cherches en vain
         self.faits = []
+        self.hotes_scindes = []                     # meme duree de vie que self.faits
 
     # ------------------------------------------------------------------
     # Indexation
@@ -308,11 +408,45 @@ class Resolveur:
     # Faits
     # ------------------------------------------------------------------
 
-    def _consigne(self, mecanisme, cle, statut, hors_perimetre, ou):
+    # ATTENTION AU MOT `forme` — deux faits voisins a ne pas fusionner a l'etape 4.
+    # Ici, `forme` est celle de l'INCLUSION : ou son contenu doit etre depose. Le champ
+    # `inline` de $defs/multiexcerpt dans contracts/reused_content_cache.schema.json est
+    # celui de la DEFINITION. Une definition inline peut etre incluse en bloc et
+    # reciproquement : ce sont deux mesures differentes sous un mot voisin.
+    #
+    # Second point ouvert de l'etape 4, note ici et non traite : `unresolved` de ce meme
+    # schema est en `additionalProperties: false`, donc sans place pour le constat de
+    # scission. Le cache n'est pas ecrit par ce module ; c'est un patch de contrat, pas
+    # un commit de code.
+    #
+    # Retrouver la mesure « 44 sur 45 » du §1.9 demandera de lire statut ET substitution :
+    # `substitution: "inline"` couvre aussi les inclusions inline NON RESOLUES, qui n'ont
+    # rien substitue mais dont le marqueur est reste en place.
+
+    def _consigne(self, mecanisme, cle, statut, hors_perimetre, ou, forme=FORME_BLOC):
         fait = {"mecanisme": mecanisme, "cle": cle, "statut": statut,
-                "source_hors_perimetre": hors_perimetre, "emplacement": ou}
+                "source_hors_perimetre": hors_perimetre, "emplacement": ou,
+                "forme": forme}
+        if forme == FORME_INLINE:
+            fait["substitution"] = SUBSTITUTION_INLINE
         self.faits.append(fait)
         return fait
+
+    def _consigne_hote_scinde(self, conteneur, fait):
+        """Un hote scinde qui n'est pas un `paragraph` : le cas n'est pas mesure.
+
+        Aucune occurrence sur les 9 fixtures — les 5 inclusions inline du corpus dore
+        ont toutes un `paragraph` pour parent direct. Le consigner le rend visible au
+        lieu d'etre devine dans un rendu. Le niveau document entre ici aussi : un `doc`
+        ne se scinde pas, ses blocs sont deposes a plat — mais il se consigne comme les
+        autres, sans quoi le seul cas non couvert serait le seul cas muet.
+
+        POINT OUVERT DE L'ETAPE 4 : resout() ne rend pas cette liste, donc le fait
+        n'atteint aujourd'hui aucun consommateur. Zero occurrence au corpus : ca ne
+        bloque pas, ca reste a brancher au rapport de run.
+        """
+        self.hotes_scindes.append({"type": conteneur.get("type"),
+                                   "emplacement": fait.get("emplacement")})
 
     # Sans carte, on ne PEUT pas dire qu'une page est hors perimetre : le fait reste
     # faux plutot que d'affirmer a tort. C'est la carte qui definit le perimetre.
@@ -337,10 +471,19 @@ class Resolveur:
         titre = mx.clean_page_title(page_title)
         pid = str(page_id)
         self.faits = []
+        self.hotes_scindes = []
         self.indexe_page(pid, titre, adf)
         guard = guard if guard is not None else mx.CycleGuard(self.profondeur_max)
         resolu = dict(adf)
-        resolu["content"] = self._transforme(adf.get("content") or [], titre, pid, guard)
+        enfants = self._transforme(adf.get("content") or [], titre, pid, guard)
+        resolu["content"] = self._assemble_liste(resolu, enfants)
+        # Invariant interne : une enveloppe qui survit au parcours signale un conteneur
+        # qui ne l'a pas consommee. Elle LEVE — un ADF portant un dictionnaire sans
+        # `type` casserait le renderer bien plus loin, sans dire pourquoi.
+        if _contient_echappement(resolu):
+            raise mx.ResolutionError(
+                f"enveloppe de scission non consommee sur la page {pid} : un conteneur "
+                f"n'assemble pas ses enfants par _assemble()")
         return resolu, list(self.faits)
 
     def _transforme(self, noeuds, titre, page_id, guard):
@@ -348,6 +491,52 @@ class Resolveur:
         for node in noeuds:
             sortie.extend(self._transforme_noeud(node, titre, page_id, guard))
         return sortie
+
+    # ------------------------------------------------------------------
+    # Assemblage d'un conteneur — c'est ici que la scission se produit
+    # ------------------------------------------------------------------
+
+    def _assemble(self, conteneur, enfants):
+        """Rend la LISTE de noeuds qui remplace `conteneur`, ses enfants transformes.
+
+        Sans enveloppe — le cas de tous les noeuds du corpus a une exception pres —
+        c'est une copie du conteneur, exactement comme avant. Avec, le conteneur est
+        decoupe sur les enveloppes : les suites de noeuds restants sont reenveloppees
+        dans une copie, les blocs deposes entre elles. UN MORCEAU VIDE NE PRODUIT PAS DE
+        CONTENEUR VIDE — une inclusion seule dans son paragraphe n'emet pas de
+        paragraphe vide avant ni apres.
+        """
+        if not any(_est_echappement(enfant) for enfant in enfants):
+            copie = dict(conteneur)
+            copie["content"] = enfants
+            return [copie]
+
+        sortie, courant = [], []
+        for enfant in enfants:
+            if not _est_echappement(enfant):
+                courant.append(enfant)
+                continue
+            if conteneur.get("type") != "paragraph":
+                self._consigne_hote_scinde(conteneur, enfant["fait"])
+            if courant:
+                sortie.append(dict(conteneur, content=courant))
+                courant = []
+            sortie.extend(enfant[CLE_ECHAPPEMENT])
+        if courant:
+            sortie.append(dict(conteneur, content=courant))
+        return sortie
+
+    def _assemble_liste(self, conteneur, enfants):
+        """Assemble une liste de BLOCS : les enveloppes y sont depliees, pas scindees.
+
+        Un `doc` ne se scinde pas en deux `doc` — il n'y a pas de phrase a couper au
+        premier niveau. L'hote est consigne quand meme : sans cela, le seul cas non
+        couvert serait le seul cas muet.
+        """
+        for enfant in enfants:
+            if _est_echappement(enfant):
+                self._consigne_hote_scinde(conteneur, enfant["fait"])
+        return _deplie(enfants)
 
     def _transforme_noeud(self, node, titre, page_id, guard):
         """Rend la LISTE de noeuds qui remplace `node` — vide, un, ou plusieurs.
@@ -369,10 +558,8 @@ class Resolveur:
         # 2a. Definition : on descend dans le corps SANS le remplacer. Une definition
         #     s'affiche aussi la ou elle est definie.
         if nature and nature.endswith("_definition"):
-            copie = dict(node)
-            copie["content"] = self._transforme(node.get("content") or [],
-                                                titre, page_id, guard)
-            return [copie]
+            return self._assemble(node, self._transforme(node.get("content") or [],
+                                                         titre, page_id, guard))
 
         # 2b. Inclusion : resoudre, puis redescendre dans l'injecte.
         if nature == "sync_include":
@@ -381,10 +568,10 @@ class Resolveur:
             return self._resout_macro(node, titre, page_id, guard)
 
         # 2c. Noeud ordinaire.
-        copie = dict(node)
         if isinstance(node.get("content"), list):
-            copie["content"] = self._transforme(node["content"], titre, page_id, guard)
-        return [copie]
+            return self._assemble(node, self._transforme(node["content"], titre,
+                                                         page_id, guard))
+        return [dict(node)]
 
     def _injecte(self, definition, mecanisme, cle, guard):
         """Corps d'une definition, resolu a son tour, sous garde-fou de cycle.
@@ -395,8 +582,30 @@ class Resolveur:
         """
         corps = copy.deepcopy(definition["node"].get("content") or [])
         with guard.enter(mecanisme, cle):
-            return self._transforme(corps, definition["page_title"],
-                                    definition["page_id"], guard)
+            injecte = self._transforme(corps, definition["page_title"],
+                                       definition["page_id"], guard)
+        # Un corps de definition est une liste de BLOCS : une enveloppe qui y remonte
+        # s'y deplie. La scission a deja eu lieu plus bas, dans le paragraphe concerne.
+        return _deplie(injecte)
+
+    def _depose(self, injecte, nom, page_source, inline, fait):
+        """Contenu resolu encadre de ses marqueurs, dans la forme que l'hote autorise.
+
+        Table du §1.9 : un seul `paragraph` ne portant que de l'inline se depose EN
+        PLACE, marks comprises ; tout le reste scinde l'hote et se rend en forme de
+        bloc, avec constat. La scission n'est pas decidee ici — elle est demandee par
+        l'enveloppe, et executee par le conteneur qui l'assemble.
+        """
+        ouvrant = libelle_ouvrant(nom, page_source)
+        fermant = libelle_fermant(nom)
+        if not inline:
+            return [marqueur_bloc(ouvrant)] + injecte + [marqueur_bloc(fermant)]
+        if _qualifie_inline(injecte):
+            return ([_texte_em(ouvrant)] + list(injecte[0].get("content") or [])
+                    + [_texte_em(fermant)])
+        fait["substitution"] = SUBSTITUTION_SCINDEE
+        return [_echappement(
+            [marqueur_bloc(ouvrant)] + injecte + [marqueur_bloc(fermant)], fait)]
 
     def _resout_macro(self, node, titre, page_id, guard):
         famille = mx.famille_macro(node)
@@ -404,22 +613,28 @@ class Resolveur:
         cible, nom = mx.macro_include_key(node, titre)
         ou = mx.emplacement(node, page_id, titre)
         hors = self._hors_perimetre_titre(cible)
+        # La FORME est celle du noeud d'inclusion, decidee avant toute resolution : un
+        # marqueur de non-resolution la suit aussi. Une inclusion inline introuvable
+        # laisse un marqueur inline, jamais un paragraphe qui couperait la phrase.
+        inline = mx.est_inclusion_inline(node)
+        forme = FORME_INLINE if inline else FORME_BLOC
 
         if not self.assure_titre(cible):
-            self._consigne(mecanisme, (cible, nom), STATUT_PAGE_SOURCE_ABSENTE, hors, ou)
-            return [marqueur_bloc(libelle_non_resolue(
+            self._consigne(mecanisme, (cible, nom), STATUT_PAGE_SOURCE_ABSENTE,
+                           hors, ou, forme)
+            return [_marqueur(inline, libelle_non_resolue(
                 nom, cible, MOTIFS[STATUT_PAGE_SOURCE_ABSENTE]))]
 
         definition = self.index.resout(node, titre)
         if definition is None:
-            self._consigne(mecanisme, (cible, nom), STATUT_DEFINITION_ABSENTE, hors, ou)
-            return [marqueur_bloc(libelle_non_resolue(
+            self._consigne(mecanisme, (cible, nom), STATUT_DEFINITION_ABSENTE,
+                           hors, ou, forme)
+            return [_marqueur(inline, libelle_non_resolue(
                 nom, cible, MOTIFS[STATUT_DEFINITION_ABSENTE]))]
 
         injecte = self._injecte(definition, mecanisme, (cible, nom), guard)
-        self._consigne(mecanisme, (cible, nom), STATUT_RESOLUE, hors, ou)
-        return ([marqueur_bloc(libelle_ouvrant(nom, definition["page_title"]))] + injecte
-                + [marqueur_bloc(libelle_fermant(nom))])
+        fait = self._consigne(mecanisme, (cible, nom), STATUT_RESOLUE, hors, ou, forme)
+        return self._depose(injecte, nom, definition["page_title"], inline, fait)
 
     def _resout_sync(self, node, titre, page_id, guard):
         cle = mx.sync_include_key(node)
@@ -432,20 +647,23 @@ class Resolveur:
         nom = nom_sync(uuid)
 
         if not self.assure_identifiant(source_id):
-            self._consigne(MECANISME_SYNC, cle, STATUT_PAGE_SOURCE_ABSENTE, hors, ou)
+            self._consigne(MECANISME_SYNC, cle, STATUT_PAGE_SOURCE_ABSENTE,
+                           hors, ou, FORME_BLOC)
             return [marqueur_bloc(libelle_non_resolue(
                 nom, f"page {source_id}", MOTIFS[STATUT_PAGE_SOURCE_ABSENTE]))]
 
         definition = self.sync.get(cle)
         if definition is None:
-            self._consigne(MECANISME_SYNC, cle, STATUT_DEFINITION_ABSENTE, hors, ou)
+            self._consigne(MECANISME_SYNC, cle, STATUT_DEFINITION_ABSENTE,
+                           hors, ou, FORME_BLOC)
             return [marqueur_bloc(libelle_non_resolue(
                 nom, f"page {source_id}", MOTIFS[STATUT_DEFINITION_ABSENTE]))]
 
         injecte = self._injecte(definition, MECANISME_SYNC, cle, guard)
-        self._consigne(MECANISME_SYNC, cle, STATUT_RESOLUE, hors, ou)
-        return ([marqueur_bloc(libelle_ouvrant(nom, definition["page_title"]))] + injecte
-                + [marqueur_bloc(libelle_fermant(nom))])
+        # Un syncBlock n'a pas de forme inline : `syncBlock` est un type de noeud de
+        # bloc, et est_inclusion_inline() rend False pour lui.
+        fait = self._consigne(MECANISME_SYNC, cle, STATUT_RESOLUE, hors, ou, FORME_BLOC)
+        return self._depose(injecte, nom, definition["page_title"], False, fait)
 
 
 # ==========================================================================

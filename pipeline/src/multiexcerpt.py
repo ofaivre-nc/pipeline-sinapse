@@ -2,7 +2,7 @@
 """
 Cles de resolution du contenu reutilise — multiexcerpt, excerpt et syncBlock.
 
-VERSION : 1.1
+VERSION : 1.2
 
 Le corpus SINAPSE porte TROIS mecanismes de reutilisation, dont deux par macro :
 
@@ -16,19 +16,23 @@ deux. Un `excerpt-include` ne voit pas une definition multiexcerpt, et reciproqu
 Si le pipeline les croisait, il produirait un `.md` plus complet que la page reelle et
 masquerait un affichage casse — le contraire de ce qu'on attend d'un export fidele.
 
+Une inclusion de macro porte en outre une FORME — bloc ou inline — orthogonale a sa
+famille : la forme dit ou le contenu resolu doit etre depose, la famille dit contre quel
+index il se resout. est_inclusion_inline() rend la premiere ; famille_macro() la seconde.
+
 Ce module ne contient que la couche de cles et d'extraction — deterministe, sans
 reseau, sans conversion vers markdown. Le parcours recursif attend l'arbitrage
 reutiliser/reecrire le resolver ; CycleGuard est fourni ici parce qu'il en est
 independant.
 
-Contrat de reference : contracts/normalisation_adf.md.
+Contrat de reference : contracts/normalisation_adf.md, §1.9 pour la forme inline.
 """
 
 import html
 import json
 import re
 
-VERSION = "1.1"
+VERSION = "1.2"
 
 
 # ==========================================================================
@@ -36,6 +40,12 @@ VERSION = "1.1"
 # ==========================================================================
 
 EXTENSION_NODE_TYPES = frozenset({"extension", "bodiedExtension", "inlineExtension"})
+
+# --- Forme d'une inclusion : bloc ou inline. Les DEUX criteres de l'union du §1.9, dont
+# aucun ne suffit seul — le type de noeud pour la forme historique, la sous-chaine de
+# cle pour un `extension` qui l'annonce.
+TYPE_INLINE_EXTENSION = "inlineExtension"
+CLE_FORME_INLINE = "include-inline"
 
 # --- Familles de macro : reconnaissance par SOUS-CHAINE de la cle d'extension.
 # JAMAIS par enumeration de variantes : le corpus en compte 6 pour le seul
@@ -147,6 +157,29 @@ def classify_reuse_node(node):
     if famille:
         return f"{famille}_{'definition' if a_un_corps(node) else 'include'}"
     return None
+
+
+def est_inclusion_inline(node):
+    """Forme inline d'une inclusion : UNION de deux criteres, jamais la seule cle.
+
+    Est inline une inclusion portee par un noeud `inlineExtension`, OU dont
+    l'extensionKey contient `include-inline`. La forme historique
+    `multiexcerpt-include-macro` est portee par un inlineExtension dont la cle ne
+    contient PAS `include-inline` : un test sur la seule cle la manque.
+    Mesure du 11 aout 2026 : 1 occurrence au perimetre d'export, 4 sur les 248
+    fixtures du recensement. Contrat §1.9.
+
+    Rend False pour tout ce qui n'est pas une INCLUSION de macro — une definition, un
+    syncBlock, un noeud quelconque. La FAMILLE continue de se reconnaitre par
+    sous-chaine comme au §2.3 ; c'est la FORME qui demande l'union.
+    """
+    nature = classify_reuse_node(node)
+    if nature not in tuple(f"{famille}_include" for famille in FAMILLES):
+        return False
+    if node.get("type") == TYPE_INLINE_EXTENSION:
+        return True
+    cle = ((node.get("attrs") or {}).get("extensionKey") or "").lower()
+    return CLE_FORME_INLINE in cle
 
 
 def macro_param(node, nom):

@@ -187,6 +187,41 @@ def inclusion(nom, page=None, famille="multiexcerpt", local_id=None):
     return node
 
 
+def inclusion_inline(nom, page=None, cle="multiexcerpt-fast-include-inline-macro",
+                     type_noeud="inlineExtension", local_id=None):
+    """Inclusion de macro sous forme INLINE — deux axes INDEPENDANTS.
+
+    Le type de noeud et la cle d'extension varient separement, parce que c'est
+    exactement ce que l'union du §1.9 reconnait : `inlineExtension` OU une cle portant
+    `include-inline`. Les fabriquer ensemble empecherait d'exercer une branche a la fois.
+    """
+    params = {"name": {"value": nom}}
+    if page is not None:
+        params["page"] = {"value": page}
+    node = {"type": type_noeud,
+            "attrs": {"extensionKey": cle, "parameters": {"macroParams": params}}}
+    if local_id:
+        node["attrs"]["localId"] = local_id
+    return node
+
+
+def txt(contenu, marks=None):
+    node = {"type": "text", "text": contenu}
+    if marks:
+        node["marks"] = list(marks)
+    return node
+
+
+def para_de(enfants):
+    """Paragraphe compose noeud par noeud — l'hote d'une inclusion inline."""
+    return {"type": "paragraph", "content": list(enfants)}
+
+
+def liste(*textes_):
+    return {"type": "bulletList", "content": [
+        {"type": "listItem", "content": [para(t)]} for t in textes_]}
+
+
 def sync_definition(uuid, corps):
     return {"type": "bodiedSyncBlock",
             "attrs": {"resourceId": uuid, "localId": "def-" + uuid[:8]},
@@ -299,6 +334,23 @@ def textes(adf):
     return trouves
 
 
+def marqueurs_profonds(adf):
+    """Tous les marqueurs de l'arbre, QUEL QUE SOIT LEUR PORTEUR.
+
+    Un marqueur de bloc est un `paragraph` dont l'unique enfant est un `text` marque
+    `em` ; un marqueur inline est ce meme `text`, depose dans le paragraphe hote. Les
+    deux sont des noeuds `text` : un lecteur restreint a l'un des deux porteurs ferait
+    passer l'invariant « deux marqueurs par inclusion resolue » en cessant de compter
+    ceux de l'autre.
+
+    Le filtre sur U+21B3 seul est licite parce qu'il a ete mesure : le caractere
+    n'apparait dans AUCUN des 2791 noeuds `text` des 9 fixtures brutes, ni dans leur
+    JSON, `parameters.adf` compris. Si une page venait a en porter, resserrer sur la
+    mark `em` plus le prefixe.
+    """
+    return [t for t in textes(adf) if t.startswith("↳")]
+
+
 def lisible(valeur):
     """Texte de marqueur pret a partir dans un message d'echec.
 
@@ -309,6 +361,32 @@ def lisible(valeur):
     ATTENDUS, eux, restent ecrits en clair — c'est la forme qu'ils surveillent.
     """
     return ascii(valeur)
+
+
+def mal_places(adf):
+    """Types des enfants directs d'un `paragraph` qui ne sont PAS d'un type inline.
+
+    C'est la mesure du §B.1 : 5 avant la substitution inline, 0 apres. Elle porte sur
+    rs.TYPES_INLINE et non sur le seul type `paragraph` — on mesure et on compare a la
+    liste vide, on ne cherche pas un coupable connu.
+    """
+    trouves = []
+
+    def walk(n):
+        if isinstance(n, dict):
+            enfants = n.get("content") or []
+            if n.get("type") == "paragraph":
+                trouves.extend(e.get("type") for e in enfants
+                               if isinstance(e, dict)
+                               and e.get("type") not in rs.TYPES_INLINE)
+            for enfant in enfants:
+                walk(enfant)
+        elif isinstance(n, list):
+            for enfant in n:
+                walk(enfant)
+
+    walk(adf)
+    return trouves
 
 
 def identites(node):
@@ -1076,9 +1154,8 @@ def verifie_aucun_commentaire_html():
     non_resolues = 0
     for pid, titre in sorted(TITRES.items()):
         resolu, faits = rs.resout_document(charge(pid), titre, pid, fournisseur_fixtures())
-        valeurs = textes(resolu)
-        commentaires += sum(1 for t in valeurs if t.startswith("<!--"))
-        marques += sum(1 for t in valeurs if t.startswith("↳"))
+        commentaires += sum(1 for t in textes(resolu) if t.startswith("<!--"))
+        marques += len(marqueurs_profonds(resolu))
         resolues += sum(1 for f in faits if f["statut"] == "resolue")
         non_resolues += sum(1 for f in faits if f["statut"] != "resolue")
     echecs += check(commentaires == 0,
@@ -1091,6 +1168,251 @@ def verifie_aucun_commentaire_html():
                     f"{marques} marqueurs pour {resolues} inclusions resolues et "
                     f"{non_resolues} non resolues, attendu "
                     f"{2 * resolues + non_resolues}")
+    return echecs
+
+
+# --------------------------------------------------------------------------
+# 9. La substitution inline — contrat §1.9, cas non exerce par le corpus dore
+# --------------------------------------------------------------------------
+# Le corpus dore N'EXERCERA JAMAIS ce code : ses 5 inclusions inline visent toutes des
+# pages sources absentes des 9 fixtures, aucune ne s'y resout, et verser une page
+# porteuse n'y changerait rien tant que sa source n'entre pas aussi. C'est inscrit au
+# §10 du contrat, et c'est la raison d'etre de ces controles synthetiques.
+
+PAGE_INLINE = "SF-INLINE"
+MARK_FOND = {"type": "backgroundColor", "attrs": {"color": "#fff0b3"}}
+EM = [{"type": "em"}]
+OUVRANT_HAB = "↳ inclusion : habilitation — source : SF-INLINE"
+FERMANT_HAB = "↳ fin inclusion : habilitation"
+VALEUR_HAB = "administration:parametre:gerer"
+
+
+def source_inline(corps=None):
+    """Page source portant `habilitation`.
+
+    Par defaut, un unique paragraphe de texte pur : c'est ce que rendent 44 des 45
+    inclusions inline resolubles du perimetre d'export. La mark backgroundColor n'est
+    pas decorative — les valeurs d'habilitation sont surlignees dans le corpus reel, et
+    c'est elle qui doit traverser la substitution intacte.
+    """
+    if corps is None:
+        corps = [para_de([txt(VALEUR_HAB, [MARK_FOND])])]
+    return document([definition("habilitation", corps)])
+
+
+def hote_inline(noeud_inclusion):
+    """Le cas majoritaire du perimetre : substitution AU MILIEU d'une phrase.
+
+    24 inclusions resolubles sur 45 sont dans ce cas — c'est la mesure qui commande la
+    forme, un noeud de bloc depose ici couperait ces 24 phrases en deux.
+    """
+    return document([para_de([txt("Habilitations : "), noeud_inclusion,
+                              txt(" pour agir.")])])
+
+
+def verifie_inclusion_inline():
+    """Les 11 controles du §B.4 : union, substitution en place, escalade, recursion."""
+    echecs = 0
+
+    def substitue_en_place(noeud, etiquette):
+        """Les trois formes de l'union doivent donner EXACTEMENT le meme resultat."""
+        locaux = 0
+        resolu, faits = rs.resout_document(
+            hote_inline(noeud), "CU-HOTE", "940",
+            Fournisseur([("941", PAGE_INLINE, source_inline())]))
+        contenu = resolu.get("content") or []
+        locaux += check(
+            [n.get("type") for n in contenu] == ["paragraph"],
+            f"{etiquette} : un seul paragraphe en sortie, obtenu "
+            f"{[n.get('type') for n in contenu]}")
+        if len(contenu) == 1:
+            locaux += check(
+                contenu[0].get("content") == [txt("Habilitations : "),
+                                              txt(OUVRANT_HAB, EM),
+                                              txt(VALEUR_HAB, [MARK_FOND]),
+                                              txt(FERMANT_HAB, EM),
+                                              txt(" pour agir.")],
+                f"{etiquette} : tete, marqueur, valeur AVEC SA MARK, marqueur, queue — "
+                f"obtenu {lisible(contenu[0].get('content'))}")
+        locaux += check(mal_places(resolu) == [],
+                        f"{etiquette} : aucun noeud de bloc a une place inline, obtenu "
+                        f"{mal_places(resolu)}")
+        locaux += check(
+            [(f["statut"], f["forme"], f.get("substitution")) for f in faits]
+            == [("resolue", "inline", "inline")],
+            f"{etiquette} : fait resolue/inline/inline sans constat, obtenu {faits}")
+        return locaux
+
+    # --- 1. Substitution au milieu d'une phrase, forme courante du corpus.
+    echecs += substitue_en_place(inclusion_inline("habilitation", PAGE_INLINE),
+                                 "forme courante")
+
+    # --- 2. Union, branche « TYPE DE NOEUD » : la variante historique.
+    # Ce controle porte a lui seul le cas mesure a 1 occurrence au perimetre d'export.
+    # Les deux assertions qui precedent la substitution sont ce qui l'empeche de se
+    # reduire a un doublon du controle 1 : elles constatent que la cle ne dit rien.
+    historique = inclusion_inline("habilitation", PAGE_INLINE,
+                                  cle="multiexcerpt-include-macro")
+    echecs += check(mx.CLE_FORME_INLINE not in historique["attrs"]["extensionKey"],
+                    f"la variante historique ne porte PAS include-inline dans sa cle "
+                    f"({historique['attrs']['extensionKey']!r}) — sans quoi ce controle "
+                    f"ne serait qu'un doublon du precedent")
+    echecs += check(historique["type"] == mx.TYPE_INLINE_EXTENSION,
+                    "c'est son TYPE DE NOEUD qui la designe comme inline")
+    echecs += check(mx.est_inclusion_inline(historique) is True,
+                    "un test sur la seule cle de macro manquerait cette forme")
+    echecs += substitue_en_place(historique, "variante historique")
+
+    # --- 3. Union, branche « CLE » : un `extension` portant include-inline.
+    par_cle = inclusion_inline("habilitation", PAGE_INLINE, type_noeud="extension")
+    echecs += check(par_cle["type"] != mx.TYPE_INLINE_EXTENSION,
+                    f"ce noeud n'est pas un inlineExtension ({par_cle['type']!r}) : "
+                    f"sans la branche « cle », l'union ne le verrait pas")
+    echecs += check(mx.CLE_FORME_INLINE in par_cle["attrs"]["extensionKey"],
+                    "c'est sa CLE qui la designe comme inline")
+    echecs += check(mx.est_inclusion_inline(par_cle) is True,
+                    "un test sur le seul type de noeud manquerait cette forme")
+    echecs += substitue_en_place(par_cle, "extension a cle include-inline")
+
+    # --- 4. Escalade en bloc : la definition depose deux bulletList.
+    # Reproduit RG-API-VALIDATION.REQUETE, la 45e inclusion du perimetre — la seule qui
+    # apporte du bloc au milieu d'une cellule de tableau.
+    fournisseur = Fournisseur([("943", PAGE_INLINE,
+                                source_inline([liste("a", "b"), liste("c")]))])
+    resolu, faits = rs.resout_document(
+        hote_inline(inclusion_inline("habilitation", PAGE_INLINE)), "CU-HOTE", "942",
+        fournisseur)
+    echecs += check([n.get("type") for n in resolu["content"]]
+                    == ["paragraph", "paragraph", "bulletList", "bulletList",
+                        "paragraph", "paragraph"],
+                    f"escalade : tete, marqueur, les deux listes, marqueur, queue — "
+                    f"obtenu {[n.get('type') for n in resolu['content']]}")
+    echecs += check([texte(n).strip() for n in resolu["content"]]
+                    == ["Habilitations :", OUVRANT_HAB, "a b", "c", FERMANT_HAB,
+                        "pour agir."],
+                    f"le texte qui suivait devient son propre paragraphe : "
+                    f"{lisible([texte(n).strip() for n in resolu['content']])}")
+    echecs += check(marqueurs_profonds(resolu) == [OUVRANT_HAB, FERMANT_HAB],
+                    f"les marqueurs passent en forme de BLOC : "
+                    f"{lisible(marqueurs_profonds(resolu))}")
+    echecs += check(mal_places(resolu) == [],
+                    f"une escalade ne laisse aucun bloc a une place inline : "
+                    f"{mal_places(resolu)}")
+    echecs += check([(f["statut"], f["forme"], f.get("substitution")) for f in faits]
+                    == [("resolue", "inline", "scindee")],
+                    f"la scission est un CONSTAT, pas un incident : le statut reste "
+                    f"resolue et la page scorable — {faits}")
+
+    # --- 5. Escalade, hote sans tete ni queue : aucun paragraphe vide.
+    seul = document([para_de([inclusion_inline("habilitation", PAGE_INLINE)])])
+    resolu5, _ = rs.resout_document(seul, "CU-HOTE", "944", fournisseur)
+    echecs += check([n.get("type") for n in resolu5["content"]]
+                    == ["paragraph", "bulletList", "bulletList", "paragraph"],
+                    f"un morceau vide ne produit pas de conteneur vide : "
+                    f"{[n.get('type') for n in resolu5['content']]}")
+    vides = [n for n in resolu5["content"]
+             if n.get("type") == "paragraph" and not n.get("content")]
+    echecs += check(vides == [], f"aucun paragraphe vide emis : {vides}")
+
+    # --- 6. Escalade, definition a deux paragraphes : meme forme qu'au 4.
+    f6 = Fournisseur([("945", PAGE_INLINE,
+                       source_inline([para("premier"), para("second")]))])
+    resolu6, faits6 = rs.resout_document(
+        hote_inline(inclusion_inline("habilitation", PAGE_INLINE)), "CU-HOTE", "946", f6)
+    echecs += check([texte(n).strip() for n in resolu6["content"]]
+                    == ["Habilitations :", OUVRANT_HAB, "premier", "second",
+                        FERMANT_HAB, "pour agir."],
+                    f"deux noeuds de premier niveau escaladent aussi : "
+                    f"{lisible([texte(n).strip() for n in resolu6['content']])}")
+    echecs += check(faits6 and faits6[0].get("substitution") == "scindee",
+                    f"constat attendu : {faits6}")
+    echecs += check(mal_places(resolu6) == [], f"{mal_places(resolu6)}")
+
+    # --- 7. Non-resolution : le marqueur suit la FORME de l'inclusion.
+    doc7 = hote_inline(inclusion_inline("habilitation", "SF-ABSENTE"))
+    resolu7, faits7 = rs.resout_document(doc7, "CU-HOTE", "947", Fournisseur([]))
+    echecs += check([n.get("type") for n in resolu7["content"]] == ["paragraph"],
+                    f"le paragraphe hote n'est pas scinde par une non-resolution : "
+                    f"{[n.get('type') for n in resolu7['content']]}")
+    echecs += check(
+        resolu7["content"][0]["content"]
+        == [txt("Habilitations : "),
+            txt("↳ inclusion non résolue : habilitation — source : SF-ABSENTE — "
+                "page source introuvable", EM),
+            txt(" pour agir.")],
+        f"le marqueur reste INLINE, pas un paragraphe qui couperait la phrase : "
+        f"{lisible(resolu7['content'][0]['content'])}")
+    echecs += check([(f["statut"], f["forme"]) for f in faits7]
+                    == [("page_source_absente", "inline")], f"{faits7}")
+
+    # Definition absente : meme forme, autre motif.
+    f8 = Fournisseur([("948", PAGE_INLINE, document([para("page sans definition")]))])
+    doc8 = hote_inline(inclusion_inline("habilitation", PAGE_INLINE))
+    resolu8, faits8 = rs.resout_document(doc8, "CU-HOTE", "949", f8)
+    echecs += check([n.get("type") for n in resolu8["content"]] == ["paragraph"],
+                    "une definition absente ne scinde pas davantage")
+    echecs += check(marqueurs_profonds(resolu8)
+                    == ["↳ inclusion non résolue : habilitation — source : SF-INLINE — "
+                        "définition introuvable sur la page source"],
+                    f"{lisible(marqueurs_profonds(resolu8))}")
+    echecs += check([(f["statut"], f["forme"]) for f in faits8]
+                    == [("definition_absente", "inline")], f"{faits8}")
+
+    # --- 8. Recursion : une definition inline qui en contient une autre.
+    imbrique = document([
+        definition("externe", [para_de([txt("avant "),
+                                        inclusion_inline("interne", PAGE_INLINE),
+                                        txt(" apres")])]),
+        definition("interne", [para_de([txt("VALEUR")])])])
+    f9 = Fournisseur([("950", PAGE_INLINE, imbrique)])
+    resolu9, faits9 = rs.resout_document(
+        hote_inline(inclusion_inline("externe", PAGE_INLINE)), "CU-HOTE", "951", f9)
+    echecs += check([n.get("type") for n in resolu9["content"]] == ["paragraph"],
+                    f"tout reste dans le paragraphe hote : "
+                    f"{[n.get('type') for n in resolu9['content']]}")
+    echecs += check(marqueurs_profonds(resolu9)
+                    == ["↳ inclusion : externe — source : SF-INLINE",
+                        "↳ inclusion : interne — source : SF-INLINE",
+                        "↳ fin inclusion : interne",
+                        "↳ fin inclusion : externe"],
+                    f"les marqueurs s'emboitent dans l'ordre : "
+                    f"{lisible(marqueurs_profonds(resolu9))}")
+    echecs += check("VALEUR" in texte(resolu9),
+                    "le contenu de l'inclusion imbriquee doit apparaitre")
+    echecs += check(mal_places(resolu9) == [], f"{mal_places(resolu9)}")
+    echecs += check(all(f["forme"] == "inline" and f.get("substitution") == "inline"
+                        for f in faits9) and len(faits9) == 2,
+                    f"deux inclusions inline substituees en place : {faits9}")
+
+    # --- 9. Non-partage : les noeuds deposes ne partagent rien avec la source.
+    source = source_inline()
+    resolu10, _ = rs.resout_document(
+        hote_inline(inclusion_inline("habilitation", PAGE_INLINE)), "CU-HOTE", "952",
+        Fournisseur([("953", PAGE_INLINE, source)]))
+    depose = resolu10["content"][0]["content"]
+    echecs += check(not (identites(depose) & identites(source)),
+                    "un noeud depose ne doit partager AUCUN objet mutable avec la "
+                    "definition source : la muter corromprait l'index pour tout le run")
+
+    # --- 10 et 11. Invariants sur le corpus dore.
+    formes = {}
+    statuts_inline = set()
+    for pid, titre in sorted(TITRES.items()):
+        resolu, faits = rs.resout_document(charge(pid), titre, pid, fournisseur_fixtures())
+        echecs += check(mal_places(resolu) == [],
+                        f"{pid} : aucun noeud de bloc a une place inline, obtenu "
+                        f"{mal_places(resolu)}")
+        echecs += check(rs._contient_echappement(resolu) is False,
+                        f"{pid} : aucune enveloppe de scission ne survit au parcours")
+        for fait in faits:
+            formes[fait["forme"]] = formes.get(fait["forme"], 0) + 1
+            if fait["forme"] == "inline":
+                statuts_inline.add(fait["statut"])
+    echecs += check(formes == {"bloc": 27, "inline": 5},
+                    f"5 inclusions inline et 27 de bloc au corpus dore : {formes}")
+    echecs += check(statuts_inline == {"page_source_absente"},
+                    f"les 5 inline visent des pages hors des 9 fixtures : "
+                    f"{statuts_inline}")
     return echecs
 
 
@@ -1148,6 +1470,7 @@ def run():
     echecs += verifie_forme_marqueur()
     echecs += verifie_nettoyage_libelle()
     echecs += verifie_aucun_commentaire_html()
+    echecs += verifie_inclusion_inline()
     echecs += verifie_corpus_dore()
 
     if echecs:
