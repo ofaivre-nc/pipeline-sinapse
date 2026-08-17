@@ -2,7 +2,7 @@
 """
 Resolution du contenu reutilise — les trois mecanismes, en un seul parcours.
 
-VERSION : 1.0
+VERSION : 1.1
 
 Ce module remplace le contenu reutilise par sa valeur et injecte les tables imbriquees,
 AVANT toute normalisation et tout rendu markdown. L'ordre importe : le contrat resout
@@ -33,14 +33,14 @@ definition absente, une page source absente — et laisse au rapport de run et a
 l'index croise le soin d'en deduire `parse_status`. Changer un seuil ne doit pas
 imposer de toucher au resolver.
 
-Contrat de reference : contracts/normalisation_adf.md §1, §1.8 et §2.
+Contrat de reference : contracts/normalisation_adf.md §1, §1.8, §1.9 et §2.
 """
 
 import copy
 
 import multiexcerpt as mx
 
-VERSION = "1.0"
+VERSION = "1.1"
 
 
 # ==========================================================================
@@ -60,8 +60,10 @@ STATUT_RESOLUE = "resolue"
 STATUT_DEFINITION_ABSENTE = "definition_absente"
 STATUT_PAGE_SOURCE_ABSENTE = "page_source_absente"
 
+# Ces motifs partent dans un .md : ils sont accentues, comme tout contenu ecrit dans un
+# fichier. Les valeurs de `statut` ci-dessus ne le sont pas — champs structures.
 MOTIFS = {
-    STATUT_DEFINITION_ABSENTE: "definition introuvable sur la page source",
+    STATUT_DEFINITION_ABSENTE: "définition introuvable sur la page source",
     STATUT_PAGE_SOURCE_ABSENTE: "page source introuvable",
 }
 
@@ -69,25 +71,58 @@ MOTIFS = {
 # ==========================================================================
 # Marquage dans le resultat
 # ==========================================================================
-# Le contrat demande que le contenu reutilise soit marque VISIBLEMENT dans le .md. Le
-# marqueur est un paragraphe de texte portant un commentaire HTML : le renderer le
-# laisse passer tel quel, aucun type de noeud nouveau n'est a declarer, et le contrat
-# de normalisation n'a pas a bouger.
+# Le contrat demande que le contenu reutilise soit marque VISIBLEMENT dans le .md
+# (§1.9) : une ligne en italique a l'ouverture et a la fermeture, portant le nom du
+# contenu et sa page source. Le resolver depose un `paragraph` portant un noeud `text`
+# marque `em` — JAMAIS d'asterisques litterales, qui s'afficheraient telles quelles a
+# l'interieur d'une balise <em> en cellule de tableau HTML. Le marqueur suit ainsi la
+# machinerie deja en place : aucun type de noeud nouveau n'est a declarer.
+#
+# UNE SEULE FONCTION DE FABRICATION PAR LIBELLE, partagee bloc/inline : le §1.9 en fait
+# une exigence explicite — une seule surface de test. La forme inline reprendra ces
+# libelles tels quels, en changeant seulement le porteur.
 
-def _marqueur(texte):
-    return {"type": "paragraph", "content": [{"type": "text", "text": f"<!-- {texte} -->"}]}
-
-
-def marqueur_ouvrant(titre_source, nom):
-    return _marqueur(f"inclusion : {titre_source} / {nom}")
-
-
-def marqueur_fermant(titre_source, nom):
-    return _marqueur(f"fin inclusion : {titre_source} / {nom}")
+CARACTERES_NEUTRALISES = "|<>"
 
 
-def marqueur_non_resolue(cible, nom, motif):
-    return _marqueur(f"inclusion non resolue : {cible} / {nom} — {motif}")
+def _fragment(valeur):
+    """Fragment de libelle sur, quel que soit l'etat des donnees.
+
+    |, < et > sont remplaces par une ESPACE, pas supprimes : une suppression
+    souderait deux mots. Ce sont les trois caracteres que le rendu echappe
+    (contrat §9.1) ; un marqueur qui en porterait serait deforme en cellule.
+    La garantie est par construction, jamais par l'etat du corpus du jour.
+    """
+    texte = str(valeur or "")
+    for caractere in CARACTERES_NEUTRALISES:
+        texte = texte.replace(caractere, " ")
+    return " ".join(texte.split())
+
+
+def libelle_ouvrant(nom, source):
+    return f"↳ inclusion : {_fragment(nom)} — source : {_fragment(source)}"
+
+
+def libelle_fermant(nom):
+    return f"↳ fin inclusion : {_fragment(nom)}"
+
+
+def libelle_non_resolue(nom, source, motif):
+    return (f"↳ inclusion non résolue : {_fragment(nom)} — "
+            f"source : {_fragment(source)} — {motif}")
+
+
+def nom_sync(uuid):
+    """Nom affiche d'un bloc synchronise. Contrat §1.9."""
+    return f"bloc synchronisé {str(uuid)[:8]}"
+
+
+def _texte_em(libelle):
+    return {"type": "text", "text": libelle, "marks": [{"type": "em"}]}
+
+
+def marqueur_bloc(libelle):
+    return {"type": "paragraph", "content": [_texte_em(libelle)]}
 
 
 # ==========================================================================
@@ -372,39 +407,45 @@ class Resolveur:
 
         if not self.assure_titre(cible):
             self._consigne(mecanisme, (cible, nom), STATUT_PAGE_SOURCE_ABSENTE, hors, ou)
-            return [marqueur_non_resolue(cible, nom, MOTIFS[STATUT_PAGE_SOURCE_ABSENTE])]
+            return [marqueur_bloc(libelle_non_resolue(
+                nom, cible, MOTIFS[STATUT_PAGE_SOURCE_ABSENTE]))]
 
         definition = self.index.resout(node, titre)
         if definition is None:
             self._consigne(mecanisme, (cible, nom), STATUT_DEFINITION_ABSENTE, hors, ou)
-            return [marqueur_non_resolue(cible, nom, MOTIFS[STATUT_DEFINITION_ABSENTE])]
+            return [marqueur_bloc(libelle_non_resolue(
+                nom, cible, MOTIFS[STATUT_DEFINITION_ABSENTE]))]
 
         injecte = self._injecte(definition, mecanisme, (cible, nom), guard)
         self._consigne(mecanisme, (cible, nom), STATUT_RESOLUE, hors, ou)
-        return ([marqueur_ouvrant(definition["page_title"], nom)] + injecte
-                + [marqueur_fermant(definition["page_title"], nom)])
+        return ([marqueur_bloc(libelle_ouvrant(nom, definition["page_title"]))] + injecte
+                + [marqueur_bloc(libelle_fermant(nom))])
 
     def _resout_sync(self, node, titre, page_id, guard):
         cle = mx.sync_include_key(node)
         source_id, uuid = cle
         ou = mx.emplacement(node, page_id, titre)
         hors = self._hors_perimetre_id(source_id)
+        # Le §1.9 demande le TITRE de la page source, exactement comme une macro. Seule
+        # la non-resolution n'en a pas a disposition — la page est absente — et se
+        # rabat sur la source DECLAREE, qui pour un syncBlock est un identifiant.
+        nom = nom_sync(uuid)
 
         if not self.assure_identifiant(source_id):
             self._consigne(MECANISME_SYNC, cle, STATUT_PAGE_SOURCE_ABSENTE, hors, ou)
-            return [marqueur_non_resolue(source_id, uuid,
-                                         MOTIFS[STATUT_PAGE_SOURCE_ABSENTE])]
+            return [marqueur_bloc(libelle_non_resolue(
+                nom, f"page {source_id}", MOTIFS[STATUT_PAGE_SOURCE_ABSENTE]))]
 
         definition = self.sync.get(cle)
         if definition is None:
             self._consigne(MECANISME_SYNC, cle, STATUT_DEFINITION_ABSENTE, hors, ou)
-            return [marqueur_non_resolue(source_id, uuid,
-                                         MOTIFS[STATUT_DEFINITION_ABSENTE])]
+            return [marqueur_bloc(libelle_non_resolue(
+                nom, f"page {source_id}", MOTIFS[STATUT_DEFINITION_ABSENTE]))]
 
         injecte = self._injecte(definition, MECANISME_SYNC, cle, guard)
         self._consigne(MECANISME_SYNC, cle, STATUT_RESOLUE, hors, ou)
-        return ([marqueur_ouvrant(definition["page_title"], uuid)] + injecte
-                + [marqueur_fermant(definition["page_title"], uuid)])
+        return ([marqueur_bloc(libelle_ouvrant(nom, definition["page_title"]))] + injecte
+                + [marqueur_bloc(libelle_fermant(nom))])
 
 
 # ==========================================================================

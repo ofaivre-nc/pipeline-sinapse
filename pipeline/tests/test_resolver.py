@@ -259,10 +259,10 @@ def zones(adf, nom):
     ouvertes, courant, dedans = [], [], False
     for node in (adf.get("content") or []):
         brut = texte(node).strip()
-        if brut.startswith("<!-- inclusion :") and brut.endswith(f"/ {nom} -->"):
+        if brut.startswith(f"↳ inclusion : {nom} — source : "):
             dedans, courant = True, []
             continue
-        if dedans and brut.startswith("<!-- fin inclusion :"):
+        if dedans and brut.startswith("↳ fin inclusion :"):
             ouvertes.append(courant)
             dedans = False
             continue
@@ -272,9 +272,43 @@ def zones(adf, nom):
 
 
 def marqueurs(adf):
-    """Tous les commentaires de marquage du document, a plat."""
+    """Tous les marqueurs d'inclusion du document, a plat."""
     return [t for t in (texte(n).strip() for n in (adf.get("content") or []))
-            if t.startswith("<!--")]
+            if t.startswith("↳")]
+
+
+def textes(adf):
+    """Valeurs de TOUS les noeuds `text` de l'arbre, a n'importe quelle profondeur.
+
+    marqueurs() ne lit que le premier niveau, ce qui suffit aux documents synthetiques ;
+    dans les fixtures reelles les inclusions vivent au fond des tableaux.
+    """
+    trouves = []
+
+    def walk(n):
+        if isinstance(n, dict):
+            if n.get("type") == "text":
+                trouves.append(n.get("text", ""))
+            for enfant in (n.get("content") or []):
+                walk(enfant)
+        elif isinstance(n, list):
+            for enfant in n:
+                walk(enfant)
+
+    walk(adf)
+    return trouves
+
+
+def lisible(valeur):
+    """Texte de marqueur pret a partir dans un message d'echec.
+
+    U+21B3 est absent de cp1252 — contrairement a `e` accentue et a l'em-dash, qui y
+    sont. Un message d'echec qui interpole un marqueur tel quel leve
+    UnicodeEncodeError des que la sortie est redirigee, et le test plante A LA PLACE de
+    son propre diagnostic : on ne sait plus lequel des controles a echoue. Les litteraux
+    ATTENDUS, eux, restent ecrits en clair — c'est la forme qu'ils surveillent.
+    """
+    return ascii(valeur)
 
 
 def identites(node):
@@ -405,7 +439,7 @@ def verifie_entites_html():
     injecte = zones(resolu, propre)
     echecs += check(len(injecte) == 1,
                     f"le marqueur doit porter le nom decode, une zone attendue : "
-                    f"{marqueurs(resolu)}")
+                    f"{lisible(marqueurs(resolu))}")
     if len(injecte) == 1:
         attendu = corps_definition("180256775", propre)
         echecs += check(injecte[0] == attendu,
@@ -712,9 +746,10 @@ def verifie_syncblock():
     resolu3, faits3 = rs.resout_document(doc3, "CU-TEST", "999", Fournisseur([]))
     echecs += check([f["statut"] for f in faits3] == ["page_source_absente"], f"{faits3}")
     echecs += check(marqueurs(resolu3)
-                    == [f"<!-- inclusion non resolue : 999999 / {absent} — "
-                        f"page source introuvable -->"],
-                    f"le marqueur doit porter la cible et le motif : {marqueurs(resolu3)}")
+                    == [f"↳ inclusion non résolue : bloc synchronisé {absent[:8]} — "
+                        f"source : page 999999 — page source introuvable"],
+                    f"le marqueur doit porter la cible et le motif : "
+                    f"{lisible(marqueurs(resolu3))}")
     return echecs
 
 
@@ -882,9 +917,10 @@ def verifie_non_resolues():
     echecs += check([f["statut"] for f in faits] == ["definition_absente"], f"{faits}")
     echecs += check(faits[0]["emplacement"] == "page 999, localId loc-42",
                     f"le fait doit localiser l'inclusion : {faits[0]['emplacement']}")
-    echecs += check(marqueurs(resolu) == ["<!-- inclusion non resolue : SF-VIDE / ABSENTE "
-                                          "— definition introuvable sur la page source -->"],
-                    f"marqueur attendu, obtenu : {marqueurs(resolu)}")
+    echecs += check(marqueurs(resolu) == ["↳ inclusion non résolue : ABSENTE — "
+                                          "source : SF-VIDE — définition introuvable "
+                                          "sur la page source"],
+                    f"marqueur attendu, obtenu : {lisible(marqueurs(resolu))}")
     echecs += check(natures(resolu) == [],
                     "le noeud d'inclusion doit avoir disparu, remplace par le marqueur")
 
@@ -893,7 +929,7 @@ def verifie_non_resolues():
     resolu2, faits2 = rs.resout_document(doc2, "CU-TEST", "999", Fournisseur([]))
     echecs += check([f["statut"] for f in faits2] == ["page_source_absente"], f"{faits2}")
     echecs += check("page source introuvable" in marqueurs(resolu2)[0],
-                    f"{marqueurs(resolu2)}")
+                    f"{lisible(marqueurs(resolu2))}")
 
     # Les deux familles portent le meme traitement.
     doc3 = document([inclusion("N", "SF-INEXISTANTE", famille="excerpt")])
@@ -936,6 +972,125 @@ def verifie_page_courante_et_ordre():
             document([definition("D", [para("un")]), definition("D", [para("deux")])]),
             page, "922", Fournisseur([])),
         "une cle de definition en double doit lever", motif="double")
+    return echecs
+
+
+# --------------------------------------------------------------------------
+# 8. La forme du marqueur — contrat §1.9
+# --------------------------------------------------------------------------
+
+def verifie_forme_marqueur():
+    """Le marqueur est un paragraphe portant UN texte marque `em`, sans asterisque.
+
+    Les asterisques du contrat sont le RENDU de la mark, pas des caracteres emis : en
+    cellule de tableau HTML elles s'afficheraient telles quelles a l'interieur de la
+    balise <em>. Les litteraux attendus sont ecrits en dur — les reconstruire en
+    appelant libelle_ouvrant() laisserait le controle vert quand le code change de forme.
+    """
+    echecs = 0
+    adf = document([inclusion("M"), definition("M", [para("corps M")])])
+    resolu, faits = rs.resout_document(adf, "SF-MARQUEUR", "930", Fournisseur([]))
+    echecs += check([f["statut"] for f in faits] == ["resolue"], f"{faits}")
+
+    portants = [n for n in (resolu.get("content") or [])
+                if texte(n).strip().startswith("↳")]
+    echecs += check(len(portants) == 2,
+                    f"une inclusion resolue encadre son contenu de deux marqueurs, "
+                    f"obtenu {len(portants)} : {lisible(marqueurs(resolu))}")
+    echecs += check(marqueurs(resolu) == ["↳ inclusion : M — source : SF-MARQUEUR",
+                                          "↳ fin inclusion : M"],
+                    f"libelles attendus, obtenu : {lisible(marqueurs(resolu))}")
+
+    for rang, node in enumerate(portants):
+        echecs += check(node.get("type") == "paragraph",
+                        f"marqueur {rang} : un paragraph attendu, obtenu "
+                        f"{node.get('type')!r}")
+        enfants = node.get("content") or []
+        echecs += check(len(enfants) == 1,
+                        f"marqueur {rang} : un seul enfant attendu, obtenu {len(enfants)}")
+        if len(enfants) != 1:
+            continue
+        enfant = enfants[0]
+        echecs += check(enfant.get("type") == "text",
+                        f"marqueur {rang} : l'enfant est un text, obtenu "
+                        f"{enfant.get('type')!r}")
+        echecs += check(enfant.get("marks") == [{"type": "em"}],
+                        f"marqueur {rang} : la mark em et elle seule, obtenu "
+                        f"{enfant.get('marks')!r}")
+        echecs += check(enfant.get("text", "").count("*") == 0,
+                        f"marqueur {rang} : les asterisques sont le rendu de la mark, "
+                        f"pas du texte emis — obtenu {lisible(enfant.get('text'))}")
+    return echecs
+
+
+def verifie_nettoyage_libelle():
+    """|, < et > deviennent une ESPACE a la fabrication du libelle. Contrat §1.9.
+
+    Par construction, jamais par l'etat du corpus du jour : ce sont les trois caracteres
+    que le rendu echappe (§9.1), et un marqueur qui en porterait serait deforme en
+    cellule. Une SUPPRESSION souderait deux mots, d'ou l'espace.
+    """
+    echecs = 0
+    nom = "RG|A<B>C"
+    source = "SF<PAGE> | TITRE"
+
+    echecs += check(rs.libelle_ouvrant(nom, source)
+                    == "↳ inclusion : RG A B C — source : SF PAGE TITRE",
+                    f"libelle ouvrant nettoye attendu, obtenu "
+                    f"{lisible(rs.libelle_ouvrant(nom, source))}")
+    echecs += check(rs.libelle_fermant(" <RG|A> ") == "↳ fin inclusion : RG A",
+                    f"les extremites sont rognees et les espaces compactes, obtenu "
+                    f"{lisible(rs.libelle_fermant(' <RG|A> '))}")
+    echecs += check(rs.libelle_non_resolue(nom, source, "page source introuvable")
+                    == "↳ inclusion non résolue : RG A B C — source : SF PAGE TITRE "
+                       "— page source introuvable",
+                    f"libelle de non-resolution nettoye attendu, obtenu "
+                    f"{lisible(rs.libelle_non_resolue(nom, source, 'x'))}")
+    echecs += check(rs.nom_sync("fb607b8e-c344-4322-93eb-6e86a5304bc8")
+                    == "bloc synchronisé fb607b8e",
+                    f"le nom d'un bloc synchronise est l'UUID tronque a 8 : "
+                    f"{rs.nom_sync('fb607b8e-c344-4322-93eb-6e86a5304bc8')}")
+
+    # Bout en bout : un titre de page reellement porteur des trois caracteres. C'est le
+    # cas du premier renommage de page, que le corpus du jour ne montre pas.
+    doc = document([inclusion("N", "SF<INEXISTANTE>|Z")])
+    resolu, faits = rs.resout_document(doc, "CU-TEST", "999", Fournisseur([]))
+    echecs += check([f["statut"] for f in faits] == ["page_source_absente"], f"{faits}")
+    echecs += check(marqueurs(resolu) == ["↳ inclusion non résolue : N — source : "
+                                          "SF INEXISTANTE Z — page source introuvable"],
+                    f"le marqueur emis doit etre nettoye, obtenu "
+                    f"{lisible(marqueurs(resolu))}")
+    return echecs
+
+
+def verifie_aucun_commentaire_html():
+    """Sur les 9 fixtures resolues : aucun `text` produit ne commence par `<!--`.
+
+    Le sommaire en commentaire est l'affaire du renderer, pas du resolver (§1.9). On
+    mesure et on compare a 0 ; on ne cherche pas un coupable connu.
+    """
+    echecs = 0
+    commentaires = 0
+    marques = 0
+    resolues = 0
+    non_resolues = 0
+    for pid, titre in sorted(TITRES.items()):
+        resolu, faits = rs.resout_document(charge(pid), titre, pid, fournisseur_fixtures())
+        valeurs = textes(resolu)
+        commentaires += sum(1 for t in valeurs if t.startswith("<!--"))
+        marques += sum(1 for t in valeurs if t.startswith("↳"))
+        resolues += sum(1 for f in faits if f["statut"] == "resolue")
+        non_resolues += sum(1 for f in faits if f["statut"] != "resolue")
+    echecs += check(commentaires == 0,
+                    f"aucun commentaire HTML ne doit sortir du resolver, obtenu "
+                    f"{commentaires}")
+    # Chaque fait laisse sa trace : deux marqueurs s'il est resolu, un seul sinon. La
+    # relation croise deux chemins de code — _consigne et le marquage — au lieu de figer
+    # un nombre qu'une mauvaise mesure rendrait vrai pour toujours.
+    echecs += check(marques == 2 * resolues + non_resolues,
+                    f"{marques} marqueurs pour {resolues} inclusions resolues et "
+                    f"{non_resolues} non resolues, attendu "
+                    f"{2 * resolues + non_resolues}")
     return echecs
 
 
@@ -990,6 +1145,9 @@ def run():
     echecs += verifie_un_appel_par_source()
     echecs += verifie_non_resolues()
     echecs += verifie_page_courante_et_ordre()
+    echecs += verifie_forme_marqueur()
+    echecs += verifie_nettoyage_libelle()
+    echecs += verifie_aucun_commentaire_html()
     echecs += verifie_corpus_dore()
 
     if echecs:
