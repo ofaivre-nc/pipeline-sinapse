@@ -25,8 +25,25 @@ Couverture : 33 des 36 types de nœuds du corpus. Restent non couverts `date`, `
 `mediaInline` — trois nœuds marginaux (respectivement 1, 7 et 3 pages) à ajouter si le
 normalizer les traite spécifiquement.
 
-Les `.md` attendus seront ajoutés à côté de chaque `.json` au moment d'écrire le renderer :
-**toute modification du normalizer rejoue ces fixtures.**
+## Les `.md` attendus
+
+Un `{id}.md` à côté de chaque `{id}.json`, produit par la chaîne complète — ADF brut,
+puis `resolver.py` (résolution du contenu réutilisé et injection des `nested-table`),
+puis `renderer.py`. **Toute modification du normalizer rejoue ces fixtures.**
+
+L'inventaire injecté au renderer est dérivé de `pages_classification_20260805.json` par
+`inventory.md_path()`, restreint aux 232 pages exportées : c'est ce qui donne aux liens
+internes de vrais chemins relatifs. `md_path_source` est le `md_path` de la page rendue.
+
+**Deux des neuf pages sont hors du périmètre d'export** — `109543425` et `110067713`,
+exclues par héritage du préfixe `Archive`. Elles n'ont donc pas de `md_path`, et leur
+`.md` est produit sans `md_path_source`. Un run réel ne les écrirait pas ; elles restent
+au corpus doré pour ce qu'elles couvrent en types de nœuds.
+
+Aucun **incident** au sens du contrat sur les neuf. Les seuls constats sont sur
+`380567556` : un JQL à gabarit `{{page.url}}` non substitué, et un `inlineCard` vers une
+URL d'édition — les deux sont des anomalies de rédaction, consignées dans
+`docs/anomalies-confluence.md`.
 
 ## `pages_classification_20260805.json` — corpus de non-régression
 
