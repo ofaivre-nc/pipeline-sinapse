@@ -2,7 +2,7 @@
 """
 Recensement des noeuds ADF du corpus Confluence SINAPSE — etape 0d du pipeline.
 
-VERSION : 1.1 — inventaire des types de noeuds, des macros (extensionKey), des marks et
+VERSION : 1.2 — inventaire des types de noeuds, des macros (extensionKey), des marks et
                 des cards (liens Jira et Confluence) presents dans un echantillon de pages.
                 Aucune conversion, aucune dependance a une bibliotheque ADF->MD.
 

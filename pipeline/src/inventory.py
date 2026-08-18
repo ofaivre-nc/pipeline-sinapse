@@ -2,7 +2,7 @@
 """
 Inventaire et classification des pages du corpus SINAPSE — etape 3 du pipeline.
 
-VERSION : 1.2 — slugification et detection de collision
+VERSION : 1.4
 
 Trois responsabilites :
   - normaliser le titre AVANT tout filtrage (entites HTML, tirets Unicode) ;
