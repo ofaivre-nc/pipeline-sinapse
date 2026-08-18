@@ -712,7 +712,8 @@ mode markdown :
     ![{alt}](adf-media://{id}?collection={collection})<br>
     *{légende}*
 
-En mode HTML, `caption` est déjà rendu par `<em>` (§9.2) et la question ne se pose pas.
+En mode HTML, `caption` est déjà rendu par `<em>` (§9.1, table de rendu HTML) et la
+question ne se pose pas.
 
 **Aucun binaire n'est téléchargé.** Le pipeline produit des `.md` de
 spécification, pas une copie de l'espace Confluence. Le marqueur retenu est de la
