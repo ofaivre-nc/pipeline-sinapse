@@ -808,6 +808,420 @@ def verifie_cartes_bloc():
     return echecs
 
 
+# --------------------------------------------------------------------------
+# 9. Les cas que le corpus dore n'exerce pas — §10 du contrat et releve du 18 aout
+# --------------------------------------------------------------------------
+# Trois d'entre eux sont PRESENTS au corpus dore SANS CONSEQUENCE OBSERVABLE : un
+# renderer qui les porte sort vert sur les 9 fixtures, et une relecture des .md ne les
+# verrait pas non plus, les fichiers etant corrects. Ce sont les plus dangereux.
+
+def verifie_rule_et_heading_en_cellule():
+    """Defaut n° 4 : `rule` et `heading` sont du contenu de bloc en cellule.
+
+    HORS D'ATTEINTE DU CORPUS DORE. Mesure du 18 aout : 1 cellule porte un `rule` en
+    enfant direct, 0 un `heading`, et le nombre de cellules ou la liste a sept types et
+    la liste a neuf donnent un verdict different est ZERO — le tableau hote de cette
+    cellule est complexe pour un autre motif. Le contrat qualifie lui-meme cette
+    couverture de fortuite. Sans ce test, la liste amputee resterait verte.
+    """
+    echecs = 0
+    echecs += check("rule" in rd.BLOCS_EN_CELLULE and "heading" in rd.BLOCS_EN_CELLULE,
+                    f"rule et heading doivent etre du contenu de bloc en cellule : "
+                    f"{sorted(rd.BLOCS_EN_CELLULE)}")
+    echecs += check(len(rd.BLOCS_EN_CELLULE) == 9,
+                    f"9 types de contenu de bloc en cellule, obtenu "
+                    f"{sorted(rd.BLOCS_EN_CELLULE)}")
+
+    # Une cellule dont le SEUL contenu est un `rule` : sans la regle, le tableau reste
+    # en pipes et le `---` sort au milieu d'une ligne, qu'il rompt.
+    avec_rule = tableau(ligne(cellule(para(txt("A"))), cellule({"type": "rule"})))
+    markdown, _ = rend(document([avec_rule]))
+    echecs += check(markdown.startswith("<table>"),
+                    f"un `rule` en cellule fait basculer le tableau en HTML, obtenu "
+                    f"{markdown[:80]!r}")
+    echecs += check("<hr>" in markdown, f"le rule doit sortir en <hr> : {markdown}")
+    echecs += check("---" not in markdown,
+                    f"aucun `---` ne doit rompre la ligne de pipes : {markdown}")
+
+    # Meme chose pour un `heading`.
+    avec_titre = tableau(ligne(cellule(para(txt("A"))),
+                               cellule({"type": "heading", "attrs": {"level": 2},
+                                        "content": [txt("Titre")]})))
+    markdown2, _ = rend(document([avec_titre]))
+    echecs += check(markdown2.startswith("<table>"),
+                    f"un `heading` en cellule fait basculer en HTML : {markdown2[:80]!r}")
+    echecs += check("<h2>Titre</h2>" in markdown2, f"{markdown2}")
+    echecs += check("## Titre" not in markdown2,
+                    "aucun `##` ne doit sortir au milieu d'une ligne de pipes")
+    return echecs
+
+
+def verifie_table_en_cellule():
+    """Defaut n° 6, garde-fou : une cellule dont le seul bloc est un `table`.
+
+    Le renderer recoit un arbre DEJA INJECTE : il n'y a plus de `nested-table` a mal
+    juger, et le defaut d'origine — evaluer la complexite avant injection — ne peut plus
+    exister ici. Le risque residuel est de reintroduire une evaluation anticipee, et
+    c'est ce que ce controle surveille : un `table` en cellule bascule, seul.
+
+    HORS D'ATTEINTE DU CORPUS DORE : les 2 cellules qui portaient un `nested-table` sont
+    complexes pour un autre motif, mesure du 18 aout.
+    """
+    echecs = 0
+    interne = tableau(ligne(cellule(para(txt("x")))))
+    externe = tableau(ligne(cellule(para(txt("A"))), cellule(interne)))
+    markdown, faits = rend(document([externe]))
+    echecs += check(markdown.startswith("<table>"),
+                    f"un `table` en cellule fait basculer en HTML : {markdown[:80]!r}")
+    echecs += check(markdown.count("<table>") == 2,
+                    f"le tableau imbrique se rend en <table> complet, recursivement : "
+                    f"{markdown}")
+    echecs += check("| x |" not in markdown,
+                    f"aucune syntaxe en pipes ne doit subsister : {markdown}")
+    echecs += check(faits == [], f"aucun fait attendu : {faits}")
+    return echecs
+
+
+def verifie_entete_mixte():
+    """§10 : la ligne d'en-tete mixte, troisieme declencheur de bascule.
+
+    HORS D'ATTEINTE DU CORPUS DORE : 58 tableaux sur 58 puis 60 sur 60 ont une premiere
+    ligne homogene et aucun `tableHeader` ailleurs. Sans la regle, le cas degrade en
+    silence — tout l'en-tete passe en corps et une ligne d'en-tete vide est emise.
+    """
+    echecs = 0
+    mixte = tableau(ligne(cellule(para(txt("A")), entete=True), cellule(para(txt("B")))),
+                    ligne(cellule(para(txt("1"))), cellule(para(txt("2")))))
+    markdown, _ = rend(document([mixte]))
+    echecs += check(markdown.startswith("<table>"),
+                    f"une premiere ligne mixte fait basculer en HTML : {markdown[:80]!r}")
+    echecs += check("<th><p>A</p></th><td><p>B</p></td>" in markdown,
+                    f"<th> et <td> cohabitent sans contrainte en HTML : {markdown}")
+
+    # Un `tableHeader` hors de la premiere ligne fait basculer aussi.
+    tardif = tableau(ligne(cellule(para(txt("A"))), cellule(para(txt("B")))),
+                     ligne(cellule(para(txt("1")), entete=True), cellule(para(txt("2")))))
+    markdown2, _ = rend(document([tardif]))
+    echecs += check(markdown2.startswith("<table>"),
+                    f"un tableHeader hors premiere ligne fait basculer : "
+                    f"{markdown2[:80]!r}")
+
+    # Une premiere ligne homogene SANS entete reste en pipes : ce n'est pas mixte.
+    homogene = tableau(ligne(cellule(para(txt("1"))), cellule(para(txt("2")))))
+    markdown3, _ = rend(document([homogene]))
+    echecs += check(markdown3.startswith("|"),
+                    f"une ligne homogene sans entete n'est pas mixte : {markdown3!r}")
+    return echecs
+
+
+def verifie_fusion_de_cellules():
+    """§10 : `colspan` et `rowspan`. Zero dans les 9 fixtures, 6 et 10 au corpus complet.
+
+    Un tableau en pipes n'a AUCUNE syntaxe pour les exprimer : la fusion disparaitrait
+    sans trace. Ils ne sont emis que s'ils valent plus de 1.
+    """
+    echecs = 0
+    fusion = tableau(ligne(cellule(para(txt("A")), entete=True,
+                                   attrs={"colspan": 3}),),
+                     ligne(cellule(para(txt("1"))), cellule(para(txt("2"))),
+                           cellule(para(txt("3")))))
+    markdown, _ = rend(document([fusion]))
+    echecs += check(markdown.startswith("<table>"),
+                    f"une fusion fait basculer en HTML : {markdown[:80]!r}")
+    echecs += check('<th colspan="3">' in markdown, f"{markdown}")
+
+    vertical = tableau(ligne(cellule(para(txt("A")), attrs={"rowspan": 2}),
+                             cellule(para(txt("B")))),
+                       ligne(cellule(para(txt("C")))))
+    markdown2, _ = rend(document([vertical]))
+    echecs += check('<td rowspan="2">' in markdown2, f"{markdown2}")
+
+    # colspan = 1 n'est pas emis.
+    unitaire = tableau(ligne(cellule(para(txt("A")), attrs={"colspan": 1}),
+                             cellule({"type": "rule"})))
+    markdown3, _ = rend(document([unitaire]))
+    echecs += check("colspan" not in markdown3,
+                    f"colspan=1 ne doit pas etre emis : {markdown3}")
+    return echecs
+
+
+def verifie_pas_de_repli_html():
+    """Defaut n° 3 : un type sans regle HTML en cellule HTML est un INCIDENT.
+
+    HORS D'ATTEINTE DU CORPUS DORE depuis que le renderer recoit un arbre injecte :
+    mesure du 18 aout, AUCUN type sans regle HTML ne se trouve dans une cellule de
+    tableau HTML. C'etait le `nested-table` qui rendait ce chemin atteignable.
+
+    Le repli est tentant parce qu'il produit toujours quelque chose — mais ce quelque
+    chose est `**Libelle**` affiche avec ses asterisques a l'interieur d'une balise.
+    """
+    echecs = 0
+    inconnu = {"type": "decisionList", "content": [para(txt("**gras**"))]}
+    liste = {"type": "bulletList", "content": [
+        {"type": "listItem", "content": [para(txt("bloc"))]}]}
+    # La liste fait basculer le tableau en HTML ; le type inconnu est dans l'autre cellule.
+    adf = document([tableau(ligne(cellule(liste), cellule(inconnu)))])
+    markdown, faits = rend(adf)
+    echecs += check(markdown.startswith("<table>"),
+                    f"le tableau doit etre en HTML : {markdown[:60]!r}")
+    echecs += check(codes(faits) == ["type_sans_regle_html"],
+                    f"le contrat nomme ce cas a part : {faits}")
+    echecs += check(niveaux(faits) == ["incident"],
+                    f"c'est un incident, pas un constat : {faits}")
+    echecs += check("decisionList" in faits[0]["detail"] if faits else False,
+                    f"le detail doit nommer le type : {faits}")
+    echecs += check("<td></td>" in markdown,
+                    f"le noeud fautif ne produit rien, la cellule sort vide : {markdown}")
+    echecs += check("**gras**" not in markdown,
+                    f"AUCUN repli sur le rendu markdown : {markdown}")
+
+    # Le meme type hors tableau donne l'autre code : le mode change le diagnostic.
+    _, faits2 = rend(document([inconnu]))
+    echecs += check(codes(faits2) == ["type_non_couvert"],
+                    f"hors cellule HTML, c'est un type non couvert : {faits2}")
+    return echecs
+
+
+def verifie_marks_hors_text():
+    """Defaut n° 7 : la regle des marks se lit par PORTEUR.
+
+    HORS D'ATTEINTE DU CORPUS DORE : les 89 marks non-`text` mesures y sont tous des
+    marks jetes, donc les ignorer produit la BONNE sortie et aucune comparaison de .md
+    ne verrait le defaut. Seul un cas synthetique l'atteint.
+    """
+    echecs = 0
+    fond = [{"type": "backgroundColor", "attrs": {"color": "#f8e6a0"}}]
+
+    # Sur un `paragraph` : rendu UNE SEULE FOIS autour du paragraphe rendu, et constat.
+    paragraphe = {"type": "paragraph", "marks": fond,
+                  "content": [txt("La date "), txt("doit etre", [{"type": "strong"}]),
+                              txt(" de la forme JJ/MM/AAAA")]}
+    markdown, faits = rend(document([paragraphe]))
+    echecs += check(
+        markdown == '<mark style="background:#f8e6a0">La date **doit etre** de la '
+                    'forme JJ/MM/AAAA</mark>',
+        f"le mark enveloppe le paragraphe RENDU, une seule fois : {markdown!r}")
+    echecs += check(markdown.count("<mark") == 1,
+                    f"une seule fois, pas une par noeud text : {markdown!r}")
+    echecs += check(codes(faits) == ["mark_hors_text"],
+                    f"un mark enveloppant hors `text` est un CONSTAT : {faits}")
+    echecs += check(niveaux(faits) == ["constat"], f"{faits}")
+
+    # Un mark hors des quinze : incident, quel que soit le porteur.
+    for porteur in (txt("t", [{"type": "sparkle"}]),
+                    {"type": "paragraph", "marks": [{"type": "sparkle"}],
+                     "content": [txt("t")]}):
+        _, faits2 = rend(document([porteur if porteur.get("type") == "paragraph"
+                                   else para(porteur)]))
+        echecs += check(codes(faits2) == ["mark_hors_liste_blanche"],
+                        f"un mark hors des quinze est un incident : {faits2}")
+
+    # `code` et `link` levent sur tout porteur autre que `text`.
+    for mark in ("code", "link"):
+        bloc = {"type": "paragraph", "marks": [{"type": mark, "attrs": {"href": "x"}}],
+                "content": [txt("t")]}
+        markdown3, faits3 = rend(document([bloc]))
+        echecs += check(codes(faits3) == ["mark_porteur_inadmis"],
+                        f"mark {mark} sur un paragraph : incident attendu, {faits3}")
+        echecs += check(markdown3 == "t",
+                        f"le contenu reste intact, seul le mark est perdu : {markdown3!r}")
+
+    # Un mark enveloppant sur un conteneur de blocs : incident. `**` ne traverse pas une
+    # ligne vide, et <mark> ne peut pas contenir un <ul>.
+    for conteneur in ("table", "bulletList", "expand", "panel", "blockquote"):
+        node = {"type": conteneur, "marks": [{"type": "strong"}], "content": []}
+        _, faits4 = rend(document([node]))
+        echecs += check("mark_porteur_inadmis" in codes(faits4),
+                        f"mark enveloppant sur {conteneur} : incident attendu, {faits4}")
+
+    # Les six admis sur les six porteurs admis ne produisent pas d'incident.
+    for porteur in ("paragraph", "heading"):
+        node = {"type": porteur, "marks": fond, "content": [txt("t")]}
+        if porteur == "heading":
+            node["attrs"] = {"level": 2}
+        _, faits5 = rend(document([node]))
+        echecs += check(niveaux(faits5) == ["constat"],
+                        f"{porteur} admet un mark enveloppant, avec constat : {faits5}")
+    return echecs
+
+
+def verifie_fontsize():
+    """§10 : `fontSize`. Zero dans les 9 fixtures, 3 au corpus complet.
+
+    Porte par un `paragraph` et non par un noeud `text` : le jeter laisse le paragraphe
+    et tout son contenu intacts, `status` compris. Deux defauts du prototype s'annulaient
+    en apparence sur ce cas — il ne lisait pas les marks des paragraphes, donc il ne
+    levait pas sur un mark qu'il ne connaissait pas.
+    """
+    echecs = 0
+    statut = {"type": "status", "attrs": {"text": "A VALIDER"}}
+    paragraphe = {"type": "paragraph", "marks": [{"type": "fontSize",
+                                                  "attrs": {"fontSize": "small"}}],
+                  "content": [txt("Legende : "), statut]}
+    markdown, faits = rend(document([paragraphe]))
+    echecs += check(markdown == "Legende : A VALIDER",
+                    f"texte et status intacts, mise en forme jetee : {markdown!r}")
+    echecs += check(faits == [],
+                    f"un mark jete ne produit AUCUN fait, meme hors `text` : {faits}")
+    return echecs
+
+
+def verifie_date():
+    """§7.4 : ISO 8601, en UTC EXPLICITE. Zero dans les 9 fixtures, 47 au corpus.
+
+    La forme naive emploie le fuseau de la machine : sans effet a Noumea, mais un
+    executant place dans un fuseau negatif decalerait les 47 dates d'un jour, sans un
+    mot. Le defaut ne se voit jamais sur le poste ou il a ete ecrit.
+    """
+    echecs = 0
+    date = {"type": "date", "attrs": {"localId": "8adb9609", "timestamp": "1776816000000"}}
+    markdown, faits = rend(document([para(date, txt(" "))]))
+    echecs += check(markdown == "2026-04-22 ",
+                    f"ISO 8601 attendu, obtenu {markdown!r}")
+    echecs += check(faits == [], f"{faits}")
+
+    # Minuit UTC : la date ne doit pas glisser d'un jour.
+    minuit = {"type": "date", "attrs": {"timestamp": "1735689600000"}}
+    markdown2, _ = rend(document([para(minuit)]))
+    echecs += check(markdown2 == "2025-01-01",
+                    f"minuit UTC ne doit pas glisser : {markdown2!r}")
+
+    # Le noeud ne vit pas seul dans son paragraphe : un renderer qui le jetterait
+    # laisserait une cellule ne contenant qu'une espace, sans bascule en HTML.
+    cellule_date = tableau(ligne(cellule(para(date, txt(" ")))))
+    markdown3, _ = rend(document([cellule_date]))
+    echecs += check("2026-04-22" in markdown3,
+                    f"la date doit survivre en cellule de pipes : {markdown3!r}")
+
+    for mauvais in (None, "", "hier", {}):
+        _, faits2 = rend(document([para({"type": "date",
+                                         "attrs": {"timestamp": mauvais}})]))
+        echecs += check(codes(faits2) == ["date_timestamp_invalide"],
+                        f"timestamp {mauvais!r} : incident attendu, {faits2}")
+    return echecs
+
+
+def verifie_emoji():
+    """§7.5 : `attrs.text`, repli sur `shortName`. Zero dans les 9 fixtures, 21 au corpus."""
+    echecs = 0
+    atlassien = {"type": "emoji", "attrs": {"id": "atlassian-warning",
+                                            "text": ":warning:",
+                                            "shortName": ":warning:"}}
+    markdown, faits = rend(document([para(atlassien)]))
+    echecs += check(markdown == ":warning:",
+                    f"shortcode GFM valide, pas un artefact : {markdown!r}")
+    echecs += check(faits == [], f"{faits}")
+
+    # Famille codepoint : `text` porte le vrai caractere.
+    codepoint = {"type": "emoji", "attrs": {"id": "1f600", "text": "\U0001f600",
+                                            "shortName": ":grinning:"}}
+    markdown2, _ = rend(document([para(codepoint)]))
+    echecs += check(markdown2 == "\U0001f600",
+                    f"le rendu ne distingue pas les deux familles : {lisible(markdown2)}")
+
+    repli = {"type": "emoji", "attrs": {"id": "x", "shortName": ":x:"}}
+    markdown3, _ = rend(document([para(repli)]))
+    echecs += check(markdown3 == ":x:", f"repli sur shortName : {markdown3!r}")
+
+    nu = {"type": "emoji", "attrs": {"id": "x"}}
+    _, faits2 = rend(document([para(nu)]))
+    echecs += check(codes(faits2) == ["emoji_sans_texte"],
+                    f"ni text ni shortName : incident, {faits2}")
+    return echecs
+
+
+def verifie_media_inline():
+    """§5.1 : image au fil du texte, sans `alt`. Zero dans les 9 fixtures, 6 au corpus.
+
+    NOEUD INLINE, contrairement au `mediaSingle` du §5 qui est un bloc : il se rend dans
+    la chaine inline de son paragraphe, sans ligne vide autour.
+    """
+    echecs = 0
+    image = {"type": "mediaInline", "attrs": {"id": "d73b9bbd",
+                                              "collection": "contentId-428113938",
+                                              "localId": "662318527c9f"}}
+    markdown, faits = rend(document([para(txt("avant "), image, txt(" apres"))]))
+    echecs += check(
+        markdown == "avant ![](adf-media://d73b9bbd?collection=contentId-428113938) apres",
+        f"rendu inline sans ligne vide autour, sans alt : {markdown!r}")
+    echecs += check(faits == [], f"{faits}")
+    echecs += check("\n" not in markdown,
+                    f"un noeud inline ne coupe pas son paragraphe : {markdown!r}")
+    return echecs
+
+
+def verifie_blockcard_repli_url():
+    """§6.1 : si `parameters.jql` manque, la requete se decode depuis `attrs.url`.
+
+    HORS D'ATTEINTE DU CORPUS DORE : les 5 blockCard des 9 fixtures portent tous un
+    `parameters.jql`, mesure du 18 aout. Le prototype levait au premier manque sans
+    tenter le second chemin.
+    """
+    echecs = 0
+    sans_jql = {"type": "blockCard", "attrs": {
+        "url": "https://x.atlassian.net/issues/?jql=project%20%3D%20REC",
+        "datasource": {"id": "jira", "parameters": {"cloudId": "x"}, "views": []}}}
+    markdown, faits = rend(document([sans_jql]))
+    echecs += check("project = REC" in markdown,
+                    f"le JQL doit etre decode depuis attrs.url : {markdown!r}")
+    echecs += check(faits == [], f"aucun fait : le repli est prevu au contrat, {faits}")
+
+    # Les DEUX absents : le noeud leve.
+    ni_ni = {"type": "blockCard", "attrs": {
+        "datasource": {"id": "jira", "parameters": {"cloudId": "x"}, "views": []}}}
+    _, faits2 = rend(document([ni_ni]))
+    echecs += check(codes(faits2) == ["blockcard_sans_jql"],
+                    f"les deux absents : incident, {faits2}")
+    echecs += check(niveaux(faits2) == ["incident"], f"{faits2}")
+    return echecs
+
+
+def verifie_inclusion_non_resolue():
+    """Un noeud de reutilisation non consomme a l'entree du renderer.
+
+    HORS D'ATTEINTE DU CORPUS DORE, et volontairement : la mesure du 18 aout donne zero
+    `syncBlock` et zero `nested-table` a l'entree du renderer, le resolver les ayant tous
+    consommes. Le contrat ne nomme pas ce cas — il suppose qu'il ne se produit pas. Le
+    traiter en incident est le choix conservateur : du contenu manquerait dans le .md.
+    """
+    echecs = 0
+    inclusion = {"type": "extension", "attrs": {
+        "extensionKey": "multiexcerpt-fast-include-block-macro",
+        "parameters": {"macroParams": {"name": {"value": "habilitation"}}}}}
+    markdown, faits = rend(document([inclusion]))
+    echecs += check(codes(faits) == ["inclusion_non_resolue"],
+                    f"une inclusion non consommee est un incident : {faits}")
+    echecs += check(markdown == "", f"le noeud fautif ne produit rien : {markdown!r}")
+
+    sync = {"type": "syncBlock", "attrs": {"resourceId": "confluence-page/1/abc"},
+            "content": []}
+    _, faits2 = rend(document([sync]))
+    echecs += check(codes(faits2) == ["inclusion_non_resolue"], f"{faits2}")
+
+    imbriquee = {"type": "extension", "attrs": {
+        "extensionKey": "nested-table", "parameters": {"adf": "{}"}}}
+    _, faits3 = rend(document([imbriquee]))
+    echecs += check(codes(faits3) == ["nested_table_non_injectee"],
+                    f"un nested-table non injecte est un incident : {faits3}")
+
+    # Une macro inconnue leve : la table du §2.3 est une LISTE BLANCHE.
+    inconnue = {"type": "extension", "attrs": {"extensionKey": "jira", "parameters": {}}}
+    _, faits4 = rend(document([inconnue]))
+    echecs += check(codes(faits4) == ["macro_non_couverte"],
+                    f"une macro non listee leve, elle ne passe pas en silence : {faits4}")
+
+    # Une DEFINITION, elle, est transparente et ne produit aucun fait.
+    definition = {"type": "bodiedExtension", "attrs": {
+        "extensionKey": "multiexcerpt-fast-block-macro",
+        "parameters": {"macroParams": {"name": {"value": "hab"}}}},
+        "content": [para(txt("corps"))]}
+    markdown5, faits5 = rend(document([definition]))
+    echecs += check(markdown5 == "corps" and faits5 == [],
+                    f"une definition est transparente, sans marqueur : "
+                    f"{markdown5!r} {faits5}")
+    return echecs
+
+
 def run():
     echecs = verifie_nommage_pytest()
     echecs += verifie_parite_des_modes()
@@ -828,6 +1242,18 @@ def run():
     echecs += verifie_blocs_simples()
     echecs += verifie_inline_simples()
     echecs += verifie_cartes_bloc()
+    echecs += verifie_rule_et_heading_en_cellule()
+    echecs += verifie_table_en_cellule()
+    echecs += verifie_entete_mixte()
+    echecs += verifie_fusion_de_cellules()
+    echecs += verifie_pas_de_repli_html()
+    echecs += verifie_marks_hors_text()
+    echecs += verifie_fontsize()
+    echecs += verifie_date()
+    echecs += verifie_emoji()
+    echecs += verifie_media_inline()
+    echecs += verifie_blockcard_repli_url()
+    echecs += verifie_inclusion_non_resolue()
 
     if echecs:
         print(f"\n{echecs} echec(s) sur {TOTAL} verifications")
