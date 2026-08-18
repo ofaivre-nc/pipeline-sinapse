@@ -7,10 +7,11 @@ consigne. La correction est un geste de rédaction, dans Confluence.
 Ce fichier est le seul endroit où cette liste vit. Le §8 du document de référence y
 renvoie.
 
-## Règles incluses et jamais définies
+## Contenus inclus et jamais définis
 
 Un nom inclus dont la définition n'existe nulle part. Le BA voit un blanc à l'écran, sans
-message ni indice.
+message ni indice. Le mécanisme est le même quel que soit le contenu attendu : les entrées
+ci-dessous portent deux règles de gestion, un fragment d'IHM et un message système.
 
 | Nom inclus | Défini | Pages consommatrices | État |
 |---|---|---|---|
@@ -22,18 +23,20 @@ message ni indice.
 Les fixtures étant figées au 4 août, une anomalie corrigée depuis continue d'apparaître
 dans les mesures prises sur elles. C'est attendu, et ce n'est pas une régression.
 
+`RG-NOTE-AUTEUR-AUTORISE--MODIFICATION-SUPPRESSION` porte un **double tiret** : c'est une
+faute de frappe de `RG-NOTE-AUTEUR-AUTORISE-MODIFICATION-SUPPRESSION`, seule définition
+réelle, sur `180256775`.
+
+`RG-NOTE-AUTEUR-AUTORISE-CREATION-MODIFICATION` n'a pas de définition approchante — la
+règle n'a vraisemblablement jamais été écrite.
+
 `MSG-DOSS.CHA-026` est introuvable sur `279019522`, qui porte pourtant `CHA-008`, `009`,
 `027`, `029` et `099` : voir les définitions en double ci-dessous, même cause probable.
 
-La seconde porte un **double tiret** : c'est une faute de frappe de
-`RG-NOTE-AUTEUR-AUTORISE-MODIFICATION-SUPPRESSION`, seule définition réelle, sur
-`180256775`. La première n'a pas de définition approchante — la règle n'a
-vraisemblablement jamais été écrite.
-
-Les deux premières entrées sont sorties du premier passage de `resolver.py` sur le corpus
-doré, en statut `definition_absente` ; les deux suivantes d'une mesure du 11 août sur les
-248 fixtures du recensement. C'est le même mécanisme qui les rend visibles : une macro non
-résolue s'affiche vide dans Confluence, sans rien signaler.
+Les deux entrées `RG-NOTE-*` sont sorties du premier passage de `resolver.py` sur le
+corpus doré, en statut `definition_absente` ; `IHM_module` et `MSG-DOSS.CHA-026` d'une
+mesure du 11 août sur les 248 fixtures du recensement. C'est le même mécanisme qui les
+rend visibles : une macro non résolue s'affiche vide dans Confluence, sans rien signaler.
 
 **Aucune des deux dernières n'est dans le périmètre d'export** — `IHM_module` vit sur une
 page exclue, `MSG-DOSS.CHA-026` sur une page en `ARCHIVE_`. Elles restent au registre : une

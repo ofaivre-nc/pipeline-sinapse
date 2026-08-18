@@ -321,6 +321,23 @@ marqueurs suffisant à eux seuls.
 inclusions joignables localement : **4 cellules** deviennent complexes sans qu'aucun
 contenu de bloc n'y soit entré. C'est assumé, et c'est le prix chiffré de la décision.
 
+**Méthode du contrefactuel.** La question posée est : cette cellule serait-elle simple si
+cette section n'existait pas ? On retire donc ce que la décision a créé, et rien d'autre.
+Un marqueur de **bloc** est un `paragraph` entier : il disparaît. Un marqueur **inline**
+est un nœud `text` déposé dans un paragraphe hôte **préexistant** : le texte disparaît,
+l'hôte reste — éventuellement vide — et continue de compter comme un `paragraph`, puisqu'il
+portait déjà l'inclusion avant toute résolution. Retirer l'hôte avec le marqueur compte
+une cellule de trop.
+
+**Les deux marqueurs sont indiscernables dans l'arbre rendu** — même `paragraph`, même
+unique `text` marqué `em` — dès qu'une inclusion inline est l'unique enfant de son hôte.
+La mesure ne les sépare donc pas par inspection : elle fait dire au resolver lequel il
+pose, en substituant deux sentinelles distinctes à ses deux fabricants de marqueurs, dans
+le processus de mesure seulement.
+
+Rejoué à l'identique avant et après la substitution inline, ce contrefactuel donne **4**
+dans les deux états : la décomposition du §9.1 ne bouge pas.
+
 Ce coût ne doit pas être confondu avec le passage de 15 à 17 tableaux complexes mesuré au
 §9.1 entre les deux stades : celui-là ne doit rien au marqueur — ce sont deux tableaux
 entièrement nouveaux, apportés par la résolution de deux `syncBlock` sur une même page, et
@@ -344,10 +361,19 @@ Le marqueur est plus long que le contenu, et c'est délibéré. L'absence de mar
 elle-même une information — elle dirait qu'aucun multiexcerpt n'a été employé là où le
 rédacteur aurait dû en employer un. Une exception au marquage systématique en appellerait
 d'autres, et le lecteur ne saurait plus ce que l'absence signifie. La désignation de la
-page source ne peut pas non plus être abrégée : sur les 248 fixtures du recensement, les
-43 inclusions `habilitation` visent **25 pages sources distinctes**. Le nom seul ne
-désigne rien — c'est la même raison qui fait que la clé de résolution est le couple
+page source ne peut pas non plus être abrégée : au périmètre d'export, les **42 inclusions
+inline** portant le nom `habilitation` visent **25 pages sources distinctes**. Le nom seul
+ne désigne rien — c'est la même raison qui fait que la clé de résolution est le couple
 `(page, nom)`.
+
+**Méthode** : sont comptées les seules inclusions de **forme inline** portant ce nom, sur
+les pages exportées, à stade indifférent — aucune inclusion `habilitation` ne vit dans une
+table imbriquée, et la mesure est identique sur l'ADF brut et après injection. Toutes
+formes confondues, le même périmètre en compte 117 : les deux nombres ne se substituent
+pas l'un à l'autre.
+
+**Le point d'appui de l'argument est le 25, pas le numérateur** : il vaut 25 sur les quatre
+périmètres mesurés, sans exception.
 
 **La forme inline se reconnaît par une union, jamais par la seule clé de macro** : est
 inline une inclusion portée par un nœud `inlineExtension`, **ou** dont l'`extensionKey`
@@ -399,6 +425,13 @@ erreur.
 | 248 fixtures du recensement | 54 | 4 |
 | 246 pages classées — ce que comptent le §1.5 et le §7 du document de référence | 53 | 3 |
 | **pages exportées — le périmètre de cette section** | **47** | **1** |
+
+**Composition des 248**, faute de quoi le périmètre n'est pas rejouable :
+`recensement/fixtures/` contient **250 fichiers**, dont **2 instantanés datés**
+(`180256775_20260806`, `27787265_20260806`) ; restent **248 pages distinctes**, soit les
+246 classées, plus `334888965` — la page RG perdue sur un timeout, jamais reclassée — et
+`586416131`, la page de test du renommage. Compté sur les 250 fichiers, le total inline
+serait 55 et non 54.
 
 #### Le marqueur de non-résolution suit la même forme
 
@@ -669,6 +702,17 @@ règle de rendu, sans traitement conjoint.
 | `caption` | ligne en italique immédiatement sous l'image |
 | `attrs.width`, `height`, `layout`, `widthType`, `localId` | jetés |
 | mark `border` | jeté — voir §8 |
+
+**« Immédiatement sous l'image » se rend par un `<br>`**, jamais par une ligne vide ni par
+un simple retour à la ligne. C'est le dispositif déjà retenu pour `hardBreak` au §9, et
+pour le même motif : deux espaces en fin de ligne sont supprimés par la plupart des
+éditeurs et des linters, et ne fonctionnent pas en cellule de tableau. Forme exacte, en
+mode markdown :
+
+    ![{alt}](adf-media://{id}?collection={collection})<br>
+    *{légende}*
+
+En mode HTML, `caption` est déjà rendu par `<em>` (§9.2) et la question ne se pose pas.
 
 **Aucun binaire n'est téléchargé.** Le pipeline produit des `.md` de
 spécification, pas une copie de l'espace Confluence. Le marqueur retenu est de la
@@ -1293,13 +1337,19 @@ un seul sur 19.
 Deux lectures de « la cellule contient » ont été calculées — enfants directs, ou
 sous-arbre entier. Elles donnent le même résultat **au stade intermédiaire** (84 et 84) :
 aucun bloc ne s'y cache en profondeur sans être visible au premier niveau, et la lecture
-directe suffit. Après résolution, elles divergent : 100 et 102.
+directe suffit. Après résolution, elles donnent **100 et 100**.
 
-**Cet écart est un contrôle, pas une imprécision à corriger.** Il ne peut apparaître que
-si un nœud de bloc a été déposé à une place inline — un `paragraph` enfant direct d'un
-`paragraph`, que la lecture directe juge simple. Les deux cellules concernées le sont pour
-cette raison exacte. Une assertion comparant les deux lectures après résolution est donc
-la façon la moins chère de surveiller la substitution inline du §1.9.
+**L'égalité des deux lectures est un contrôle ; l'écart est son signal.** Un écart ne peut
+apparaître que si un nœud de bloc a été déposé à une place inline — un `paragraph` enfant
+direct d'un `paragraph`, que la lecture directe juge simple. Une assertion comparant les
+deux lectures après résolution est donc la façon la moins chère de surveiller la
+substitution inline du §1.9.
+
+*Le contrôle a servi une fois. Il portait 100 et 102 tant que le resolver déposait un nœud
+de bloc à la place qu'occupait un nœud inline : cinq `paragraph` mal placés, sur
+`180256775` (1), `241532980` (1) et `380567556` (3), dont trois en cellule et deux cellules
+divergentes. L'écart est retombé à zéro avec la substitution inline, mesuré aux deux
+états — et les quatre valeurs du stade final sont inchangées.*
 
 **Ces 26 % justifient à eux seuls la décision « index croisé construit depuis
 l'ADF, pas depuis le `.md` ».** Il suffit d'une cellule à liste pour qu'un
@@ -1389,16 +1439,25 @@ signale.
 
 **Couverts, mais absents des 9 fixtures — donc non exercés par le corpus doré** :
 `date` (§7.4), `emoji` (§7.5), `mediaInline` (§5.1), `fontSize` (§8.2), la fusion de
-cellules `colspan` / `rowspan` (§9.1), la **ligne d'en-tête mixte** (§9.1), le `heading`
-**sans `attrs.level`** (§9), et la **résolution d'une inclusion inline** (§1.9). La liste
-porte des types comme des cas : ce qui la définit n'est pas leur nature, c'est de n'être
-éprouvés par rien. Elle **est** la liste des tests dédiés à écrire.
+cellules `colspan` / `rowspan` (§9.1), la **ligne d'en-tête mixte** (§9.1) et le `heading`
+**sans `attrs.level`** (§9). La liste porte des types comme des cas : ce qui la définit
+n'est pas leur nature, c'est de n'être éprouvés par rien. Elle **est** la liste des tests
+dédiés à écrire.
 
-Un rafraîchissement du corpus doré suffira pour la plupart. **Pas pour la résolution
-inline** : les 5 inclusions inline des 9 fixtures visent toutes des pages sources absentes
-du corpus doré, aucune ne s'y résout, et verser une page porteuse n'y changerait rien tant
-que sa source n'entre pas aussi. Ce cas demande un **test synthétique**, et il n'est pas
-marginal : au périmètre d'export, 45 des 47 inclusions inline se résolvent.
+Un rafraîchissement du corpus doré suffira pour la plupart.
+
+**La résolution inline faisait exception et ne la fait plus** : les 5 inclusions inline
+des 9 fixtures visent toutes des pages sources absentes du corpus doré, aucune ne s'y
+résout, et verser une page porteuse n'y changerait rien tant que sa source n'entre pas
+aussi. Le cas est donc couvert par un **test synthétique** dédié dans
+`pipeline/tests/test_resolver.py` — les trois formes de l'union du §1.9, la substitution
+au milieu d'une phrase avec ses marks, l'escalade en bloc et sa scission, la
+non-résolution inline, et la récursion. Il n'était pas marginal : au périmètre d'export,
+45 des 47 inclusions inline se résolvent.
+
+Le corpus doré garde son rôle propre sur ce point : l'assertion « aucun nœud de bloc à une
+place inline » y vaut zéro, et c'est elle qui surveille la non-régression des cinq
+mal-placements d'origine.
 
 Avec `date`, `emoji` et `mediaInline`, le contrat couvre **les 36 types du corpus
 complet** : les 33 des 9 fixtures et ces trois-là. Aucun type connu ne peut plus faire

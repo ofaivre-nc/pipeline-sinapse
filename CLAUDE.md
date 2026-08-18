@@ -163,7 +163,10 @@ Instance `sinapse-gie-nc.atlassian.net`, space `SINAPSE`, export récursif, prof
   Les règles détaillées sont dans `.claude/rules/python.md` (chargé sur `pipeline/**/*.py`).
 - **Le point d'entrée autonome des tests est la référence** : `python pipeline/tests/test_inventory.py`
   doit fonctionner sur un dépôt fraîchement cloné, sans rien installer. `pytest` est un
-  confort, pas un prérequis.
+  confort, pas un prérequis. **Une seule exception, délibérée** : `test_contracts.py` exige
+  `jsonschema` et **échoue** bruyamment en son absence, avec le message d'installation, au
+  lieu de se sauter — un test de contrat qui se saute est vert exactement là où on aurait
+  besoin de lui.
 - **Aucun test ne s'appuie sur une fonctionnalité propre à pytest** — ni `fixture`, ni
   `parametrize`, ni réécriture d'`assert`. Ce qui ne tournerait que sous pytest serait
   invisible au point d'entrée autonome, donc vert pour toujours là où on ne l'installe pas.
@@ -237,8 +240,11 @@ référence. Position en bref :
   `pages_inventory.json`. `delta.py` (v1.0) en dérive le plan d'un run, en comparant
   **trois** champs : `version.number`, `md_path` et `last_exported`. Reste `main.py`,
   qui exécutera le plan que `compare()` décide.
-- **Resolver clos** — `multiexcerpt.py` (v1.1) porte la couche déterministe, 77
-  contrôles ; `resolver.py` (v1.0) porte le parcours et la récupération, 117 contrôles.
+- **Resolver clos** — `multiexcerpt.py` (v1.2) porte la couche déterministe, 77
+  contrôles ; `resolver.py` (v1.2) porte le parcours et la récupération, 198 contrôles.
+  Le marqueur de contenu réutilisé est un `paragraph` portant un `text` marqué `em`, et une
+  inclusion **inline** dépose ses nœuds en place dans le paragraphe hôte plutôt qu'un nœud
+  de bloc — forme et traitement en `contracts/normalisation_adf.md` §1.9.
   Un parcours unique injecte les tables imbriquées et résout les trois mécanismes de
   réutilisation. Les pages sources arrivent par un fournisseur injecté : `resolver.py`
   n'appelle jamais Confluence, et ses tests tournent hors réseau. Le resolver d'origine
