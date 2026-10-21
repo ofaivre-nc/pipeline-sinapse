@@ -2,7 +2,7 @@
 """
 Resolution du contenu reutilise — les trois mecanismes, en un seul parcours.
 
-VERSION : 1.2
+VERSION : 1.3 — libelle « extrait par défaut » pour l'extrait natif sans nom (contrat §1.8)
 
 Ce module remplace le contenu reutilise par sa valeur et injecte les tables imbriquees,
 AVANT toute normalisation et tout rendu markdown. L'ordre importe : le contrat resout
@@ -40,7 +40,7 @@ import copy
 
 import multiexcerpt as mx
 
-VERSION = "1.2"
+VERSION = "1.3"
 
 
 # ==========================================================================
@@ -66,6 +66,10 @@ MOTIFS = {
     STATUT_DEFINITION_ABSENTE: "définition introuvable sur la page source",
     STATUT_PAGE_SOURCE_ABSENTE: "page source introuvable",
 }
+
+# Nom affiche dans les marqueurs pour l'extrait natif sans nom (cle (page, "")). Le fait
+# garde le nom vide : seul le .md a besoin d'un libelle lisible. Contrat §1.8.
+NOM_AFFICHE_PAR_DEFAUT = "extrait par défaut"
 
 FORME_BLOC = "bloc"
 FORME_INLINE = "inline"
@@ -610,7 +614,8 @@ class Resolveur:
     def _resout_macro(self, node, titre, page_id, guard):
         famille = mx.famille_macro(node)
         mecanisme = MECANISME_PAR_FAMILLE[famille]
-        cible, nom = mx.macro_include_key(node, titre)
+        cle = mx.macro_include_key(node, titre)
+        cible, nom = cle[0], cle[1] or NOM_AFFICHE_PAR_DEFAUT   # libelle seulement
         ou = mx.emplacement(node, page_id, titre)
         hors = self._hors_perimetre_titre(cible)
         # La FORME est celle du noeud d'inclusion, decidee avant toute resolution : un
@@ -620,20 +625,20 @@ class Resolveur:
         forme = FORME_INLINE if inline else FORME_BLOC
 
         if not self.assure_titre(cible):
-            self._consigne(mecanisme, (cible, nom), STATUT_PAGE_SOURCE_ABSENTE,
+            self._consigne(mecanisme, cle, STATUT_PAGE_SOURCE_ABSENTE,
                            hors, ou, forme)
             return [_marqueur(inline, libelle_non_resolue(
                 nom, cible, MOTIFS[STATUT_PAGE_SOURCE_ABSENTE]))]
 
         definition = self.index.resout(node, titre)
         if definition is None:
-            self._consigne(mecanisme, (cible, nom), STATUT_DEFINITION_ABSENTE,
+            self._consigne(mecanisme, cle, STATUT_DEFINITION_ABSENTE,
                            hors, ou, forme)
             return [_marqueur(inline, libelle_non_resolue(
                 nom, cible, MOTIFS[STATUT_DEFINITION_ABSENTE]))]
 
-        injecte = self._injecte(definition, mecanisme, (cible, nom), guard)
-        fait = self._consigne(mecanisme, (cible, nom), STATUT_RESOLUE, hors, ou, forme)
+        injecte = self._injecte(definition, mecanisme, cle, guard)
+        fait = self._consigne(mecanisme, cle, STATUT_RESOLUE, hors, ou, forme)
         return self._depose(injecte, nom, definition["page_title"], inline, fait)
 
     def _resout_sync(self, node, titre, page_id, guard):

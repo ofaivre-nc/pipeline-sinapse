@@ -2,7 +2,7 @@
 """
 Cles de resolution du contenu reutilise — multiexcerpt, excerpt et syncBlock.
 
-VERSION : 1.2
+VERSION : 1.3 — extrait natif sans nom = extrait par defaut de la page (contrat §1.8)
 
 Le corpus SINAPSE porte TROIS mecanismes de reutilisation, dont deux par macro :
 
@@ -32,7 +32,7 @@ import html
 import json
 import re
 
-VERSION = "1.2"
+VERSION = "1.3"
 
 
 # ==========================================================================
@@ -65,6 +65,15 @@ PARAM_PAGE_PAR_FAMILLE = {
     FAMILLE_MULTIEXCERPT: "page",
     FAMILLE_EXCERPT: "",
 }
+
+# Familles ou une macro SANS NOM est legitime. Un extrait natif sans nom est l'extrait
+# PAR DEFAUT de sa page, et un excerpt-include sans nom l'inclut : la cle est alors
+# (page, ""). Le multiexcerpt exige un nom ; sans nom, il leve toujours.
+# Releve le 22 octobre 2026 sur `243695621` (SF-PORTAIL: Regles de gestion consolidees) :
+# la levee arretait l'indexation de la page source au milieu, et toutes les definitions
+# suivantes passaient pour absentes. Contrat §1.8.
+FAMILLES_NOM_FACULTATIF = frozenset({FAMILLE_EXCERPT})
+NOM_PAR_DEFAUT = ""
 
 # Variantes relevees au 6 aout 2026. DOCUMENTAIRE UNIQUEMENT : rien ici ne sert a la
 # reconnaissance, qui se fait par sous-chaine. Cette liste vieillira, pas le code.
@@ -215,8 +224,11 @@ def macro_page_source(node, page_title_hote):
 
 
 def macro_nom(node):
+    """Nom nettoye. Vide pour un extrait natif sans nom : c'est l'extrait par defaut."""
     nom = clean_name(macro_param(node, "name"))
     if not nom:
+        if famille_macro(node) in FAMILLES_NOM_FACULTATIF:
+            return NOM_PAR_DEFAUT
         raise ResolutionError(
             f"macro {famille_macro(node)} sans nom exploitable "
             f"(extensionKey={(node.get('attrs') or {}).get('extensionKey')!r})")

@@ -221,8 +221,17 @@ def run():
     echecs += check(mx.macro_definition_key(macro("excerpt", {"name": " X "}, CORPS),
                                             "SF-NOTE") == ("SF-NOTE", "X"),
                     "cle de definition = (page hote, nom nettoye)")
-    echecs += leve(lambda: mx.macro_nom(macro("excerpt", {"name": "  "}, CORPS)),
-                   "un nom vide apres nettoyage doit lever")
+    # Nom vide apres nettoyage : legitime pour un extrait natif (extrait par defaut de la
+    # page, cle (page, "")), interdit pour un multiexcerpt. Cas reel : 243695621.
+    echecs += check(mx.macro_nom(macro("excerpt", {"name": "  "}, CORPS)) == "",
+                    "un extrait natif sans nom est l'extrait par defaut : nom vide")
+    echecs += check(mx.macro_nom(macro("excerpt", {}, CORPS)) == "",
+                    "un extrait natif sans parametre name est l'extrait par defaut")
+    echecs += check(mx.macro_include_key(macro("excerpt-include", {"": "SF-X"}), "CU-X")
+                    == ("SF-X", ""), "un excerpt-include sans nom vise l'extrait par defaut")
+    echecs += leve(lambda: mx.macro_nom(macro("multiexcerpt-fast-block-macro",
+                                              {"name": "  "}, CORPS)),
+                   "un multiexcerpt sans nom doit lever")
 
     # ------------------------------------------------------------------
     # 5. Index : une famille ne voit jamais l'autre

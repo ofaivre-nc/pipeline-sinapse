@@ -243,6 +243,26 @@ plausible, et **muet** — ni trou ni message. Cas réel : sur `27787265`,
 
 Page absente ou vide → page courante, dans les deux familles.
 
+#### Extrait natif sans nom — l'extrait par défaut de la page
+
+*Relevé le 22 octobre 2026 sur `243695621` (SF-PORTAIL: Règles de gestion consolidées).*
+
+Un extrait natif peut ne pas avoir de nom : c'est l'**extrait par défaut** de sa page, et un
+`excerpt-include` sans nom l'inclut. Ce n'est pas une forme inattendue, c'est une forme
+prévue par Confluence. Sa clé est `(page, "")`. Le marqueur du `.md` l'affiche sous le
+libellé `extrait par défaut` ; le fait garde le nom vide.
+
+Le multiexcerpt, lui, exige un nom : sans nom, il **lève** toujours.
+
+Lever sur l'extrait natif était un défaut, et pas seulement une rigueur excessive :
+l'exception arrêtait l'indexation de la page source au milieu, et toutes les définitions
+suivantes passaient pour absentes sur les pages qui les incluent. Sur `243695621`, quatre
+SA de PORTAIL-ACTUALITE en sortaient avec des « définitions introuvables » fausses.
+
+Un extrait sans nom reste suspect côté rédaction : sur `243695621`, c'est une règle de
+gestion à qui il manque son identifiant. Le signaler revient aux contrôles de validation,
+pas au resolver.
+
 #### Les index de définitions restent séparés par famille
 
 Une inclusion ne résout **jamais** que contre une définition de sa propre famille,

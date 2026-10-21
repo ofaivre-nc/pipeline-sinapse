@@ -1017,6 +1017,40 @@ def verifie_non_resolues():
     return echecs
 
 
+def verifie_extrait_sans_nom():
+    """Un extrait natif sans nom est l'extrait par defaut de sa page (contrat §1.8).
+
+    Cas reel du 22 octobre 2026 : 243695621 porte un extrait sans nom au milieu de ses
+    definitions. La levee arretait l'indexation de la page source, et les definitions
+    SUIVANTES passaient pour absentes sur toutes les pages qui les incluent.
+    """
+    echecs = 0
+    page = "SF-SOURCE"
+    source = document([definition("RG-AVANT", [para("avant")], famille="excerpt"),
+                       definition("", [para("par défaut")], famille="excerpt"),
+                       definition("RG-APRES", [para("après")], famille="excerpt")])
+    fournisseur = Fournisseur([("920", page, source)])
+    doc = document([inclusion("RG-APRES", page, famille="excerpt"),
+                    inclusion("", page, famille="excerpt")])
+    resolu, faits = rs.resout_document(doc, "SA-TEST", "999", fournisseur)
+
+    echecs += check([f["statut"] for f in faits] == ["resolue", "resolue"],
+                    f"une definition apres l'extrait sans nom doit rester trouvable : {faits}")
+    echecs += check([f["cle"] for f in faits] == [(page, "RG-APRES"), (page, "")],
+                    f"le fait garde le nom vide, pas le libelle : {[f['cle'] for f in faits]}")
+    echecs += check("par défaut" in textes(resolu) and "après" in textes(resolu),
+                    f"les deux corps doivent etre injectes : {lisible(textes(resolu))}")
+    echecs += check(f"↳ inclusion : {rs.NOM_AFFICHE_PAR_DEFAUT} — source : {page}"
+                    in marqueurs(resolu),
+                    f"le marqueur nomme l'extrait par defaut : {lisible(marqueurs(resolu))}")
+
+    # Le multiexcerpt, lui, exige toujours un nom.
+    source_mx = document([definition("", [para("x")])])
+    echecs += leve(lambda: rs.resout_document(source_mx, "SF-MX", "921", Fournisseur([])),
+                   "un multiexcerpt sans nom doit lever")
+    return echecs
+
+
 def verifie_page_courante_et_ordre():
     """Page absente ou vide = page courante ; une inclusion peut preceder sa definition."""
     echecs = 0
@@ -1466,6 +1500,7 @@ def run():
     echecs += verifie_carte_titres()
     echecs += verifie_un_appel_par_source()
     echecs += verifie_non_resolues()
+    echecs += verifie_extrait_sans_nom()
     echecs += verifie_page_courante_et_ordre()
     echecs += verifie_forme_marqueur()
     echecs += verifie_nettoyage_libelle()
