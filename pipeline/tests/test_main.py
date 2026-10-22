@@ -105,7 +105,74 @@ def verifie_echec_isole():
     return echecs
 
 
-VERIFICATIONS = (verifie_run_et_graphe, verifie_echec_isole)
+def verifie_arborescence():
+    """Module et quartier lus dans l'arborescence ; une page archivee n'a pas de faits."""
+    echecs = 0
+    pages = [{"id": "10", "titre": "Q-SOCLE", "parent_id": "1474581"},
+             {"id": "11", "titre": "SF-X", "parent_id": "10"},
+             {"id": "12", "titre": "Réflexion sur les écrans", "parent_id": "11"},
+             {"id": "13", "titre": "Archive CU-X-ANCIEN", "parent_id": "11"},
+             {"id": "14", "titre": "CU-X-ANCIEN-DETAIL", "parent_id": "13"}]
+    inventaire = mn.classe(pages)
+    echecs += check(inventaire["12"].get("module") == "X" and inventaire["12"].get("quartier") == "Q-SOCLE",
+                    f"module et quartier par l'arborescence : {inventaire['12']}")
+    echecs += check(inventaire["13"]["excluded"] and inventaire["14"]["excluded"],
+                    "exclusion par prefixe, heritee par le sous-arbre")
+
+    with tempfile.TemporaryDirectory() as dossier:
+        adf = Path(dossier) / "adf"
+        adf.mkdir()
+        for page in pages:
+            (adf / f"{page['id']}.json").write_text(json.dumps(doc(para(txt("x")))), encoding="utf-8")
+        meta = Path(dossier) / "recensement_pages.json"
+        meta.write_text(json.dumps({"pages_analysees": [
+            {"id": p["id"], "title": p["titre"], "version": 1, "parent_id": p["parent_id"]} for p in pages]}),
+            encoding="utf-8")
+        rapport = mn.execute(adf, meta, Path(dossier) / "faits")
+        echecs += check(sorted(e["id"] for e in rapport["exclues"]) == ["13", "14"], f"{rapport['exclues']}")
+        faits = json.loads((Path(dossier) / "faits" / "12.json").read_text(encoding="utf-8"))
+        echecs += check(faits["page"].get("quartier") == "Q-SOCLE", f"{faits['page']}")
+    return echecs
+
+
+def verifie_projections():
+    """Heuristique RG -> entite (procedure carto §2.6) et fusion du JSON MCD."""
+    import projections as pj
+    echecs = 0
+    entites = {"Note", "Personne"}
+    regle = {"nom": "RG-X-PERSISTENCE-CREATION",
+             "corps": {"texte": "Note.noteId = attribue\nNote.contenu = saisi\nNoteReponse.id = x"}}
+    categorie, confiance, champs = pj.classe_regle(regle, entites, False)
+    echecs += check(categorie == "persistance_creation" and confiance == "heuristique_v0_forte_nom_rg"
+                    and champs == [("Note", "noteId", "ecriture"), ("Note", "contenu", "ecriture")],
+                    f"PERSISTENCE compte comme PERSISTANCE, DTO ecarte : {categorie} {champs}")
+    regle = {"nom": "RG-X-ENTITES-RECHERCHER", "corps": {"texte": "Note.personneId = personneId\nretourne Note.contenu"}}
+    _, _, champs = pj.classe_regle(regle, entites, False)
+    echecs += check(champs == [("Note", "personneId", "lecture_critere"), ("Note", "contenu", "lecture")],
+                    f"recherche : critere, pas ecriture : {champs}")
+    categorie, _, champs = pj.classe_regle({"nom": "RG-X-VERIFIER", "corps": {"texte": "appel du SA"}},
+                                           entites, True)
+    echecs += check(categorie == "controle_integrite" and champs == [], f"{categorie}")
+
+    precedent = {"quartiers": [{"id": "Q", "sfs": [{"id": "X", "jiraTickets": [{"code": "REC-1"}]}]}],
+                 "entities": [{"id": "Vieille", "sf": "X", "attrs": []}, {"id": "Autre", "sf": "Y", "attrs": []}],
+                 "relations": [{"from": "Vieille", "to": "Autre"}, {"from": "Autre", "to": "Tierce"}]}
+    mcd_page = {"page": {"id": "9", "titre": "SF-X: Modélisation des données", "type": "MCD", "module": "X",
+                         "url": "u"},
+                "entites": [{"nom": "Neuve", "attributs": []}],
+                "relations": [{"de": "Neuve", "vers": "Autre", "card_de": "1..1", "card_vers": "0..N"}]}
+    resultat = pj.fusionne_mcd(precedent, [mcd_page])
+    echecs += check(sorted(e["id"] for e in resultat["entities"]) == ["Autre", "Neuve"],
+                    f"entites du SF relu remplacees : {resultat['entities']}")
+    echecs += check(sorted((r["from"], r["to"]) for r in resultat["relations"])
+                    == [("Autre", "Tierce"), ("Neuve", "Autre")], f"{resultat['relations']}")
+    sf = resultat["quartiers"][0]["sfs"][0]
+    echecs += check(sf["jiraTickets"] == [{"code": "REC-1"}] and sf["confluencePage"]["url"] == "u",
+                    "tickets conserves, page Confluence mise a jour")
+    return echecs
+
+
+VERIFICATIONS = (verifie_run_et_graphe, verifie_echec_isole, verifie_arborescence, verifie_projections)
 
 
 def test_main():

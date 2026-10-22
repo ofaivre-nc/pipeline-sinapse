@@ -2,7 +2,8 @@
 """
 Recensement des noeuds ADF du corpus Confluence SINAPSE — etape 0d du pipeline.
 
-VERSION : 1.2 — inventaire des types de noeuds, des macros (extensionKey), des marks et
+VERSION : 1.3 — magasin de certificats du systeme, reprise sur Timeout et coupure reseau
+          1.2 — inventaire des types de noeuds, des macros (extensionKey), des marks et
                 des cards (liens Jira et Confluence) presents dans un echantillon de pages.
                 Aucune conversion, aucune dependance a une bibliotheque ADF->MD.
 
@@ -32,6 +33,7 @@ import argparse
 import json
 import os
 import re
+import ssl
 import sys
 import time
 from collections import Counter, defaultdict
@@ -39,9 +41,10 @@ from datetime import datetime
 from pathlib import Path
 
 import requests
+from requests.adapters import HTTPAdapter
 from requests.auth import HTTPBasicAuth
 
-VERSION = "1.2"
+VERSION = "1.3"
 BASE_URL = "https://sinapse-gie-nc.atlassian.net"
 API_V2 = f"{BASE_URL}/wiki/api/v2"
 
@@ -64,18 +67,41 @@ TYPE_PATTERNS = [
 # Client HTTP
 # --------------------------------------------------------------------------
 
+class AdaptateurSysteme(HTTPAdapter):
+    """Verifie les certificats avec le magasin du systeme, pas celui de certifi.
+
+    Sur un poste dont l'antivirus ou le proxy inspecte le HTTPS, la chaine presentee
+    est signee par une autorite que Windows connait et que certifi ignore :
+    CERTIFICATE_VERIFY_FAILED des la premiere requete (constate le 22 octobre 2026).
+    ssl.create_default_context() charge le magasin de Windows, sans dependance.
+    """
+
+    def init_poolmanager(self, *args, **kwargs):
+        kwargs["ssl_context"] = ssl.create_default_context()
+        return super().init_poolmanager(*args, **kwargs)
+
+
 class Confluence:
     def __init__(self, email, token):
         self.auth = HTTPBasicAuth(email, token)
         self.session = requests.Session()
+        self.session.mount("https://", AdaptateurSysteme())
         self.calls = 0
 
     def _get(self, url, params=None):
         for attempt in range(5):
-            resp = self.session.get(
-                url, params=params, auth=self.auth,
-                headers={"Accept": "application/json"}, timeout=30,
-            )
+            # Timeout et coupure reseau : backoff comme un 429 (.claude/rules/python.md).
+            # Sans cela, une page sort du corpus en silence sur un incident transitoire.
+            try:
+                resp = self.session.get(
+                    url, params=params, auth=self.auth,
+                    headers={"Accept": "application/json"}, timeout=30,
+                )
+            except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as exc:
+                wait = 2 ** attempt
+                print(f"    {type(exc).__name__}, pause {wait}s", file=sys.stderr)
+                time.sleep(wait)
+                continue
             self.calls += 1
             if resp.status_code == 429:
                 wait = int(resp.headers.get("Retry-After", 2 ** attempt))

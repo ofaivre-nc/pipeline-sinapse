@@ -31,13 +31,17 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+import re
+
 import faits as fx
 import graphe as gr
 import multiexcerpt as mx
 import resolver as rs
-from inventory import module_par_titre, normalize_title, type_par_titre
+from inventory import (build_inventory, chaine_ascendance, module_par_titre, normalize_title,
+                       type_par_titre)
 
-VERSION = "1.0"
+VERSION = "1.1"
+RE_QUARTIER = re.compile(r"^Q-[A-Z0-9_.\-]+", re.I)
 
 
 # ==========================================================================
@@ -93,10 +97,36 @@ class FournisseurLocal:
         return self.par_identifiant(page_id) if page_id else None
 
 
-def type_de(page):
+def type_de(page, classement=None):
     if page.get("type"):
         return page["type"]
+    if classement and classement.get("type"):
+        return classement["type"]
     return type_par_titre(normalize_title(page["titre"])) or "AUTRE"
+
+
+def classe(pages):
+    """Classement de l'inventaire (type, module par l'arborescence, exclusions) et quartiers.
+
+    Le quartier est la page parente de la page chapeau du SF (decision du 2026-10-22) :
+    on remonte l'arborescence jusqu'a la page de type MODULE, puis on lit le titre de
+    son parent (« Q-SOCLE »). Sans arborescence complete (pages de test isolees), le
+    module se lit dans le titre et le quartier reste inconnu.
+    """
+    brutes = [{"id": p["id"], "title": p["titre"], "version": p.get("version"),
+               "parent_id": p.get("parent_id")} for p in pages]
+    inventaire = {c["id"]: c for c in build_inventory(brutes)["pages"]}
+    par_id = {b["id"]: b for b in brutes}
+    for page_id, classement in inventaire.items():
+        chaine = [page_id] + chaine_ascendance(page_id, par_id)
+        for rang, ancetre in enumerate(chaine):
+            if (inventaire.get(ancetre) or {}).get("type") == "MODULE" and rang + 1 < len(chaine):
+                titre = normalize_title((par_id.get(chaine[rang + 1]) or {}).get("title"))
+                trouve = RE_QUARTIER.match(titre)
+                if trouve:
+                    classement["quartier"] = trouve.group(0).upper()
+                break
+    return inventaire
 
 
 # ==========================================================================
@@ -170,6 +200,11 @@ def execute(adf, pages_meta, sortie, complet=False, config=None):
     carte = {mx.clean_page_title(p["titre"]): p["id"] for p in pages}
     resolveur = rs.Resolveur(fournisseur, carte)
     collecteur = fx.Collecteur(config, {p["id"]: normalize_title(p["titre"]) for p in pages})
+    inventaire = classe(pages)
+    # Une page exclue (archive, copie, brouillon, ou rangee sous une telle page) reste
+    # lisible par le resolver comme source d'extraits, mais n'a pas de faits.
+    exclues = [p for p in pages if inventaire[p["id"]].get("excluded")]
+    pages = [p for p in pages if not inventaire[p["id"]].get("excluded")]
     motifs = plan(pages, sortie, config.get("version"), complet)
 
     rapport = {"run_version": VERSION, "collecteur_version": fx.VERSION,
@@ -177,20 +212,34 @@ def execute(adf, pages_meta, sortie, complet=False, config=None):
                "genere_le": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
                "mode": "complet" if complet else "incremental",
                "pages": len(pages), "relues": [], "inchangees": 0, "echecs": [],
-               "partielles": [], "sans_adf": [p["id"] for p in sans_adf]}
+               "partielles": [], "sans_adf": [p["id"] for p in sans_adf],
+               "exclues": [{"id": p["id"], "titre": p["titre"],
+                            "motif": inventaire[p["id"]].get("exclusion_reason")} for p in exclues]}
 
     for page in pages:
         if page["id"] not in motifs:
             rapport["inchangees"] += 1
             continue
-        type_page = type_de(page)
+        classement = inventaire[page["id"]]
+        type_page = type_de(page, classement)
         meta = {"id": page["id"], "titre": page["titre"], "type": type_page,
                 "parent_id": page.get("parent_id"), "confluence_version": page.get("version"),
-                "module": module_par_titre(normalize_title(page["titre"]))}
+                "module": classement.get("module") or module_par_titre(normalize_title(page["titre"])),
+                "quartier": classement.get("quartier")}
         try:
             adf_page = fournisseur.adf(page["id"])
-            _, faits_resolver = resolveur.resout(adf_page, page["titre"], page["id"])
+            try:
+                _, faits_resolver = resolveur.resout(adf_page, page["titre"], page["id"])
+                erreur_resolution = None
+            except mx.ResolutionError as erreur:
+                # Definition en double (contrat normalisation_adf.md §1.8) : le resolver
+                # leve, a raison. La page garde ses faits, sans le statut de ses inclusions,
+                # et l'erreur devient un fait : c'est le cas que K57 doit signaler.
+                faits_resolver, erreur_resolution = [], str(erreur)
             faits = collecteur.collecte(adf_page, meta, faits_resolver)
+            if erreur_resolution:
+                faits["inconnus"].append({"ou": {}, "quoi": "resolution", "valeur": erreur_resolution})
+                faits["page"]["parse_status"] = "partial"
         except (mx.ResolutionError, KeyError, ValueError, TypeError) as erreur:
             # Une page en echec n'interrompt pas le run : elle est listee et retentee
             # au run suivant (parse_status failed force la relecture).
