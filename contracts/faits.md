@@ -248,6 +248,7 @@ Les noms de colonnes ci-dessous sont les noms **canoniques**. Les en-têtes rée
 | `codes` | `Ligne[]` de 3.2 ; colonnes `code`, `message` | K29, K30, K31, K32 |
 | `traitement` | `Texte` de toute la section 4, avec ses `citations` et ses `liens` ; plus `etapes` : `[{ "titre": "Contrôles", "texte": Texte }]`, découpées sur les titres et les paragraphes entièrement en gras | K28, K29, K34, K37, K52 |
 | `regles` | `Ligne[]` du tableau de la section 5 ; colonne `regle` (la colonne « N° », si elle existe, donne `numero`) | K29, K34 |
+| `tri` | whitelist de tri d'un SA de recherche : `{ "contrat": { "valeurs": ["date", "auteur"], "ou": {…} }, "traitement": { "valeurs": […], "ou": {…} } }`. `contrat` : la description de la ligne `sort` du §2 ; `traitement` : la première ligne du §4 qui cite `sort` et nomme les attributs après « whitelist ». Une whitelist donnée par renvoi (« hors whitelist de RG-… ») n'est pas relevée ; clé absente si aucun des deux côtés n'en nomme | K39 |
 
 Les **RG du §4 sont des citations** (en gras dans la prose), celles du **§5 sont des inclusions**. K34 compare les deux ensembles, par nom normalisé.
 
@@ -277,6 +278,7 @@ Une page RG (règles de gestion consolidées d'un SF) et une page générique (r
 - `titre` : le premier paragraphe du corps, quand il commence en gras ou par « Règle » (convention TEMPLATE_RG : « Règle RG-X concernant … »). `titre_gras` : le premier passage en gras ; sur SF-NOTE, il ne couvre parfois que le mot « Règle », d'où les deux champs. `code_titre` : le code RG cité dans `titre`. `concernant` : ce qui suit « concernant » dans `titre`.
 - Le nom, le titre de section et le code du titre peuvent **tous trois différer** : sur SF-NOTE, `RG-NOTE-PERSISTENCE-CREATION` (nom) est rangé sous `RG-NOTE-PERSISTANCE-CREATION` (titre et code). Le collecteur relève les trois ; K54 et K02 les comparent.
 - `corps` porte ses `citations` : les `MSG-` d'une RG incluse au §5 d'un SA comptent pour K29, les `IHM_…` et les libellés d'une RG incluse par un CU pour K62. Le contrôle passe de l'inclusion à la définition par la jointure du resolver (§2), pas par le texte affiché dans la page qui inclut.
+- `corps.tableaux` (clé absente sans tableau) : les tableaux du corps, en texte, `[{ "rang": 1, "entetes": ["Attributs du DTO X", "Alimentation"], "lignes": [["X.page", "…"]] }]`. Une cellule garde ses retours à la ligne (plusieurs attributs par cellule). Sert à K65.
 
 ### 5.5 MCD
 
@@ -286,6 +288,7 @@ Une page RG (règles de gestion consolidées d'un SF) et une page générique (r
     "nom": "Favoris",
     "libelle": "Propriétés de Favoris",
     "ou": {…},
+    "description": Texte,
     "attributs": [
       { "ou": {…}, "champ_brut": "Favoris.auteurId", "attribut": "auteurId",
         "designation": Texte, "format": "Entier36", "longueur": "", "commentaire": Texte,
@@ -301,6 +304,7 @@ Une page RG (règles de gestion consolidées d'un SF) et une page générique (r
 Règles reprises du skill legacy `confluence-mcd-sync`, qui les a éprouvées sur tout le corpus :
 
 - **Entité** : déduite du **préfixe commun** de la colonne « Nom du champ » (`Favoris.id`, `Favoris.ordre` → `Favoris`), pas du titre de section, qui ne sert qu'au `libelle`. Sans préfixe commun, le tableau va dans `inconnus[]` plutôt que de produire une entité fausse. Plusieurs tableaux de même préfixe forment une seule entité.
+- **Description** : la prose placée sous le titre de l'entité, hors tableaux (« Objet permettant de représenter une Note… », TEMPLATE_MCD). Clé absente si le titre n'est suivi que du tableau. Sert à K104.
 - **Ancien format** `MODULE.ENTITE.champ` (SF-DOCUMENT) : relevé tel quel dans `champ_brut`. K43 le signale ; le collecteur ne le corrige pas.
 - **Relations** : texte de la forme `Entite (card) <-> (card) Entite`, flèche ASCII `<->` ou `↔` (U+2194, avec ou sans U+FE0E). Une ligne peut enchaîner plusieurs relations. Un libellé `, lien "…"` en fin de ligne va dans `libelle`. Cardinalités normalisées en `0..N`, `1..1`, `1..N`, `0..1`. Une relation barrée porte `barre: true`.
 - La **clé étrangère** n'est pas déduite : K44 rapproche lui-même `auteurId` de l'entité visée et de son format.

@@ -5,10 +5,10 @@
     "Un synonyme termine par * reconnait tout en-tete qui commence par lui.",
     "Toute nouvelle variante apparait d'abord dans inconnus[] des faits : l'ajouter ici, puis augmenter version."
   ],
-  "version": "1.1",
+  "version": "1.2",
 
   "citations": {
-    "RG": "(?<![\\w-])RG-[A-Z0-9][A-Z0-9._\\-]*[A-Z0-9]",
+    "RG": "(?<![\\w-])RG-[A-Z0-9][A-Za-z0-9._\\-]*[A-Za-z0-9]",
     "MSG": "(?<![\\w-])MSG-[A-Z0-9][A-Z0-9_\\-]*[A-Z0-9]",
     "IHM": "(?<![\\w-])IHM_[A-Za-z0-9_]*[A-Za-z0-9]",
     "SA": "(?<![\\w-])SA-[A-Z0-9][A-Z0-9.\\-]*[A-Z0-9]",

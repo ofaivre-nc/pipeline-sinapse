@@ -273,8 +273,21 @@ def verifie_inclusions_et_definitions():
                     f"gras partiel, titre lu dans le paragraphe : {regle}")
     echecs += check(any(c["code"] == "MSG-X-CONFLIT-A" for c in regle["corps"].get("citations", [])),
                     "citations MSG du corps (K29)")
+    echecs += check("tableaux" not in regle["corps"], "corps sans tableau : cle absente")
     echecs += check(faits["definitions"][0]["titre_section"] == "RG-X-PERSISTANCE-CREATION",
                     f"{faits['definitions']}")
+
+    rg = doc(titre(3, "RG-X-FILTRE"),
+             definition("RG-X-FILTRE", para(txt("Règle RG-X-FILTRE concernant le filtre", "strong")),
+                        table(["Attributs du DTO XRequete", "Alimentation"], ["XRequete.page", "15"])),
+             para(txt("Voir RG-PATTERN.BARRE-Highlight.Actif. Puis la suite.")))
+    faits = collecte(rg, "RG", "SF-X: Règles de gestion consolidées")
+    tableaux = faits["regles"][0]["corps"].get("tableaux")
+    echecs += check(tableaux == [{"rang": 1, "entetes": ["Attributs du DTO XRequete", "Alimentation"],
+                                  "lignes": [["XRequete.page", "15"]]}], f"tableaux du corps (K65) : {tableaux}")
+    codes = {c["code"] for t in faits["textes"] for c in t.get("citations", []) if c["type"] == "RG"}
+    echecs += check("RG-PATTERN.BARRE-Highlight.Actif" in codes,
+                    f"code de RG a casse mixte lu en entier, sans le point final : {codes}")
     return echecs
 
 
@@ -313,6 +326,7 @@ def verifie_mcd():
                      txt("La relation Recent ↔ Personne est conceptuelle"))
     adf = doc(titre(1, "Modélisation des données"), relations,
               titre(1, "Inventaire des données"), titre(2, "Propriétés de Favoris"),
+              para(txt("Objet permettant de mémoriser les favoris d'un utilisateur.")),
               table(["Nom du champ", "Désignation", "Format", "Lg"],
                     ["Favoris.id", "Identifiant", "UUID", ""],
                     ["Favoris.ordre", "Ordre", "Entier", "3"]),
@@ -328,8 +342,34 @@ def verifie_mcd():
     entite = faits["entites"][0]
     echecs += check(entite["nom"] == "Favoris" and [a["attribut"] for a in entite["attributs"]]
                     == ["id", "ordre"], f"{entite}")
+    echecs += check(entite.get("description", {}).get("texte")
+                    == "Objet permettant de mémoriser les favoris d'un utilisateur.",
+                    f"description de l'entite, hors tableau (K104) : {entite.get('description')}")
     echecs += check(any(i["valeur"] == "entité sans préfixe commun" for i in faits["inconnus"]),
                     "tableau sans prefixe : inconnu, pas d'entite fausse")
+    return echecs
+
+
+def verifie_tri():
+    echecs = 0
+    echecs += check(fx._whitelist("Attribut de tri - whitelist : nom, description. Préfixe -") == ["nom", "description"],
+                    "whitelist : liste, arret au point")
+    echecs += check(fx._whitelist("n’appartient pas à la whitelist (date, auteur)") == ["date", "auteur"],
+                    "whitelist entre parentheses")
+    echecs += check(fx._whitelist("whitelist dateDebut / dateFin") == ["dateDebut", "dateFin"], "barre oblique")
+    echecs += check(fx._whitelist("hors whitelist de RG-COMPTE.UTILISATEUR-FILTRAGE-TRI") is None,
+                    "renvoi a une RG : non releve")
+    echecs += check(fx._whitelist("n'appartient pas à la whitelist") is None, "whitelist sans liste")
+    adf = doc(titre(1, "2. Contrat d'entrée"),
+              table(["Attribut", "Description"], ["q", "Recherche libre"],
+                    ["sort", "Attribut de tri - whitelist : date, auteur"]),
+              titre(1, "4. Traitement"),
+              para(txt("Si sort est renseigné et n’appartient pas à la whitelist (date)")))
+    faits = collecte(adf, "SA", "SA-X-RECHERCHER")
+    tri = faits.get("tri", {})
+    echecs += check(tri.get("contrat", {}).get("valeurs") == ["date", "auteur"]
+                    and tri.get("traitement", {}).get("valeurs") == ["date"]
+                    and tri["traitement"]["ou"] == {"section": "4. Traitement"}, f"tri du SA (K39) : {tri}")
     return echecs
 
 
@@ -381,7 +421,7 @@ def verifie_ecriture():
 
 VERIFICATIONS = (verifie_normalisation, verifie_texte, verifie_liens, verifie_absent_et_vide,
                  verifie_inconnus, verifie_cartouche, verifie_inclusions_et_definitions,
-                 verifie_api, verifie_mcd, verifie_fixtures, verifie_ecriture)
+                 verifie_api, verifie_mcd, verifie_tri, verifie_fixtures, verifie_ecriture)
 
 
 def test_faits():

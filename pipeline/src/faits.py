@@ -2,7 +2,8 @@
 """
 Collecteur de faits — ADF brut d'une page -> faits de la page (contracts/faits.md).
 
-VERSION : 1.0 — premiere version, schema 2 du contrat de faits
+VERSION : 1.1 — description des entites MCD, whitelist de tri des SA (tri), tableaux du corps des RG
+          1.0 — premiere version, schema 2 du contrat de faits
 
 Le collecteur releve ce qui est ECRIT, avec son emplacement. Il ne rend aucun verdict :
 la conformite est l'affaire du catalogue de controles (depot sinapse-skills). Changer
@@ -32,7 +33,7 @@ import multiexcerpt as mx
 from inventory import TIRETS_UNICODE
 from renderer import cible_de_lien
 
-VERSION = "1.0"
+VERSION = "1.1"
 SCHEMA_VERSION = 2
 CONFIG_DEFAUT = Path(__file__).resolve().parent.parent / "config" / "faits_types.json"
 BASE_URL = "https://sinapse-gie-nc.atlassian.net"
@@ -938,7 +939,28 @@ class Collecteur:
         traitement = self._traitement()
         if traitement is not None:
             faits["traitement"] = traitement
+        tri = self._tri(faits)
+        if tri:
+            faits["tri"] = tri
         return faits
+
+    def _tri(self, faits):
+        """Whitelist de tri du SA de recherche, au §2 (ligne `sort`) et au §4 (TEMPLATE_SA, NB
+        « Whitelist de tri ») ; une whitelist donnée par renvoi à une RG n'est pas relevée."""
+        tri = {}
+        for ligne in faits.get("contrat_entree", []):
+            if ligne["cellules"].get("attribut", {}).get("texte") == "sort":
+                valeurs = _whitelist(ligne["cellules"].get("description", {}).get("texte", ""))
+                if valeurs:
+                    tri["contrat"] = {"valeurs": valeurs, "ou": dict(ligne["ou"], colonne="description")}
+                    break
+        for ligne in faits.get("traitement", {}).get("texte", "").split("\n"):
+            valeurs = _whitelist(ligne) if "sort" in ligne else None
+            if valeurs:
+                tri["traitement"] = {"valeurs": valeurs,
+                                     "ou": {"section": self.page.titres[self.page.section("traitement")]["titre"]}}
+                break
+        return tri
 
     def _traitement(self):
         """Section 4 en entier, plus ses etapes : sous-titres et paragraphes tout en gras."""
@@ -974,7 +996,23 @@ class Collecteur:
         tableaux = self._tableaux_section("inventaire")
         if tableaux is not None:
             faits["entites"] = self._entites(tableaux)
+            descriptions = self._descriptions_entites()
+            for entite in faits["entites"]:
+                description = descriptions.get(entite["libelle"])
+                if description and description["texte"]:
+                    entite["description"] = description
         return faits
+
+    def _descriptions_entites(self):
+        """{titre: texte} : la prose (hors tableaux) placée sous le titre de chaque entité de
+        l'inventaire, « Objet permettant de représenter une Note… » (TEMPLATE_MCD, Description)."""
+        indice = self.page.section("inventaire")
+        par_titre = {}
+        for noeud, chemin in self.page.blocs:
+            if not self.page.appartient(chemin, indice) or next(_tables([noeud]), None) is not None:
+                continue
+            par_titre.setdefault(self.page.titre_le_plus_proche(chemin), []).append(noeud)
+        return {titre: nettoie(self.lecteur.texte(noeuds)) for titre, noeuds in par_titre.items()}
 
     def _relations(self, indice):
         """Relations de la section Modelisation, une par paire d'entites (premiere vue).
@@ -1080,7 +1118,20 @@ class Collecteur:
             if trouve and trouve.group(1).strip():
                 regle["concernant"] = trouve.group(1).strip()
         regle["corps"] = nettoie(self.lecteur.texte(definition.get("content") or []))
+        tableaux = [t for t in (self._tableau_simple(table, rang)
+                                for rang, table in enumerate(_tables(definition.get("content") or []), 1)) if t]
+        if tableaux:
+            regle["corps"]["tableaux"] = tableaux
         return regle
+
+    def _tableau_simple(self, table, rang):
+        """Tableau du corps d'une RG, en texte : en-têtes (première ligne), puis lignes
+        (« Attributs du DTO X » | « Alimentation », contrôle K65)."""
+        lignes = [[nettoie(self.lecteur.texte(c))["texte"] for c in _cellules(ligne)]
+                  for ligne in _lignes_brutes(table)]
+        if not lignes:
+            return None
+        return {"rang": rang, "entetes": lignes[0], "lignes": lignes[1:]}
 
     # ------------------------------------------------------------------
     # Index de la page (contrat §4.5)
@@ -1181,6 +1232,23 @@ class Collecteur:
         if titre_section:
             definition["titre_section"] = titre_section
         return definition
+
+
+RE_WHITELIST = re.compile(r"whitelist\s*(?::|\()?\s*([^.\n)]*)", re.I)
+MOTS_HORS_WHITELIST = {"cf", "de", "du", "des", "la", "le", "les", "voir"}
+
+
+def _whitelist(texte):
+    """Attributs nommés après « whitelist » : « whitelist : code, libelle », « (date, auteur) »,
+    « dateDebut / dateFin ». None si la phrase renvoie ailleurs (« whitelist de RG-… »)."""
+    trouve = RE_WHITELIST.search(texte or "")
+    if not trouve:
+        return None
+    morceaux = [m for m in re.split(r"\s*(?:,|/|\bet\b|\bou\b)\s*", trouve.group(1).strip()) if m]
+    if not morceaux or any(m.lower() in MOTS_HORS_WHITELIST or not re.fullmatch(r"[a-z][A-Za-z0-9]*", m)
+                           for m in morceaux):
+        return None
+    return morceaux
 
 
 def _tout_en_gras(noeud):

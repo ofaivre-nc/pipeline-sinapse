@@ -231,6 +231,9 @@ Avant le premier `push` : vérifier ce qui part (`git status`, `git diff --cache
   SF, heuristique RG → entité, fusion du JSON MCD, pages chapeau et annexes écartées
   (`_meta.pages_ecartees`), RG nommées par leur code de titre, habilitation de route incluse
   lue dans le cartouche du CU source. L'étape Jira vit dans `sinapse-skills`.
+- 23 octobre : `faits.py` 1.1 (description des entités MCD, whitelist de tri des SA `tri`,
+  tableaux du corps des RG `corps.tableaux`) ; `faits_types.json` 1.2 (codes de RG à casse mixte,
+  ceux du Design System, lus en entier).
 - Certificats : sur un poste qui inspecte le HTTPS, `requests` (certifi) échoue ; les clients
   utilisent `ssl.create_default_context()` (magasin du système).
 - Reste au renderer : macros `pagetree`, `children`, `anchor`, `jira`, nœuds `placeholder` et
