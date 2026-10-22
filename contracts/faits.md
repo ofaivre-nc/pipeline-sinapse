@@ -353,7 +353,7 @@ Condition posée par Olivier le 2026-10-21 : les deux JSON se déduisent **facil
 | `nodes.rg[]` : `id`, `sf`, `url`, `description` | nœud `rg` ; `regles[].concernant` |
 | `nodes.rg[].categorie`, `confiance` | **heuristique de la projection**, reprise de la procédure carto §2.6 ; jamais un fait, jamais un score |
 | `edges[]` `appelle`, `expose`, `reference` | arêtes du graphe, à l'identique |
-| `edges[]` `lecture`, `ecriture`, `lecture_critere` | **heuristique de la projection** (`confiance: heuristique_v0`) : motif `Entite.attribut` dans `regles[].corps`, entité validée contre les `entites` des faits MCD |
+| `edges[]` `lecture`, `ecriture`, `lecture_critere` | **heuristique de la projection** (`confiance: heuristique_v0`) : motif `Entite.attribut` dans `regles[].corps`, entité validée contre les `entites` des faits MCD. La cible `to` s'écrit **`SF.ENTITE` en capitales** (`NOTE.NOTE`, `NOTE.TYPENOTE`) : c'est la forme de la référence du 18 octobre, la seule que l'outil de visualisation reconnaît comme entité, et qu'il rapproche du JSON MCD par `(sf + '.' + id).upper()` |
 | `_meta.references_non_resolues` | `hors_corpus[]` |
 | `_meta.pages_connues` | `page.id`, `type`, `module`, `titre`, `confluence_version` des fichiers de faits |
 | `_meta.anomalies_detectees` | **pas une projection** : c'est la sortie d'une validation. Le skill « valider » peut l'écrire |

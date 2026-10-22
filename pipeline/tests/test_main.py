@@ -153,6 +153,9 @@ def verifie_projections():
     categorie, _, champs = pj.classe_regle({"nom": "RG-X-VERIFIER", "corps": {"texte": "appel du SA"}},
                                            entites, True)
     echecs += check(categorie == "controle_integrite" and champs == [], f"{categorie}")
+    # Forme reconnue par la visualisation carto_sinapse_*.html : « SF.ENTITE » en capitales.
+    echecs += check(pj.id_entite("TypeNote", {"TypeNote": "NOTE"}) == "NOTE.TYPENOTE"
+                    and pj.id_entite("Inconnue", {}) == "MCD.INCONNUE", "identifiant d'entite du JSON carto")
 
     precedent = {"quartiers": [{"id": "Q", "sfs": [{"id": "X", "jiraTickets": [{"code": "REC-1"}]}]}],
                  "entities": [{"id": "Vieille", "sf": "X", "attrs": []}, {"id": "Autre", "sf": "Y", "attrs": []}],
@@ -172,7 +175,35 @@ def verifie_projections():
     return echecs
 
 
-VERIFICATIONS = (verifie_run_et_graphe, verifie_echec_isole, verifie_arborescence, verifie_projections)
+def verifie_md():
+    """--md : un .md par page, frontmatter du contrat, contenu reutilise resolu, write-if-changed."""
+    echecs = 0
+    pages = corpus()
+    with tempfile.TemporaryDirectory() as dossier:
+        adf, meta = ecrit_corpus(dossier, pages, {"1": 1, "2": 1, "3": 1, "4": 1})
+        sortie, md = Path(dossier) / "faits", Path(dossier) / "md"
+        rapport = mn.execute(adf, meta, sortie, md=md)
+        fichiers = sorted(p.name for p in md.rglob("*.md"))
+        echecs += check(rapport["md_ecrits"] == 4 and fichiers == ["API-X.md", "CU-X-CREER.md",
+                                                                    "SA-X-CREER.md",
+                                                                    "SF-X-Regles-de-gestion-consolidees.md"],
+                        f"un .md par page : {fichiers}")
+        texte = next(md.rglob("CU-X-CREER.md")).read_text(encoding="utf-8")
+        echecs += check(texte.startswith('---\npage_id: "2"\npage_title: "CU-X-CREER"'),
+                        f"frontmatter du contrat : {texte[:80]!r}")
+        echecs += check("↳ inclusion : RG-X-CREER" in texte and "POST /x" in texte,
+                        "le contenu de la RG incluse est rendu, encadre de ses marqueurs")
+        rapport = mn.execute(adf, meta, sortie, md=md)
+        echecs += check(rapport["md_ecrits"] == 0 and rapport["relues"] == [],
+                        "second passage : rien a relire ni a reecrire")
+        next(md.rglob("API-X.md")).unlink()
+        rapport = mn.execute(adf, meta, sortie, md=md)
+        echecs += check([r["motif"] for r in rapport["relues"]] == ["md absent"], f"{rapport['relues']}")
+    return echecs
+
+
+VERIFICATIONS = (verifie_run_et_graphe, verifie_echec_isole, verifie_arborescence, verifie_projections,
+                 verifie_md)
 
 
 def test_main():

@@ -2,7 +2,8 @@
 """
 Projections des faits — JSON carto et JSON MCD (contracts/faits.md §7).
 
-VERSION : 1.1 — perimetre par SF, heuristique RG -> entite, fusion du JSON MCD, commande
+VERSION : 1.2 — entites des aretes RG -> entite en « SF.ENTITE » (forme reconnue par la visualisation)
+          1.1 — perimetre par SF, heuristique RG -> entite, fusion du JSON MCD, commande
           1.0 — noeuds, aretes structurelles, entites et relations
 
 Condition posee le 2026-10-21 : les deux JSON se deduisent des faits par un script
@@ -28,7 +29,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-VERSION = "1.1"
+VERSION = "1.2"
 VERBES = ("GET", "POST", "PUT", "PATCH", "DELETE")
 
 # Un champ du MCD dans le texte d'une regle : Entite.attribut. Les DTO (…Reponse,
@@ -61,6 +62,17 @@ def _sans_inclusion(texte):
             "".join("{inclusion:" + i["nom"] + "}" for i in texte["inclusions"]), "").strip():
         return None
     return texte.get("texte")
+
+
+def id_entite(entite, entites):
+    """Identifiant d'une entite dans le JSON carto : « SF.ENTITE » en capitales (NOTE.NOTE).
+
+    C'est la forme de la cartographie de reference du 18 octobre, et celle que l'outil de
+    visualisation (carto_sinapse_*.html) reconnait comme entite : il la rapproche ensuite
+    du JSON MCD par (sf + '.' + id).upper(). `entites` : {nom de l'entite: SF}.
+    """
+    sf = entites.get(entite) if isinstance(entites, dict) else None
+    return f"{sf or 'MCD'}.{entite}".upper()
 
 
 def _sans_vide(noeud):
@@ -196,7 +208,7 @@ def projette_carto(pages, graphe, perimetre=None, sfs=None, entites=None):
         if source["page"]["type"] == "GENERIQUE":
             pages_generiques[source["page"]["id"]] = source["page"]["titre"]
         for entite, attribut, type_ in champs:
-            ajoute(noeud["id"], entite, type_, confiance, attribut=attribut)
+            ajoute(noeud["id"], id_entite(entite, entites or {}), type_, confiance, attribut=attribut)
     for liste in noeuds.values():
         deja = set()
         liste[:] = [n for n in liste if not (n["id"] in deja or deja.add(n["id"]))]
@@ -223,7 +235,8 @@ def projette_carto(pages, graphe, perimetre=None, sfs=None, entites=None):
             if vers.split(" ", 1)[0] not in VERBES:
                 ajoute(rg, vers, "appelle", "lien")
 
-    connus = {n["id"] for liste in noeuds.values() for n in liste} | set(entites or ())
+    connus = {n["id"] for liste in noeuds.values() for n in liste} | {id_entite(e, entites or {})
+                                                                       for e in (entites or ())}
     non_resolues = sorted({e["to"] for e in edges if e["to"] not in connus})
     return {
         "_meta": _sans_vide({
@@ -344,11 +357,13 @@ def main(argv=None):
 
     pages, graphe = charge_faits(args.faits)
     sfs = [s.strip() for s in args.sf.split(",") if s.strip()] if args.sf else None
-    entites = {e["id"] for e in projette_mcd(pages)["entities"]}
+    # {entite: SF} : les entites lues dans les pages MCD l'emportent sur le fichier precedent.
+    entites = {}
     precedent = None
     if args.mcd_precedent:
         precedent = json.loads(Path(args.mcd_precedent).read_text(encoding="utf-8"))
-        entites |= {e["id"] for e in precedent.get("entities", [])}
+        entites.update({e["id"]: e.get("sf") for e in precedent.get("entities", [])})
+    entites.update({e["id"]: e.get("sf") for e in projette_mcd(pages)["entities"]})
     horodatage = datetime.now().strftime("%Y%m%d%H%M")
     sortie = Path(args.sortie)
     sortie.mkdir(parents=True, exist_ok=True)

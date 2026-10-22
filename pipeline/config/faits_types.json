@@ -5,7 +5,7 @@
     "Un synonyme termine par * reconnait tout en-tete qui commence par lui.",
     "Toute nouvelle variante apparait d'abord dans inconnus[] des faits : l'ajouter ici, puis augmenter version."
   ],
-  "version": "1.0",
+  "version": "1.1",
 
   "citations": {
     "RG": "(?<![\\w-])RG-[A-Z0-9][A-Z0-9._\\-]*[A-Z0-9]",
@@ -68,7 +68,7 @@
           "titres": ["IHM"],
           "tableau": { "colonnes": {
             "libelle": ["Libellé"],
-            "composant": ["Composant du Design System", "Composant"],
+            "composant": ["Composant du Design System", "Composant / variante", "Composant"],
             "nom_champ": ["Nom du champ", "Identifiant IHM", "Champ"],
             "mapping_dto": ["Mapping DTO"],
             "saisie": ["Saisie"],
@@ -122,7 +122,7 @@
 
     "SA": {
       "sections": {
-        "but": { "titres": ["But & scénarios", "But et scénarios", "But"] },
+        "but": { "titres": ["But & scénarios", "But et scénarios", "But", "Description"] },
         "objet": { "titres": ["Objet"] },
         "scenarios": {
           "titres": ["Scénarios"],
@@ -145,8 +145,9 @@
         "codes": {
           "titres": ["Codes retours", "Codes retour", "Codes de retour"],
           "tableau": { "colonnes": {
-            "code": ["codeErreur", "code / codeErreur", "code", "Code"],
-            "message": ["Message*"]
+            "code": ["codeErreur", "code / codeErreur", "Code message", "code", "Code"],
+            "message": ["Message*"],
+            "cas": ["Cas"]
           } }
         },
         "traitement": { "titres": ["Traitement"], "tableaux_libres": true },

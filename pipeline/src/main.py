@@ -2,22 +2,24 @@
 """
 Point d'entree du pipeline — chaine minimale : ADF locaux -> faits de page -> graphe.
 
-VERSION : 1.0 — collecte des faits (contracts/faits.md), mode incremental, graphe
+VERSION : 1.2 — rendu des .md (--md), frontmatter du contrat, chemins de l'inventaire
+          1.1 — arborescence (module, quartier), pages exclues
+          1.0 — collecte des faits (contracts/faits.md), mode incremental, graphe
 
 Usage :
     python pipeline/src/main.py --adf <dossier des ADF> --pages <metadonnees> --sortie <faits>
-                                [--complet] [--config <faits_types.json>]
+                                [--md <dossier des .md>] [--complet] [--config <faits_types.json>]
 
   --adf     dossier contenant les ADF bruts `{page_id}.json`, cherches recursivement
             (sortie de recense_adf.py --pages --out, ou fixtures par type).
   --pages   metadonnees des pages : `pages.json` des fixtures (cle `pages`) ou rapport
             `*_pages.json` de recense_adf.py (cle `pages_analysees`).
   --sortie  dossier des faits : `{page_id}.json`, `graphe.json`, `rapport_collecte.json`.
+  --md      dossier des `.md` (contracts/frontmatter.md) : arborescence Confluence sous specs/.
   --complet relit toutes les pages, sans tenir compte des faits existants.
 
 L'export depuis Confluence reste a recense_adf.py (lance par l'utilisateur, jeton dans
-l'environnement) ; ce module ne joint jamais le reseau. Le rendu `.md` sera branche ici
-avec l'inventaire (`md_path`), a l'etape suivante.
+l'environnement) ; ce module ne joint jamais le reseau.
 
 MODE INCREMENTAL : une page n'est relue que si sa version Confluence, la version du
 collecteur ou celle de sa configuration a change. S'y ajoutent les pages qui INCLUENT
@@ -33,14 +35,16 @@ from pathlib import Path
 
 import re
 
+import export_md as em
 import faits as fx
 import graphe as gr
 import multiexcerpt as mx
+import renderer as rd
 import resolver as rs
 from inventory import (build_inventory, chaine_ascendance, module_par_titre, normalize_title,
                        type_par_titre)
 
-VERSION = "1.1"
+VERSION = "1.2"
 RE_QUARTIER = re.compile(r"^Q-[A-Z0-9_.\-]+", re.I)
 
 
@@ -52,13 +56,18 @@ def charge_metadonnees(chemin):
     """Liste de {id, titre, type?, version, parent_id?} depuis l'un des deux formats."""
     donnees = json.loads(Path(chemin).read_text(encoding="utf-8"))
     if "pages" in donnees:
+        # Date de l'export (export_confluence.py) : c'est elle que portent les faits et le
+        # frontmatter, pas la date du run, sinon chaque run reecrirait tous les .md.
+        exporte_le = (donnees.get("_meta") or {}).get("exporte_le")
         return [{"id": str(p["id"]), "titre": p["titre"], "type": p.get("type"),
-                 "version": p.get("version"), "parent_id": p.get("parent_id")}
+                 "version": p.get("version"), "parent_id": p.get("parent_id"),
+                 "version_date": p.get("version_date"), "exporte_le": exporte_le}
                 for p in donnees["pages"]]
     if "pages_analysees" in donnees:
         # spec_type de recense_adf.py classe les SA en AUTRE : le type est retire du titre.
         return [{"id": str(p["id"]), "titre": p["title"], "type": None,
-                 "version": p.get("version"), "parent_id": p.get("parent_id")}
+                 "version": p.get("version"), "parent_id": p.get("parent_id"),
+                 "version_date": p.get("version_date")}
                 for p in donnees["pages_analysees"]]
     raise SystemExit(f"format de metadonnees non reconnu : {chemin}")
 
@@ -187,7 +196,28 @@ def ecrit_json(chemin, donnees):
     temporaire.replace(chemin)
 
 
-def execute(adf, pages_meta, sortie, complet=False, config=None):
+def ecrit_md(md, chemin, resolu, faits, page, rendu_inventaire, rapport):
+    """Rend l'ADF resolu en .md, avec son frontmatter. Rend 1 si le fichier a change.
+
+    Un noeud que le renderer ne couvre pas est un incident : la page est ecrite quand meme,
+    en `parse_status: partial`, et l'incident part au rapport (aucun noeud ignore en silence).
+    """
+    try:
+        markdown, constats = rd.rend_document(resolu, rendu_inventaire, chemin)
+    except rd.RenduError as erreur:
+        rapport["md_incidents"].append({"id": page["id"], "titre": page["titre"], "erreur": str(erreur)})
+        return 0
+    incidents = [c for c in constats if c["niveau"] == rd.NIVEAU_INCIDENT]
+    if incidents:
+        rapport["md_incidents"].append({"id": page["id"], "titre": page["titre"],
+                                        "incidents": [f"{c['code']} : {c['detail']}" for c in incidents]})
+        faits = dict(faits, page=dict(faits["page"], parse_status="partial"))
+    entete = em.frontmatter(faits, page.get("exporte_le") or rapport["genere_le"], page.get("version_date"),
+                            faits.get("jira"))
+    return int(em.ecrit(md, chemin, entete + markdown.rstrip() + "\n"))
+
+
+def execute(adf, pages_meta, sortie, complet=False, config=None, md=None):
     sortie = Path(sortie)
     sortie.mkdir(parents=True, exist_ok=True)
     config = fx.charge_config(config)
@@ -206,6 +236,14 @@ def execute(adf, pages_meta, sortie, complet=False, config=None):
     exclues = [p for p in pages if inventaire[p["id"]].get("excluded")]
     pages = [p for p in pages if not inventaire[p["id"]].get("excluded")]
     motifs = plan(pages, sortie, config.get("version"), complet)
+    chemins_md, collisions = em.chemins(inventaire) if md else ({}, [])
+    rendu_inventaire = {i: {"titre": normalize_title(inventaire[i].get("title")), "md_path": c}
+                        for i, c in chemins_md.items()}
+    if md:
+        # Premier passage avec --md sur des faits deja a jour : le .md manquant est produit.
+        for page in pages:
+            if page["id"] in chemins_md and not (Path(md) / chemins_md[page["id"]]).exists():
+                motifs.setdefault(page["id"], "md absent")
 
     rapport = {"run_version": VERSION, "collecteur_version": fx.VERSION,
                "config_version": config.get("version"),
@@ -214,7 +252,8 @@ def execute(adf, pages_meta, sortie, complet=False, config=None):
                "pages": len(pages), "relues": [], "inchangees": 0, "echecs": [],
                "partielles": [], "sans_adf": [p["id"] for p in sans_adf],
                "exclues": [{"id": p["id"], "titre": p["titre"],
-                            "motif": inventaire[p["id"]].get("exclusion_reason")} for p in exclues]}
+                            "motif": inventaire[p["id"]].get("exclusion_reason")} for p in exclues],
+               "md_ecrits": 0, "md_incidents": [], "md_collisions": collisions}
 
     for page in pages:
         if page["id"] not in motifs:
@@ -225,13 +264,15 @@ def execute(adf, pages_meta, sortie, complet=False, config=None):
         meta = {"id": page["id"], "titre": page["titre"], "type": type_page,
                 "parent_id": page.get("parent_id"), "confluence_version": page.get("version"),
                 "module": classement.get("module") or module_par_titre(normalize_title(page["titre"])),
-                "quartier": classement.get("quartier")}
+                "quartier": classement.get("quartier"), "version_date": page.get("version_date"),
+                "exporte_le": page.get("exporte_le")}
         try:
             adf_page = fournisseur.adf(page["id"])
             try:
-                _, faits_resolver = resolveur.resout(adf_page, page["titre"], page["id"])
+                resolu, faits_resolver = resolveur.resout(adf_page, page["titre"], page["id"])
                 erreur_resolution = None
             except mx.ResolutionError as erreur:
+                resolu = adf_page
                 # Definition en double (contrat normalisation_adf.md §1.8) : le resolver
                 # leve, a raison. La page garde ses faits, sans le statut de ses inclusions,
                 # et l'erreur devient un fait : c'est le cas que K57 doit signaler.
@@ -240,6 +281,9 @@ def execute(adf, pages_meta, sortie, complet=False, config=None):
             if erreur_resolution:
                 faits["inconnus"].append({"ou": {}, "quoi": "resolution", "valeur": erreur_resolution})
                 faits["page"]["parse_status"] = "partial"
+            if md and page["id"] in chemins_md:
+                rapport["md_ecrits"] += ecrit_md(md, chemins_md[page["id"]], resolu, faits, page,
+                                                 rendu_inventaire, rapport)
         except (mx.ResolutionError, KeyError, ValueError, TypeError) as erreur:
             # Une page en echec n'interrompt pas le run : elle est listee et retentee
             # au run suivant (parse_status failed force la relecture).
@@ -270,14 +314,16 @@ def main(argv=None):
     parser.add_argument("--adf", required=True, help="dossier des ADF bruts {page_id}.json")
     parser.add_argument("--pages", required=True, help="metadonnees des pages (json)")
     parser.add_argument("--sortie", required=True, help="dossier des faits")
+    parser.add_argument("--md", help="dossier des .md (sinon : pas de rendu)")
     parser.add_argument("--complet", action="store_true", help="relire toutes les pages")
     parser.add_argument("--config", help="configuration du collecteur (faits_types.json)")
     args = parser.parse_args(argv)
-    rapport = execute(args.adf, args.pages, args.sortie, args.complet, args.config)
+    rapport = execute(args.adf, args.pages, args.sortie, args.complet, args.config, args.md)
     print(f"main v{VERSION} - {rapport['mode']} : {rapport['pages']} pages, "
           f"{len(rapport['relues'])} relues, {rapport['inchangees']} inchangees, "
           f"{len(rapport['echecs'])} en echec, {len(rapport['partielles'])} partielles, "
-          f"{len(rapport['sans_adf'])} sans ADF")
+          f"{len(rapport['sans_adf'])} sans ADF ; {rapport['md_ecrits']} .md ecrits, "
+          f"{len(rapport['md_incidents'])} avec incident, {len(rapport['md_collisions'])} en collision")
     for echec in rapport["echecs"]:
         print(f"  ECHEC {echec['id']} : {echec['erreur']}")
     return 1 if rapport["echecs"] else 0

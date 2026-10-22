@@ -2,7 +2,8 @@
 """
 Recensement des noeuds ADF du corpus Confluence SINAPSE — etape 0d du pipeline.
 
-VERSION : 1.3 — magasin de certificats du systeme, reprise sur Timeout et coupure reseau
+VERSION : 1.4 — date de la version (version_date) dans les metadonnees de page
+          1.3 — magasin de certificats du systeme, reprise sur Timeout et coupure reseau
           1.2 — inventaire des types de noeuds, des macros (extensionKey), des marks et
                 des cards (liens Jira et Confluence) presents dans un echantillon de pages.
                 Aucune conversion, aucune dependance a une bibliotheque ADF->MD.
@@ -44,7 +45,7 @@ import requests
 from requests.adapters import HTTPAdapter
 from requests.auth import HTTPBasicAuth
 
-VERSION = "1.3"
+VERSION = "1.4"
 BASE_URL = "https://sinapse-gie-nc.atlassian.net"
 API_V2 = f"{BASE_URL}/wiki/api/v2"
 
@@ -122,6 +123,7 @@ class Confluence:
             "id": str(data.get("id")),
             "title": data.get("title"),
             "version": (data.get("version") or {}).get("number"),
+            "version_date": (data.get("version") or {}).get("createdAt"),
             "parent_id": data.get("parentId"),
         }
         return meta, adf

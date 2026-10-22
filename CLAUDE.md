@@ -225,8 +225,14 @@ Avant le premier `push` : vérifier ce qui part (`git status`, `git diff --cache
   d'inclusion comprises). Les faits sont lus par le catalogue de contrôles du dépôt
   `sinapse-skills`. Critère d'acceptation vérifié sur 27 pages (bilan côté `sinapse-skills`).
 - `resolver.py` 1.4 : `page_id` et `local_id` structurés dans chaque fait.
-- Reste à brancher dans `main.py` : l'export (aujourd'hui `recense_adf.py --pages`), l'inventaire
-  complet (titres des pages hors export, `md_path`) et le rendu `.md`.
+- `export_confluence.py` : export **incrémental** de l'espace (liste en une passe, ADF par lots,
+  delta par `version.number`) ; `main.py` 1.2 : arborescence (module, quartier, exclusions),
+  rendu `.md` (`--md`, `export_md.py`, frontmatter du contrat) ; `projections.py` 1.1 : carto par
+  SF, heuristique RG → entité, fusion du JSON MCD. L'étape Jira vit dans `sinapse-skills`.
+- Certificats : sur un poste qui inspecte le HTTPS, `requests` (certifi) échoue ; les clients
+  utilisent `ssl.create_default_context()` (magasin du système).
+- Reste au renderer : macros `pagetree`, `children`, `anchor`, `jira`, nœuds `placeholder` et
+  `embedCard` (incidents consignés, page écrite quand même).
 
 ## État d'avancement — 10 août 2026
 
