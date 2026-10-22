@@ -995,6 +995,9 @@ def verifie_non_resolues():
     echecs += check([f["statut"] for f in faits] == ["definition_absente"], f"{faits}")
     echecs += check(faits[0]["emplacement"] == "page 999, localId loc-42",
                     f"le fait doit localiser l'inclusion : {faits[0]['emplacement']}")
+    # Jointure du collecteur de faits : champs structures, pas le texte d'emplacement.
+    echecs += check(faits[0].get("page_id") == "999" and faits[0].get("local_id") == "loc-42",
+                    f"page_id et local_id attendus en champs : {faits[0]}")
     echecs += check(marqueurs(resolu) == ["↳ inclusion non résolue : ABSENTE — "
                                           "source : SF-VIDE — définition introuvable "
                                           "sur la page source"],

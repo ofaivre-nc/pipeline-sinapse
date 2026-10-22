@@ -2,7 +2,7 @@
 """
 Resolution du contenu reutilise — les trois mecanismes, en un seul parcours.
 
-VERSION : 1.3 — libelle « extrait par défaut » pour l'extrait natif sans nom (contrat §1.8)
+VERSION : 1.4 — `page_id` et `local_id` structures dans chaque fait (jointure des faits v2)
 
 Ce module remplace le contenu reutilise par sa valeur et injecte les tables imbriquees,
 AVANT toute normalisation et tout rendu markdown. L'ordre importe : le contrat resout
@@ -40,7 +40,7 @@ import copy
 
 import multiexcerpt as mx
 
-VERSION = "1.3"
+VERSION = "1.4"
 
 
 # ==========================================================================
@@ -427,10 +427,20 @@ class Resolveur:
     # `substitution: "inline"` couvre aussi les inclusions inline NON RESOLUES, qui n'ont
     # rien substitue mais dont le marqueur est reste en place.
 
-    def _consigne(self, mecanisme, cle, statut, hors_perimetre, ou, forme=FORME_BLOC):
+    def _consigne(self, mecanisme, cle, statut, hors_perimetre, ou, forme=FORME_BLOC,
+                  node=None, page_id=None):
         fait = {"mecanisme": mecanisme, "cle": cle, "statut": statut,
                 "source_hors_perimetre": hors_perimetre, "emplacement": ou,
                 "forme": forme}
+        # Jointure du collecteur de faits (contracts/faits.md §1) : la page qui PORTE le
+        # noeud d'inclusion — la page source quand l'inclusion est dans un contenu
+        # injecte — et le localId du noeud, en champs structures plutot que relus dans
+        # le texte de `emplacement`. Cle absente si le noeud n'a pas de localId.
+        if page_id is not None:
+            fait["page_id"] = str(page_id)
+        local_id = ((node or {}).get("attrs") or {}).get("localId")
+        if local_id:
+            fait["local_id"] = local_id
         if forme == FORME_INLINE:
             fait["substitution"] = SUBSTITUTION_INLINE
         self.faits.append(fait)
@@ -626,19 +636,20 @@ class Resolveur:
 
         if not self.assure_titre(cible):
             self._consigne(mecanisme, cle, STATUT_PAGE_SOURCE_ABSENTE,
-                           hors, ou, forme)
+                           hors, ou, forme, node, page_id)
             return [_marqueur(inline, libelle_non_resolue(
                 nom, cible, MOTIFS[STATUT_PAGE_SOURCE_ABSENTE]))]
 
         definition = self.index.resout(node, titre)
         if definition is None:
             self._consigne(mecanisme, cle, STATUT_DEFINITION_ABSENTE,
-                           hors, ou, forme)
+                           hors, ou, forme, node, page_id)
             return [_marqueur(inline, libelle_non_resolue(
                 nom, cible, MOTIFS[STATUT_DEFINITION_ABSENTE]))]
 
         injecte = self._injecte(definition, mecanisme, cle, guard)
-        fait = self._consigne(mecanisme, cle, STATUT_RESOLUE, hors, ou, forme)
+        fait = self._consigne(mecanisme, cle, STATUT_RESOLUE, hors, ou, forme,
+                              node, page_id)
         return self._depose(injecte, nom, definition["page_title"], inline, fait)
 
     def _resout_sync(self, node, titre, page_id, guard):
@@ -653,21 +664,22 @@ class Resolveur:
 
         if not self.assure_identifiant(source_id):
             self._consigne(MECANISME_SYNC, cle, STATUT_PAGE_SOURCE_ABSENTE,
-                           hors, ou, FORME_BLOC)
+                           hors, ou, FORME_BLOC, node, page_id)
             return [marqueur_bloc(libelle_non_resolue(
                 nom, f"page {source_id}", MOTIFS[STATUT_PAGE_SOURCE_ABSENTE]))]
 
         definition = self.sync.get(cle)
         if definition is None:
             self._consigne(MECANISME_SYNC, cle, STATUT_DEFINITION_ABSENTE,
-                           hors, ou, FORME_BLOC)
+                           hors, ou, FORME_BLOC, node, page_id)
             return [marqueur_bloc(libelle_non_resolue(
                 nom, f"page {source_id}", MOTIFS[STATUT_DEFINITION_ABSENTE]))]
 
         injecte = self._injecte(definition, MECANISME_SYNC, cle, guard)
         # Un syncBlock n'a pas de forme inline : `syncBlock` est un type de noeud de
         # bloc, et est_inclusion_inline() rend False pour lui.
-        fait = self._consigne(MECANISME_SYNC, cle, STATUT_RESOLUE, hors, ou, FORME_BLOC)
+        fait = self._consigne(MECANISME_SYNC, cle, STATUT_RESOLUE, hors, ou, FORME_BLOC,
+                              node, page_id)
         return self._depose(injecte, nom, definition["page_title"], False, fait)
 
 

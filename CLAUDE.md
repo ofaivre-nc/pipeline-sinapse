@@ -39,10 +39,12 @@ contracts/             LE CONTRAT pipeline ↔ skills
   frontmatter.md                   métadonnées des .md exportés
   pages_inventory.schema.json      inventaire et delta
   reused_content_cache.schema.json multiexcerpt + syncBlock, deux clés
-  index_croise.schema.json         agrégation par module
-  mcd_sinapse_data.schema.json     données MCD — PROVISOIRE, voir le fichier
-pipeline/src/          main, confluence_client, inventory, multiexcerpt, resolver,
-                       renderer, index_builder, mcd, report
+  faits.md                         contrat de faits v2 : faits par page, graphe, projections
+  index_croise.schema.json         agrégation par module — REMPLACÉ par faits.md
+  mcd_sinapse_data.schema.json     données MCD — REMPLACÉ par faits.md §7.2
+pipeline/src/          main, inventory, delta, multiexcerpt, resolver, renderer,
+                       faits (collecteur), graphe, projections ; à venir : confluence_client
+pipeline/config/       faits_types.json : sections et colonnes reconnues, par type de page
 pipeline/tests/        rejouent les fixtures
 pipeline/fixtures/     5-10 ADF figés + .md attendus
 pipeline/config.ini    NON VERSIONNÉ
@@ -215,7 +217,18 @@ travail à domicile devient nécessaire.
 
 Avant le premier `push` : vérifier ce qui part (`git status`, `git diff --cached`).
 
-## État d'avancement — mis à jour le 10 août 2026
+## État d'avancement — mis à jour le 22 octobre 2026
+
+- **Contrat de faits v2** (`contracts/faits.md`) et sa chaîne minimale : `faits.py` (collecteur,
+  ADF brut → `faits/{page_id}.json`), `graphe.py`, `projections.py` (JSON carto et MCD),
+  `main.py` (ADF locaux → faits, **mode incrémental** par version de page, dépendances
+  d'inclusion comprises). Les faits sont lus par le catalogue de contrôles du dépôt
+  `sinapse-skills`. Critère d'acceptation vérifié sur 27 pages (bilan côté `sinapse-skills`).
+- `resolver.py` 1.4 : `page_id` et `local_id` structurés dans chaque fait.
+- Reste à brancher dans `main.py` : l'export (aujourd'hui `recense_adf.py --pages`), l'inventaire
+  complet (titres des pages hors export, `md_path`) et le rendu `.md`.
+
+## État d'avancement — 10 août 2026
 
 Séquencement, position détaillée et questions ouvertes : sections 2 et 7 du document de
 référence. Position en bref :

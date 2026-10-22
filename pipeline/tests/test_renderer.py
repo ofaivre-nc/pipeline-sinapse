@@ -367,8 +367,9 @@ def verifie_identifiants_chaines():
     echecs += check(edition is False, "cette URL n'est pas une URL d'edition")
 
     # Le lien court decode vers le meme identifiant — trois paires du contrat §6.3.
+    # `KwCcL` : 5 caracteres, un `A` de fin retire par Confluence (API-PORTAIL-ACTUALITES).
     for suffixe, attendu in (("AYCwAQ", "28344321"), ("LYBJDg", "239697965"),
-                             ("NoC3AQ", "28803126")):
+                             ("NoC3AQ", "28803126"), ("KwCcL", "748421163")):
         obtenu = rd.page_id_depuis_lien_court(suffixe)
         echecs += check(obtenu == attendu,
                         f"lien court {suffixe} -> {attendu}, obtenu {obtenu!r}")

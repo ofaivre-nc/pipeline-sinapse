@@ -118,6 +118,11 @@ def page_id_depuis_lien_court(suffixe):
     """
     try:
         brut = suffixe.replace("_", "/").replace("-", "+")
+        # Confluence retire aussi les `A` de fin (bits nuls) : un suffixe de 5 caracteres
+        # n'est pas du base64 valide tant qu'on ne les a pas remis. Cas reel du corpus :
+        # `KwCcL` -> 748421163 (SA-PORTAIL-ACTUALITE.MODIFIER).
+        if len(brut) % 4 == 1:
+            brut += "A"
         brut += "=" * (-len(brut) % 4)
         octets = base64.b64decode(brut).ljust(8, b"\x00")
         return str(struct.unpack("<Q", octets[:8])[0])
