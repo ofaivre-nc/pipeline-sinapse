@@ -2,7 +2,9 @@
 """
 Projections des faits — JSON carto et JSON MCD (contracts/faits.md §7).
 
-VERSION : 1.2 — entites des aretes RG -> entite en « SF.ENTITE » (forme reconnue par la visualisation)
+VERSION : 1.3 — pages chapeau et annexes ecartees, RG nommees par leur code de titre,
+                habilitation de route prise dans le cartouche du CU inclus
+          1.2 — entites des aretes RG -> entite en « SF.ENTITE » (forme reconnue par la visualisation)
           1.1 — perimetre par SF, heuristique RG -> entite, fusion du JSON MCD, commande
           1.0 — noeuds, aretes structurelles, entites et relations
 
@@ -29,8 +31,19 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-VERSION = "1.2"
+VERSION = "1.3"
 VERBES = ("GET", "POST", "PUT", "PATCH", "DELETE")
+
+# Une page CU ou SA sans AUCUNE section du modele et mere de pages du meme type est une
+# page chapeau (SA-NOTE, mere des SA du module : macro children, tableau d'index ou rien) :
+# pas un nœud. Une page squelette (sections vides) ou vide sans fille reste un nœud :
+# c'est une spec a ecrire.
+SECTIONS_MODELE = {
+    "CU": ("description", "nominal", "regles", "ihm"),
+    "SA": ("objet", "scenarios", "contrat_entree", "objet_restitue", "codes", "traitement", "regles"),
+}
+# « CU-NOTE-CONSULTER: Matrice de passage specs-tests » : une annexe du CU, pas un CU.
+RE_ANNEXE = re.compile(r"^(?:CU|SA|API)-[^:\s]+\s*:")
 
 # Un champ du MCD dans le texte d'une regle : Entite.attribut. Les DTO (…Reponse,
 # …Requete) ont la meme forme et sont ecartes, comme les entites inconnues du MCD.
@@ -62,6 +75,50 @@ def _sans_inclusion(texte):
             "".join("{inclusion:" + i["nom"] + "}" for i in texte["inclusions"]), "").strip():
         return None
     return texte.get("texte")
+
+
+def _habilitation(cellule, par_titre):
+    """Habilitation d'une route. Une cellule faite d'inclusions (l'extrait « habilitation »
+    du cartouche d'un CU) prend la valeur de ce cartouche dans les faits du CU source."""
+    texte = _sans_inclusion(cellule)
+    if texte is not None or not cellule:
+        return texte
+    valeurs = []
+    for inclusion in cellule.get("inclusions", []):
+        source = par_titre.get(inclusion.get("page_source"), {})
+        valeur = (source.get("cartouche", {}).get(inclusion["nom"]) or {}).get("texte")
+        if valeur:
+            valeurs.append(valeur)
+    return ", ".join(dict.fromkeys(valeurs)) or None
+
+
+def motif_ecart(faits, meres=frozenset()):
+    """Raison d'ecarter une page CU, SA ou API de la carto, ou None.
+
+    `meres` : (id, type) des pages qui ont au moins une page fille du meme type.
+    """
+    page = faits["page"]
+    if RE_ANNEXE.match(page["titre"]):
+        return "annexe (titre « code : sous-titre »)"
+    sections = SECTIONS_MODELE.get(page["type"])
+    if sections and not any(s in faits for s in sections) and (page["id"], page["type"]) in meres:
+        return "page chapeau (pages filles du meme type, aucune section du modele)"
+    return None
+
+
+def codes_rg(pages):
+    """{nom d'extrait: code} des regles dont l'extrait ne porte pas le code RG.
+
+    « recherche_pagination » est l'extrait de RG-RECH-6 : le code est dans le titre de
+    la regle (`code_titre`), le nom d'extrait n'en est que la cle d'inclusion.
+    """
+    codes = {}
+    for faits in pages:
+        for regle in faits.get("regles", []) if faits["page"]["type"] in ("RG", "GENERIQUE") else []:
+            code = regle.get("code_titre") or ""
+            if not regle["nom"].upper().startswith("RG-") and code.upper().startswith("RG-"):
+                codes[regle["nom"]] = code
+    return codes
 
 
 def id_entite(entite, entites):
@@ -143,8 +200,17 @@ def projette_carto(pages, graphe, perimetre=None, sfs=None, entites=None):
             return False
         return sfs is None or f["page"].get("module") in sfs
 
-    retenues = [f for f in pages if f["page"]["type"] in ("CU", "SA", "API") and dans(f)]
+    candidates = [f for f in pages if f["page"]["type"] in ("CU", "SA", "API") and dans(f)]
+    meres = {(f["page"].get("parent_id"), f["page"]["type"]) for f in pages}
+    ecartees = [{"id": f["page"]["id"], "titre": f["page"]["titre"], "motif": motif_ecart(f, meres)}
+                for f in candidates if motif_ecart(f, meres)]
+    retenues = [f for f in candidates if not motif_ecart(f, meres)]
     titres = {f["page"]["titre"] for f in retenues}
+    par_titre = {f["page"]["titre"]: f for f in pages}
+    codes = codes_rg(pages)
+
+    def rg(nom):
+        return codes.get(nom, nom)
     aretes = graphe["aretes"]
 
     references = [a for a in aretes if a["type"] == "reference" and a["de"] in titres]
@@ -181,7 +247,7 @@ def projette_carto(pages, graphe, perimetre=None, sfs=None, entites=None):
             "id": noeud["id"], "api": noeud["api"],
             "sa": arete["vers"] if arete and not arete.get("confiance") else None,
             "description": _phrase(ligne.get("cellules", {}).get("objet")),
-            "habilitation": _sans_inclusion(ligne.get("cellules", {}).get("habilitation")),
+            "habilitation": _habilitation(ligne.get("cellules", {}).get("habilitation"), par_titre),
             "confiance": (arete or {}).get("confiance", "structure" if arete else None)}))
 
     edges, vues = [], set()
@@ -202,13 +268,14 @@ def projette_carto(pages, graphe, perimetre=None, sfs=None, entites=None):
         regle = next((r for r in source.get("regles", []) if r["nom"] == noeud["id"]), {})
         appelle_sa = any(v in sa_ids or v.startswith("SA-") for v in appels_rg.get(noeud["id"], []))
         categorie, confiance, champs = classe_regle(regle, entites or set(), appelle_sa)
-        noeuds["rg"].append(_sans_vide({"id": noeud["id"], "sf": noeud.get("sf"), "url": noeud.get("url"),
+        noeuds["rg"].append(_sans_vide({"id": rg(noeud["id"]), "sf": noeud.get("sf"), "url": noeud.get("url"),
+                                        "extrait": noeud["id"] if rg(noeud["id"]) != noeud["id"] else None,
                                         "description": regle.get("concernant"),
                                         "categorie": categorie, "confiance": confiance}))
         if source["page"]["type"] == "GENERIQUE":
             pages_generiques[source["page"]["id"]] = source["page"]["titre"]
         for entite, attribut, type_ in champs:
-            ajoute(noeud["id"], id_entite(entite, entites or {}), type_, confiance, attribut=attribut)
+            ajoute(rg(noeud["id"]), id_entite(entite, entites or {}), type_, confiance, attribut=attribut)
     for liste in noeuds.values():
         deja = set()
         liste[:] = [n for n in liste if not (n["id"] in deja or deja.add(n["id"]))]
@@ -229,11 +296,11 @@ def projette_carto(pages, graphe, perimetre=None, sfs=None, entites=None):
         if arete:
             ajoute(noeud["id"], arete["vers"], "expose", arete.get("confiance", "structure"))
     for a in references:
-        ajoute(a["de"], a["vers"], "reference", "structure")
-    for rg in rg_ids:
-        for vers in appels_rg.get(rg, []):
+        ajoute(a["de"], rg(a["vers"]), "reference", "structure")
+    for nom in rg_ids:
+        for vers in appels_rg.get(nom, []):
             if vers.split(" ", 1)[0] not in VERBES:
-                ajoute(rg, vers, "appelle", "lien")
+                ajoute(rg(nom), vers, "appelle", "lien")
 
     connus = {n["id"] for liste in noeuds.values() for n in liste} | {id_entite(e, entites or {})
                                                                        for e in (entites or ())}
@@ -248,6 +315,7 @@ def projette_carto(pages, graphe, perimetre=None, sfs=None, entites=None):
                                           "sf": f["page"].get("module"), "titre": f["page"]["titre"],
                                           "confluence_version": f["page"].get("confluence_version")})
                               for f in retenues],
+            "pages_ecartees": ecartees,
             "methode_rg_entite": "heuristique v0 (procedure carto §2.6) : Entite.attribut du corps de la RG, "
                                  "entite validee contre le MCD ; ecriture forcee par le nom PERSISTANCE-"
                                  "CREATION/MODIFICATION, lecture_critere pour -SUPPRESSION, sinon sens par "

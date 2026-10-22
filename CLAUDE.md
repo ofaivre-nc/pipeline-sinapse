@@ -227,8 +227,10 @@ Avant le premier `push` : vérifier ce qui part (`git status`, `git diff --cache
 - `resolver.py` 1.4 : `page_id` et `local_id` structurés dans chaque fait.
 - `export_confluence.py` : export **incrémental** de l'espace (liste en une passe, ADF par lots,
   delta par `version.number`) ; `main.py` 1.2 : arborescence (module, quartier, exclusions),
-  rendu `.md` (`--md`, `export_md.py`, frontmatter du contrat) ; `projections.py` 1.1 : carto par
-  SF, heuristique RG → entité, fusion du JSON MCD. L'étape Jira vit dans `sinapse-skills`.
+  rendu `.md` (`--md`, `export_md.py`, frontmatter du contrat) ; `projections.py` 1.3 : carto par
+  SF, heuristique RG → entité, fusion du JSON MCD, pages chapeau et annexes écartées
+  (`_meta.pages_ecartees`), RG nommées par leur code de titre, habilitation de route incluse
+  lue dans le cartouche du CU source. L'étape Jira vit dans `sinapse-skills`.
 - Certificats : sur un poste qui inspecte le HTTPS, `requests` (certifi) échoue ; les clients
   utilisent `ssl.create_default_context()` (magasin du système).
 - Reste au renderer : macros `pagetree`, `children`, `anchor`, `jira`, nœuds `placeholder` et

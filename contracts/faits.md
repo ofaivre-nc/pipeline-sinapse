@@ -345,12 +345,13 @@ Condition posée par Olivier le 2026-10-21 : les deux JSON se déduisent **facil
 
 | Champ carto (notice §8) | Pris dans |
 |---|---|
+| Pages retenues | pages CU, SA et API du périmètre, sauf (`_meta.pages_ecartees`, avec le motif) : une **annexe** (titre « code : sous-titre », ex. « CU-NOTE-CONSULTER: Matrice de passage specs-tests ») et une **page chapeau** (CU ou SA sans aucune section du modèle et mère de pages du même type, ex. SA-NOTE). Une page squelette ou vide sans fille reste un nœud |
 | `nodes.cu[]` : `id`, `sf`, `url`, `description`, `habilitation` | nœud `cu` ; `cu.description.texte` ; `cartouche.habilitation.texte` |
 | `edges[]` `appelle` CU → endpoint | composition `CU → RG (reference)` + `RG → endpoint (appelle)` du graphe (§6), plus les liens directs du CU s'il y en a |
 | `nodes.api[]` : `id`, `sf`, `url`, `tickets` | nœud `api` ; `evolutions[].tickets` |
-| `nodes.endpoint[]` : `id`, `api`, `sa`, `description`, `habilitation`, `confiance` | nœud `endpoint` et arête `expose` ; `routes[].cellules.objet` et `.habilitation` ; `confiance` = `lien_brouillon_non_resolu` si le lien `sa` a `etat: brouillon` |
+| `nodes.endpoint[]` : `id`, `api`, `sa`, `description`, `habilitation`, `confiance` | nœud `endpoint` et arête `expose` ; `routes[].cellules.objet` et `.habilitation` (une cellule faite de l'extrait « habilitation » d'un CU prend `cartouche.habilitation.texte` de ce CU) ; `confiance` = `lien_brouillon_non_resolu` si le lien `sa` a `etat: brouillon` |
 | `nodes.sa[]` : `id`, `sf`, `url`, `description`, `tickets` | nœud `sa` ; `sa.objet.texte` ; `evolutions[].tickets` |
-| `nodes.rg[]` : `id`, `sf`, `url`, `description` | nœud `rg` ; `regles[].concernant` |
+| `nodes.rg[]` : `id`, `sf`, `url`, `description`, `extrait` | nœud `rg` ; `regles[].concernant`. Quand le nom d'extrait n'est pas un code RG (`recherche_pagination`), `id` = `regles[].code_titre` (`RG-RECH-6`) et `extrait` garde le nom ; les arêtes suivent |
 | `nodes.rg[].categorie`, `confiance` | **heuristique de la projection**, reprise de la procédure carto §2.6 ; jamais un fait, jamais un score |
 | `edges[]` `appelle`, `expose`, `reference` | arêtes du graphe, à l'identique |
 | `edges[]` `lecture`, `ecriture`, `lecture_critere` | **heuristique de la projection** (`confiance: heuristique_v0`) : motif `Entite.attribut` dans `regles[].corps`, entité validée contre les `entites` des faits MCD. La cible `to` s'écrit **`SF.ENTITE` en capitales** (`NOTE.NOTE`, `NOTE.TYPENOTE`) : c'est la forme de la référence du 18 octobre, la seule que l'outil de visualisation reconnaît comme entité, et qu'il rapproche du JSON MCD par `(sf + '.' + id).upper()` |

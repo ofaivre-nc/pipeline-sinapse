@@ -157,6 +157,24 @@ def verifie_projections():
     echecs += check(pj.id_entite("TypeNote", {"TypeNote": "NOTE"}) == "NOTE.TYPENOTE"
                     and pj.id_entite("Inconnue", {}) == "MCD.INCONNUE", "identifiant d'entite du JSON carto")
 
+    # 1.3 : pages ecartees, code RG du titre, habilitation incluse depuis le cartouche d'un CU.
+    page = lambda i, titre, type_, **f: dict({"page": {"id": i, "titre": titre, "type": type_, "module": "X"}}, **f)
+    meres = {("1", "SA"), ("2", "SA")}
+    echecs += check(pj.motif_ecart(page("1", "SA-X", "SA", textes=[]), meres) is not None
+                    and pj.motif_ecart(page("2", "SA-X-CREER", "SA", objet={"texte": ""}), meres) is None
+                    and pj.motif_ecart(page("6", "SA-X-VIDE", "SA", textes=[]), meres) is None
+                    and pj.motif_ecart(page("3", "CU-X-CREER: Matrice de passage", "CU", regles=[])) is not None,
+                    "page chapeau et annexe ecartees, squelette garde")
+    generique = page("4", "Règles génériques", "GENERIQUE",
+                     regles=[{"nom": "recherche_pagination", "code_titre": "RG-RECH-6"},
+                             {"nom": "RG-RECH-PAGE", "code_titre": "RG-RECH-PAGE"}])
+    echecs += check(pj.codes_rg([generique]) == {"recherche_pagination": "RG-RECH-6"}, "code RG du titre")
+    cu = page("5", "CU-X-CREER", "CU", regles=[], cartouche={"habilitation": {"texte": "x:creer"}})
+    cellule = {"texte": "{inclusion:habilitation}",
+               "inclusions": [{"nom": "habilitation", "page_source": "CU-X-CREER"}]}
+    echecs += check(pj._habilitation(cellule, {"CU-X-CREER": cu}) == "x:creer"
+                    and pj._habilitation({"texte": "-"}, {}) == "-", "habilitation de route incluse")
+
     precedent = {"quartiers": [{"id": "Q", "sfs": [{"id": "X", "jiraTickets": [{"code": "REC-1"}]}]}],
                  "entities": [{"id": "Vieille", "sf": "X", "attrs": []}, {"id": "Autre", "sf": "Y", "attrs": []}],
                  "relations": [{"from": "Vieille", "to": "Autre"}, {"from": "Autre", "to": "Tierce"}]}
