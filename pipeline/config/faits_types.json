@@ -5,7 +5,7 @@
     "Un synonyme termine par * reconnait tout en-tete qui commence par lui.",
     "Toute nouvelle variante apparait d'abord dans inconnus[] des faits : l'ajouter ici, puis augmenter version."
   ],
-  "version": "1.2",
+  "version": "1.3",
 
   "citations": {
     "RG": "(?<![\\w-])RG-[A-Z0-9][A-Za-z0-9._\\-]*[A-Za-z0-9]",
@@ -159,7 +159,7 @@
           } }
         }
       },
-      "attendues": ["but", "contrat_entree", "contrat_sortie", "codes", "traitement", "regles"],
+      "attendues": ["but", "contrat_entree", "contrat_sortie", "codes", "traitement"],
       "scenarios_dans": "but",
       "objet_repli": "but"
     },
