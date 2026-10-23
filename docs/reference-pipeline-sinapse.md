@@ -12,7 +12,7 @@ Ce document porte **ce qui a été décidé et pourquoi**. Il n'est vérifiable 
 Le détail technique — **ce qui existe** — vit dans le dépôt, maintenu par Claude Code et vérifiable contre le code :
 
 ```
-C:\dev\sinapse-claude\
+C:\dev\pipeline-sinapse\         (C:\dev\sinapse-claude\ jusqu'au 2026-10-23)
 ├── CLAUDE.md                    instructions de session
 ├── CLAUDE.local.md              spécificités machine — non versionné
 ├── config.ini.example           gabarit ; pipeline/config.ini non versionné
@@ -169,7 +169,7 @@ Le critère de l'étape 8 est à étendre : « source de multiexcerpt modifiée 
 
 ### Environnement en place
 
-Claude Code opérationnel, dépôt `C:\dev\sinapse-claude`. Token Atlassian en variables `ATLASSIAN_EMAIL` / `ATLASSIAN_API_TOKEN`. **Aucun remote configuré** — le chemin SharePoint sera renseigné le jour où le travail à domicile devient nécessaire. `recensement/` non versionné (37 Mo, régénérable en 93 s).
+Claude Code opérationnel, dépôt `C:\dev\pipeline-sinapse` (nommé `C:\dev\sinapse-claude` jusqu'au 2026-10-23). Token Atlassian en variables `ATLASSIAN_EMAIL` / `ATLASSIAN_API_TOKEN`. Remote : dépôt GitHub privé `ofaivre-nc/pipeline-sinapse` depuis le 2026-10-21, à la place du dépôt nu SharePoint prévu au départ ; il synchronise le poste pro et le poste perso. `recensement/` non versionné (37 Mo, régénérable en 93 s).
 
 ### Prochaines étapes
 
@@ -351,7 +351,7 @@ Le dépôt est la source de vérité ; l'espace GIE est une cible de déploiemen
 - `exported_at` affiché dans l'en-tête de **tous** les comptes-rendus de skills.
 
 **Organisation**
-- Git avec dépôt nu sur le SharePoint comme remote ; GitLab différé, réversible en une commande.
+- Git avec dépôt nu sur le SharePoint comme remote ; GitLab différé, réversible en une commande. *Remplacé le 2026-10-21 par un dépôt GitHub privé.*
 - Sorties du pipeline sur le SharePoint d'équipe.
 - **Aucun skill SINAPSE dans `~/.claude/skills/`** : le personnel l'emporte sur le projet, une copie oubliée gagnerait silencieusement sur celle du dépôt.
 - Skills Claude Code et espace GIE claude.ai : deux stocks séparés.

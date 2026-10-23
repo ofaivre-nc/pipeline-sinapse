@@ -23,7 +23,7 @@ Deux espaces distincts, à ne pas confondre :
 
 | Espace | Contenu | Versionné |
 |---|---|---|
-| `C:\dev\sinapse-claude\` | le **code** : pipeline, skills, contrats | oui (Git) |
+| `C:\dev\pipeline-sinapse\` (poste pro ; `E:\Projets\pipeline-sinapse\` sur le poste perso) | le **code** : pipeline, skills, contrats | oui (Git) |
 | `{local_path}\` (SharePoint) | les **sorties** : `specs/`, `docs/`, `cache/`, `reports/` | non |
 
 ```
@@ -203,17 +203,16 @@ possible. `git stash` puis `git stash pop` conserve tout.
 non commités effacés par un `git checkout --` de remise en état après une injection de
 régression. Le travail a dû être refait à l'identique.*
 
-Pour l'instant, pas de GitHub ni de GitLab : le remote est un **dépôt nu déposé sur le
-SharePoint GIE**. On n'y édite rien, on ne fait que `push` / `pull` — c'est ce qui évite les
-conflits de synchronisation OneDrive. Migration GitLab différée, réversible en une commande.
+Le remote est le **dépôt GitHub privé** `ofaivre-nc/pipeline-sinapse` (depuis le
+2026-10-21 ; il remplace le dépôt nu sur le SharePoint GIE, jamais mis en place). Il sert
+à synchroniser les deux postes, à côté de `sinapse-skills` dans le même dossier parent :
+`C:\dev\` sur le poste pro, `E:\Projets\` sur le poste perso. Sur un poste : `git pull` en
+arrivant, commit et `git push` en partant, dans les deux dépôts. Procédure complète :
+`sinapse-skills/docs/passage-poste-pro.md`. Reste à vérifier : la politique du GIE pour un
+dépôt privé sur un compte GitHub personnel.
 
-```bash
-git init --bare "<SharePoint>\sinapse\sinapse.git"
-git remote add origin "<SharePoint>\sinapse\sinapse.git"
-```
-
-Aucun remote n'est configuré à ce jour : le chemin SharePoint sera renseigné le jour où le
-travail à domicile devient nécessaire.
+*Le dossier s'appelait `C:\dev\sinapse-claude` sur le poste pro jusqu'au 2026-10-23 :
+renommé pour que les scripts de `sinapse-skills` le trouvent en `../pipeline-sinapse`.*
 
 Avant le premier `push` : vérifier ce qui part (`git status`, `git diff --cached`).
 
