@@ -347,6 +347,31 @@ def verifie_mcd():
                     f"description de l'entite, hors tableau (K104) : {entite.get('description')}")
     echecs += check(any(i["valeur"] == "entité sans préfixe commun" for i in faits["inconnus"]),
                     "tableau sans prefixe : inconnu, pas d'entite fausse")
+    echecs += check("agregat" not in entite, "ancien format, sans « Description » : pas d'agregat")
+
+    # TEMPLATE_MCD du 2026-10-23 : type d'agregat entre le titre et « Description ».
+    adf = doc(titre(1, "Inventaire des données"), titre(2, "Propriétés de Personne"),
+              para(txt("Type : racine de l’agrégat")),
+              para(txt("Description", "strong"), txt(" : Objet représentant une personne.")),
+              table(["Nom du champ", "Format"], ["Personne.id", "UUID"]),
+              titre(2, "Propriétés de Adresse"),
+              para(txt("Type : entité interne à l’agrégat, racine associée : Personne")),
+              para(txt("Description : adresse d'une Personne.")),
+              table(["Nom du champ", "Format"], ["Adresse.id", "UUID"]),
+              titre(2, "Propriétés de Libelle"),
+              para(txt("Objet valeur")),
+              para(txt("Description : libellé.")),
+              table(["Nom du champ", "Format"], ["Libelle.texte", "Texte"]))
+    entites = {e["nom"]: e for e in collecte(adf, "MCD", "SF-X: Modélisation des données")["entites"]}
+    personne, adresse, libelle = entites["Personne"], entites["Adresse"], entites["Libelle"]
+    echecs += check(personne["agregat"].get("type") == "racine" and "racine" not in personne["agregat"],
+                    f"racine de l'agregat : {personne.get('agregat')}")
+    echecs += check(personne["description"]["texte"] == "Objet représentant une personne.",
+                    f"libelle « Description : » retire : {personne.get('description')}")
+    echecs += check((adresse["agregat"].get("type"), adresse["agregat"].get("racine")) == ("entite_interne", "Personne"),
+                    f"entite interne et sa racine : {adresse.get('agregat')}")
+    echecs += check(libelle["agregat"].get("type") == "objet_valeur" and "racine" not in libelle["agregat"],
+                    f"objet valeur sans racine citee : cle absente : {libelle.get('agregat')}")
     return echecs
 
 

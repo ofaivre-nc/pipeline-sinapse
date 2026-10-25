@@ -2,7 +2,9 @@
 """
 Collecteur de faits — ADF brut d'une page -> faits de la page (contracts/faits.md).
 
-VERSION : 1.1 — description des entites MCD, whitelist de tri des SA (tri), tableaux du corps des RG
+VERSION : 1.2 — type d'agregat des entites MCD (agregat), libelle « Description » retire
+                de la description (TEMPLATE_MCD du 2026-10-23)
+          1.1 — description des entites MCD, whitelist de tri des SA (tri), tableaux du corps des RG
           1.0 — premiere version, schema 2 du contrat de faits
 
 Le collecteur releve ce qui est ECRIT, avec son emplacement. Il ne rend aucun verdict :
@@ -33,7 +35,7 @@ import multiexcerpt as mx
 from inventory import TIRETS_UNICODE
 from renderer import cible_de_lien
 
-VERSION = "1.1"
+VERSION = "1.2"
 SCHEMA_VERSION = 2
 CONFIG_DEFAUT = Path(__file__).resolve().parent.parent / "config" / "faits_types.json"
 BASE_URL = "https://sinapse-gie-nc.atlassian.net"
@@ -996,15 +998,19 @@ class Collecteur:
         tableaux = self._tableaux_section("inventaire")
         if tableaux is not None:
             faits["entites"] = self._entites(tableaux)
-            descriptions = self._descriptions_entites()
+            proses = self._proses_entites()
+            noms = [entite["nom"] for entite in faits["entites"]]
             for entite in faits["entites"]:
-                description = descriptions.get(entite["libelle"])
+                agregat, description = self._agregat_et_description(
+                    proses.get(entite["libelle"], []), entite, noms)
+                if agregat:
+                    entite["agregat"] = agregat
                 if description and description["texte"]:
                     entite["description"] = description
         return faits
 
-    def _descriptions_entites(self):
-        """{titre: texte} : la prose (hors tableaux) placée sous le titre de chaque entité de
+    def _proses_entites(self):
+        """{titre: noeuds} : la prose (hors tableaux) placée sous le titre de chaque entité de
         l'inventaire, « Objet permettant de représenter une Note… » (TEMPLATE_MCD, Description)."""
         indice = self.page.section("inventaire")
         par_titre = {}
@@ -1012,7 +1018,46 @@ class Collecteur:
             if not self.page.appartient(chemin, indice) or next(_tables([noeud]), None) is not None:
                 continue
             par_titre.setdefault(self.page.titre_le_plus_proche(chemin), []).append(noeud)
-        return {titre: nettoie(self.lecteur.texte(noeuds)) for titre, noeuds in par_titre.items()}
+        return par_titre
+
+    def _agregat_et_description(self, noeuds, entite, noms):
+        """(agregat, description) d'une entité, depuis sa prose.
+
+        TEMPLATE_MCD du 2026-10-23 : le type d'agrégat se place entre « Propriétés de [Entite] »
+        et « Description ». Sans paragraphe « Description », toute la prose est la description
+        (ancien format) et aucun agrégat n'est relevé. Le type est reconnu par les synonymes de
+        la configuration (`entite.agregat`) ; la racine d'une entité interne ou d'un objet valeur
+        est une autre entité de la page citée dans le texte, clé absente sinon.
+        """
+        if not noeuds:
+            return None, None
+        cfg = self.regles.get("entite", {})
+        libelles = [reduit(l) for l in cfg.get("description", [])]
+        rang = next((i for i, noeud in enumerate(noeuds)
+                     if any(reduit(self.lecteur.texte(noeud)["texte"]).startswith(l) for l in libelles)),
+                    None)
+        if rang is None:
+            return None, nettoie(self.lecteur.texte(noeuds))
+        description = nettoie(self.lecteur.texte(noeuds[rang:]))
+        libelle = "|".join(re.escape(l) for l in cfg.get("description", []))
+        description["texte"] = re.sub(rf"^\s*(?:{libelle})\s*:?\s*", "", description["texte"], count=1,
+                                      flags=re.I)
+        if rang == 0:
+            return None, description
+        texte = nettoie(self.lecteur.texte(noeuds[:rang]))
+        if est_vide(texte):
+            return None, description
+        agregat = {"ou": {"section": entite["libelle"]}, "texte": texte}
+        forme = reduit(texte["texte"])
+        for type_agregat, synonymes in cfg.get("agregat", {}).items():
+            if any(reduit(synonyme) in forme for synonyme in synonymes):
+                agregat["type"] = type_agregat
+                break
+        if agregat.get("type") in ("entite_interne", "objet_valeur"):
+            racine = _racine_citee(texte["texte"], entite["nom"], noms)
+            if racine:
+                agregat["racine"] = racine
+        return agregat, description
 
     def _relations(self, indice):
         """Relations de la section Modelisation, une par paire d'entites (premiere vue).
@@ -1232,6 +1277,21 @@ class Collecteur:
         if titre_section:
             definition["titre_section"] = titre_section
         return definition
+
+
+def _racine_citee(texte, soi, noms):
+    """Entité de la page citée dans le texte d'agrégat (mot entier), hors l'entité elle-même ;
+    la première après le mot « racine » s'il y figure, sinon la première du texte."""
+    debut = re.search(r"racine", texte, re.I)
+    positions = []
+    for nom in noms:
+        if nom == soi:
+            continue
+        for trouve in re.finditer(rf"(?<![\w.]){re.escape(nom)}(?!\w)", texte):
+            positions.append((trouve.start(), nom))
+    apres = [p for p in positions if debut and p[0] > debut.start()]
+    choix = sorted(apres or positions)
+    return choix[0][1] if choix else None
 
 
 RE_WHITELIST = re.compile(r"whitelist\s*(?::|\()?\s*([^.\n)]*)", re.I)

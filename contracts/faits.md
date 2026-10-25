@@ -288,6 +288,7 @@ Une page RG (règles de gestion consolidées d'un SF) et une page générique (r
     "nom": "Favoris",
     "libelle": "Propriétés de Favoris",
     "ou": {…},
+    "agregat": { "ou": {…}, "texte": Texte, "type": "entite_interne", "racine": "Utilisateur" },
     "description": Texte,
     "attributs": [
       { "ou": {…}, "champ_brut": "Favoris.auteurId", "attribut": "auteurId",
@@ -304,7 +305,8 @@ Une page RG (règles de gestion consolidées d'un SF) et une page générique (r
 Règles reprises du skill legacy `confluence-mcd-sync`, qui les a éprouvées sur tout le corpus :
 
 - **Entité** : déduite du **préfixe commun** de la colonne « Nom du champ » (`Favoris.id`, `Favoris.ordre` → `Favoris`), pas du titre de section, qui ne sert qu'au `libelle`. Sans préfixe commun, le tableau va dans `inconnus[]` plutôt que de produire une entité fausse. Plusieurs tableaux de même préfixe forment une seule entité.
-- **Description** : la prose placée sous le titre de l'entité, hors tableaux (« Objet permettant de représenter une Note… », TEMPLATE_MCD). Clé absente si le titre n'est suivi que du tableau. Sert à K104.
+- **Description** : la prose placée sous le titre de l'entité, hors tableaux (« Objet permettant de représenter une Note… », TEMPLATE_MCD). Clé absente si le titre n'est suivi que du tableau. Sert à K104. Depuis le TEMPLATE_MCD du 2026-10-23, elle commence par le libellé « **Description** : », que le collecteur retire ; ce qui précède ce paragraphe est le texte d'agrégat.
+- **Agrégat** (collecteur 1.2, configuration 1.4) : le texte placé entre le titre de l'entité et le paragraphe « Description » (TEMPLATE_MCD : « racine de l'agrégat », « entité interne à l'agrégat » ou « objet valeur », et la racine associée). Clé absente sans paragraphe « Description » (ancien format) ou sans texte avant lui. `type` : `racine`, `entite_interne` ou `objet_valeur`, reconnu par les synonymes de `faits_types.json` (`MCD.entite.agregat`), clé absente si aucun ne figure. `racine` : pour une entité interne ou un objet valeur, l'entité de la même page citée dans le texte (la première après le mot « racine »), clé absente sinon ; une racine définie dans un autre MCD reste dans `texte`. Le collecteur ne juge pas : un type non reconnu ou une racine manquante sont l'affaire du catalogue.
 - **Ancien format** `MODULE.ENTITE.champ` (SF-DOCUMENT) : relevé tel quel dans `champ_brut`. K43 le signale ; le collecteur ne le corrige pas.
 - **Relations** : texte de la forme `Entite (card) <-> (card) Entite`, flèche ASCII `<->` ou `↔` (U+2194, avec ou sans U+FE0E). Une ligne peut enchaîner plusieurs relations. Un libellé `, lien "…"` en fin de ligne va dans `libelle`. Cardinalités normalisées en `0..N`, `1..1`, `1..N`, `0..1`. Une relation barrée porte `barre: true`.
 - La **clé étrangère** n'est pas déduite : K44 rapproche lui-même `auteurId` de l'entité visée et de son format.
