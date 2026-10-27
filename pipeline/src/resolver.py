@@ -2,7 +2,9 @@
 """
 Resolution du contenu reutilise — les trois mecanismes, en un seul parcours.
 
-VERSION : 1.4 — `page_id` et `local_id` structures dans chaque fait (jointure des faits v2)
+VERSION : 1.5 — une inclusion d'un nom defini deux fois est « definition absente », motif « nom
+                defini plusieurs fois sur la page source » (multiexcerpt 1.4)
+          1.4 — `page_id` et `local_id` structures dans chaque fait (jointure des faits v2)
 
 Ce module remplace le contenu reutilise par sa valeur et injecte les tables imbriquees,
 AVANT toute normalisation et tout rendu markdown. L'ordre importe : le contrat resout
@@ -40,7 +42,7 @@ import copy
 
 import multiexcerpt as mx
 
-VERSION = "1.4"
+VERSION = "1.5"
 
 
 # ==========================================================================
@@ -66,6 +68,8 @@ MOTIFS = {
     STATUT_DEFINITION_ABSENTE: "définition introuvable sur la page source",
     STATUT_PAGE_SOURCE_ABSENTE: "page source introuvable",
 }
+# Un nom defini deux fois : meme statut que l'absence (contrat §1.8), motif distinct.
+MOTIF_AMBIGUE = "nom défini plusieurs fois sur la page source"
 
 # Nom affiche dans les marqueurs pour l'extrait natif sans nom (cle (page, "")). Le fait
 # garde le nom vide : seul le .md a besoin d'un libelle lisible. Contrat §1.8.
@@ -644,8 +648,9 @@ class Resolveur:
         if definition is None:
             self._consigne(mecanisme, cle, STATUT_DEFINITION_ABSENTE,
                            hors, ou, forme, node, page_id)
-            return [_marqueur(inline, libelle_non_resolue(
-                nom, cible, MOTIFS[STATUT_DEFINITION_ABSENTE]))]
+            motif = (MOTIF_AMBIGUE if self.index.ambigue(node, titre)
+                     else MOTIFS[STATUT_DEFINITION_ABSENTE])
+            return [_marqueur(inline, libelle_non_resolue(nom, cible, motif))]
 
         injecte = self._injecte(definition, mecanisme, cle, guard)
         fait = self._consigne(mecanisme, cle, STATUT_RESOLUE, hors, ou, forme,

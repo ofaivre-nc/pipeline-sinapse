@@ -1081,12 +1081,14 @@ def verifie_page_courante_et_ordre():
     echecs += check(definitions == ["multiexcerpt_definition"],
                     f"la definition n'est pas consommee par l'inclusion : {definitions}")
 
-    # Une definition en double sur la meme page leve — contrat §1.8.
-    echecs += leve(
-        lambda: rs.resout_document(
-            document([definition("D", [para("un")]), definition("D", [para("deux")])]),
-            page, "922", Fournisseur([])),
-        "une cle de definition en double doit lever", motif="double")
+    # Une definition en double sur la meme page : la cle est ambigue, traitee comme une
+    # definition absente au point d'usage ; les autres definitions restent indexees — §1.8.
+    adf3 = document([definition("D", [para("un")]), definition("D", [para("deux")]),
+                     definition("E", [para("corps E")]), inclusion("D", page=""), inclusion("E", page="")])
+    resolu3, faits3 = rs.resout_document(adf3, page, "922", Fournisseur([]))
+    echecs += check([f["statut"] for f in faits3] == ["definition_absente", "resolue"],
+                    f"doublon ambigu, definition suivante resolue : {faits3}")
+    echecs += check("plusieurs fois" in texte(resolu3), "le marqueur dit pourquoi le nom ne se resout pas")
     return echecs
 
 

@@ -271,13 +271,21 @@ les croiserait produirait un `.md` **plus complet que la page réelle** et
 masquerait un affichage cassé que les rédacteurs voient à l'écran sans que le
 rapport de run ne le signale jamais.
 
-#### Unicité de clé — levée obligatoire
+#### Unicité de clé — clé ambiguë
 
-Si une clé `(page, nom)` apparaît deux fois dans la même famille, la construction
-de l'index **lève**, avec les deux emplacements dans le message. Cas réel :
-`27787265` définit `habilitation` deux fois, avec un contenu identique
-aujourd'hui — donc sans effet visible, jusqu'au jour où les deux divergeront.
-C'est la même mécanique que la collision de `resourceId` du §1.3.
+Si une clé `(page, nom)` apparaît deux fois dans la même famille, elle devient
+**ambiguë** : l'index garde les deux emplacements, n'en retient aucun corps, et
+continue d'indexer les autres définitions de la page. Une inclusion de cette clé
+est une définition absente (`definition_absente`), avec le motif « nom défini
+plusieurs fois sur la page source » dans le marqueur. Cas réels : `27787265`
+définit `habilitation` deux fois, avec un contenu identique aujourd'hui ; la page
+de règles de SF-COMPTE (`120619009`) porte deux extraits natifs sans nom.
+
+Lever à l'indexation était un défaut (corrigé le 2026-10-27, multiexcerpt 1.4) :
+l'exception arrêtait l'indexation de la page source au milieu, et toutes les
+définitions suivantes passaient pour absentes — 28 inclusions fausses sur
+API-COMPTE-PROFIL seule. Le doublon lui-même est signalé par le contrôle K57 du
+catalogue (faits `definitions[]`), pas par le resolver.
 
 #### Les deux familles cohabitent sur une même page
 

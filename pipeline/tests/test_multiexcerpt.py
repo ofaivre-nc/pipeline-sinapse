@@ -303,17 +303,20 @@ def run():
     doublon = mx.IndexDefinitions()
     d1 = macro("excerpt", {"name": "habilitation"}, CORPS, local_id="ce13daaf")
     d2 = macro("excerpt", {"name": "habilitation"}, CORPS, local_id="200d7829")
+    autre = macro("excerpt", {"name": "autre"}, CORPS, local_id="9f3c2a11")
     doublon.ajoute(d1, "CU-NOTE-CONSULTER", page_id="27787265")
-    try:
-        doublon.ajoute(d2, "CU-NOTE-CONSULTER", page_id="27787265")
-        echecs += check(False, "une cle en double dans la meme famille doit lever")
-    except mx.ResolutionError as exc:
-        message = str(exc)
-        echecs += check("ce13daaf" in message and "200d7829" in message,
-                        f"le message doit citer LES DEUX emplacements : {message}")
-        echecs += check("27787265" in message,
-                        "le message doit citer la page concernee")
-        echecs += check("excerpt" in message, "le message doit citer la famille")
+    doublon.ajoute(d2, "CU-NOTE-CONSULTER", page_id="27787265")
+    doublon.ajoute(autre, "CU-NOTE-CONSULTER", page_id="27787265")
+    inc_doublon = macro("excerpt-include", {"name": "habilitation"})
+    echecs += check(doublon.resout(inc_doublon, "CU-NOTE-CONSULTER") is None,
+                    "une cle en double est ambigue : traitee comme une definition absente")
+    emplacements = doublon.ambigue(inc_doublon, "CU-NOTE-CONSULTER") or []
+    echecs += check(len(emplacements) == 2 and all("27787265" in e for e in emplacements)
+                    and any("ce13daaf" in e for e in emplacements)
+                    and any("200d7829" in e for e in emplacements),
+                    f"l'ambiguite garde LES DEUX emplacements : {emplacements}")
+    echecs += check(doublon.resout(macro("excerpt-include", {"name": "autre"}), "CU-NOTE-CONSULTER")
+                    is not None, "le doublon n'empeche pas d'indexer les autres definitions")
 
     # Le meme nom sur deux pages differentes n'est PAS un doublon.
     ok = mx.IndexDefinitions()

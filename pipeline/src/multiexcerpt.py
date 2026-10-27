@@ -2,7 +2,9 @@
 """
 Cles de resolution du contenu reutilise — multiexcerpt, excerpt et syncBlock.
 
-VERSION : 1.3 — extrait natif sans nom = extrait par defaut de la page (contrat §1.8)
+VERSION : 1.4 — nom defini deux fois : cle ambigue, l'indexation de la page continue (contrat §1.8,
+                « traite comme une definition absente »)
+          1.3 — extrait natif sans nom = extrait par defaut de la page (contrat §1.8)
 
 Le corpus SINAPSE porte TROIS mecanismes de reutilisation, dont deux par macro :
 
@@ -32,7 +34,7 @@ import html
 import json
 import re
 
-VERSION = "1.3"
+VERSION = "1.4"
 
 
 # ==========================================================================
@@ -304,21 +306,30 @@ class IndexDefinitions:
 
     def __init__(self):
         self._par_famille = {famille: {} for famille in FAMILLES}
+        self._ambigues = {famille: {} for famille in FAMILLES}   # cle -> emplacements
 
     def ajoute(self, node, page_title, page_id=None):
-        """Indexe une definition. Leve si sa cle existe deja DANS LA MEME FAMILLE."""
+        """Indexe une definition. Une cle deja presente DANS LA MEME FAMILLE devient ambigue.
+
+        Contrat §1.8 : un nom defini deux fois est traite comme une definition absente. Le
+        pipeline ne choisit pas entre les deux corps, et l'ambiguite n'echoue qu'au point
+        d'usage : les autres definitions de la page restent indexees. Lever ici arretait
+        l'indexation de la page source au milieu, et toutes les definitions suivantes
+        passaient pour absentes (SF-COMPTE, deux extraits natifs sans nom).
+        """
         nature = classify_reuse_node(node)
         if nature not in (f"{f}_definition" for f in FAMILLES):
             raise ResolutionError(f"ce noeud n'est pas une definition de macro : {nature}")
         famille = famille_macro(node)
         cle = macro_definition_key(node, page_title)
         ou = emplacement(node, page_id, page_title)
-        deja = self._par_famille[famille].get(cle)
+        if cle in self._ambigues[famille]:
+            self._ambigues[famille][cle].append(ou)
+            return cle
+        deja = self._par_famille[famille].pop(cle, None)
         if deja is not None:
-            raise ResolutionError(
-                f"definition en double dans la famille {famille} pour la cle "
-                f"{cle!r} : {deja['emplacement']} ET {ou}. Confluence ne dit pas "
-                f"laquelle gagne ; la cle (page, nom) ne peut pas trancher.")
+            self._ambigues[famille][cle] = [deja["emplacement"], ou]
+            return cle
         self._par_famille[famille][cle] = {"node": node, "emplacement": ou,
                                            "page_title": page_title, "page_id": page_id}
         return cle
@@ -339,6 +350,11 @@ class IndexDefinitions:
             raise ResolutionError(f"ce noeud n'est pas une inclusion de macro : {nature}")
         famille = famille_macro(node)
         return self.cherche(famille, macro_include_key(node, page_title_hote))
+
+    def ambigue(self, node, page_title_hote):
+        """Emplacements des definitions homonymes visees par une inclusion, ou None."""
+        famille = famille_macro(node)
+        return self._ambigues[famille].get(macro_include_key(node, page_title_hote))
 
     def cles(self, famille):
         return set(self._par_famille[famille])

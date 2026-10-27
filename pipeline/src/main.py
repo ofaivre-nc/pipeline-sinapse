@@ -273,9 +273,9 @@ def execute(adf, pages_meta, sortie, complet=False, config=None, md=None):
                 erreur_resolution = None
             except mx.ResolutionError as erreur:
                 resolu = adf_page
-                # Definition en double (contrat normalisation_adf.md §1.8) : le resolver
-                # leve, a raison. La page garde ses faits, sans le statut de ses inclusions,
-                # et l'erreur devient un fait : c'est le cas que K57 doit signaler.
+                # Erreur de resolution (multiexcerpt sans nom, cycle...) : la page garde
+                # ses faits, sans le statut de ses inclusions, et l'erreur devient un fait.
+                # Une definition en double ne leve plus (contrat §1.8, cle ambigue).
                 faits_resolver, erreur_resolution = [], str(erreur)
             faits = collecteur.collecte(adf_page, meta, faits_resolver)
             if erreur_resolution:
