@@ -88,6 +88,30 @@ rapport de run. **Le pipeline ne choisit pas** entre les deux corps.
 - **Une inclusion vise « Nom de page de test multiexcerpt v2 »**, page de test hors
   périmètre — reste d'essai à retirer.
 
+## Tableaux hors template
+
+- **« 3.2 Codes retours » réduit à une colonne `Code / Detail` sur 29 SA** (relevé le
+  2026-10-28, export du jour). Le template SA attend deux colonnes, `code / codeErreur` et
+  `Message`. Ces pages n'en ont plus qu'une, d'en-tête `Code / Detail` (`Code / Détail` sur
+  4 pages) : chaque ligne est un extrait inclus depuis « SF-xxx: Messages d'erreur », code
+  en gras puis message, et la ligne de succès garde l'objet seul (`Personne`) ou
+  « Opération réalisée avec succès » + objet. Toutes modifiées le 27 octobre : retouche
+  en série, pas un nouveau template (la fixture TEMPLATE_SA du 22 octobre a toujours les
+  deux colonnes). **Le pipeline ne lit pas ce tableau** (`tableau` dans `inconnus`, page
+  lue en partie) : il n'invente pas de colonne. À remettre en deux colonnes dans Confluence.
+  - SF-PERSONNE (18) : `555483185` EVENEMENT.CREER, `559054863` RECHERCHER,
+    `649592833` PP.CREER, `659783682` PM.CREER, `662700034` PM-MODIFIER, `665681921`
+    SUPPRIMER, `708149269` NAF.RECHERCHER, `709427203` FORME.RECHERCHER, `709427219`
+    TELEPHONE.GERER, `709951489` ADRESSE.GERER, `712572929` HISTORIQUE.ADRESSE-RECHERCHER,
+    `712638465` TELEPHONE.CONTROLER, `712638482` ADRESSE.CONTROLER, `712769541`
+    DOUBLONS.CONTROLER, `713981953` RID.CONTROLER, `719716354` EVENEMENT.RECHERCHER,
+    `720502785` HISTORIQUE.RECHERCHER, `748421121` PP-MODIFIER.
+  - SF-COORDONNEE (11) : `703758337` PAYS.CREER, `703758359` PAYS.MODIFIER, `703758375`
+    PAYS.SUPPRIMER, `703758391` PAYS.RECHERCHER, `703758422` LOCALITE.CREER, `703758438`
+    LOCALITE.SUPPRIMER, `705757224` LOCALITE.MODIFIER, `705757241` LOCALITE.RECHERCHER,
+    `705757257` LOCALITE.CONTROLER-BP, `708149250` ADRESSE.CANDIDATE-RECHERCHER,
+    `708345859` LOCALITE.CANDIDATE-RECHERCHER.
+
 ## Rangement et nommage
 
 - `Règles génériques utilisables pour les recherches` (28803126) rangée sous
