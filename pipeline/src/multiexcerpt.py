@@ -2,7 +2,9 @@
 """
 Cles de resolution du contenu reutilise — multiexcerpt, excerpt et syncBlock.
 
-VERSION : 1.4 — nom defini deux fois : cle ambigue, l'indexation de la page continue (contrat §1.8,
+VERSION : 1.5 — macros de l'app Forge MultiExcerpt : parametres lus dans `guestParams`, qui priment
+                sur `macroParams` (contrat §1.5)
+          1.4 — nom defini deux fois : cle ambigue, l'indexation de la page continue (contrat §1.8,
                 « traite comme une definition absente »)
           1.3 — extrait natif sans nom = extrait par defaut de la page (contrat §1.8)
 
@@ -34,7 +36,7 @@ import html
 import json
 import re
 
-VERSION = "1.4"
+VERSION = "1.5"
 
 
 # ==========================================================================
@@ -63,6 +65,9 @@ FAMILLES = (FAMILLE_MULTIEXCERPT, FAMILLE_EXCERPT)
 # markup ({excerpt-include:Page|name=X}), que l'ADF conserve tel quel. Chercher `page`
 # sur un excerpt-include ne trouve rien et fait conclure "page courante" — donc
 # resoudre contre une definition locale de meme nom, sans lever la moindre erreur.
+# Cle d'espace en tete du parametre `page` d'une inclusion Forge : `SINAPSE:Titre`.
+RE_PREFIXE_ESPACE = re.compile(r"^[A-Z][A-Z0-9]*:(?=\S)")
+
 PARAM_PAGE_PAR_FAMILLE = {
     FAMILLE_MULTIEXCERPT: "page",
     FAMILLE_EXCERPT: "",
@@ -198,12 +203,37 @@ def macro_param(node, nom):
 
     `nom` peut etre la chaine vide : c'est le parametre positionnel de la famille
     excerpt, une cle a part entiere dans macroParams.
+
+    Une macro de l'app Forge MultiExcerpt porte ses parametres dans `guestParams`
+    (valeurs nues). Ils PRIMENT : le `macroParams` qui l'accompagne parfois est un reste
+    de migration, dont le nom peut differer (`RG-X&period;Y` contre `RG-X-Y`), alors que
+    les inclusions visent le nom de `guestParams`. Contrat §1.5.
     """
     params = ((node.get("attrs") or {}).get("parameters") or {})
+    invite = params.get("guestParams") or {}
+    if nom == "page" and invite.get("page"):
+        return _page_forge(invite)
+    if invite.get(nom) not in (None, ""):
+        return invite.get(nom)
     valeur = (params.get("macroParams") or {}).get(nom)
     if isinstance(valeur, dict):
         valeur = valeur.get("value")
     return valeur
+
+
+def _page_forge(invite):
+    """Titre de la page source d'une inclusion Forge.
+
+    `pageWithExcerpt` (JSON, cle `content-title`) d'abord ; sinon `page`, prefixe de la
+    cle d'espace (`SINAPSE:Titre`), que le titre seul ne porte pas.
+    """
+    try:
+        titre = json.loads(invite.get("pageWithExcerpt") or "{}").get("content-title")
+    except (ValueError, AttributeError):
+        titre = None
+    if titre:
+        return titre
+    return RE_PREFIXE_ESPACE.sub("", str(invite["page"]), count=1)
 
 
 # ==========================================================================

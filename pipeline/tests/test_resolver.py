@@ -1047,10 +1047,51 @@ def verifie_extrait_sans_nom():
                     in marqueurs(resolu),
                     f"le marqueur nomme l'extrait par defaut : {lisible(marqueurs(resolu))}")
 
-    # Le multiexcerpt, lui, exige toujours un nom.
-    source_mx = document([definition("", [para("x")])])
-    echecs += leve(lambda: rs.resout_document(source_mx, "SF-MX", "921", Fournisseur([])),
-                   "un multiexcerpt sans nom doit lever")
+    # Le multiexcerpt, lui, exige toujours un nom. Sans nom, la definition est ignoree et
+    # l'inclusion consignee « nom_illisible » : le reste de la page se resout (resolver 1.6).
+    source_mx = document([definition("", [para("x")]),
+                          inclusion(""),
+                          definition("MX-OK", [para("lisible")]),
+                          inclusion("MX-OK")])
+    resolu, faits = rs.resout_document(source_mx, "SF-MX", "921", Fournisseur([]))
+    echecs += check([f["statut"] for f in faits] == [rs.STATUT_NOM_ILLISIBLE, "resolue"],
+                    f"un multiexcerpt sans nom n'arrete pas la page : {faits}")
+    echecs += check("lisible" in textes(resolu),
+                    f"l'inclusion lisible est injectee : {lisible(textes(resolu))}")
+    echecs += check(any(rs.MOTIFS[rs.STATUT_NOM_ILLISIBLE] in m for m in marqueurs(resolu)),
+                    f"le .md marque l'inclusion illisible : {lisible(marqueurs(resolu))}")
+    return echecs
+
+
+def verifie_macros_forge():
+    """App Forge MultiExcerpt : parametres dans `guestParams`, qui priment (multiexcerpt 1.5)."""
+    echecs = 0
+    cle_def = "47fa61b6/static/multiexcerpt-fast-block-macro"
+    cle_inc = "47fa61b6/static/multiexcerpt-fast-include-inline-macro"
+    definition_forge = {"type": "bodiedExtension",
+                        "attrs": {"extensionKey": cle_def, "parameters": {
+                            "macroParams": {"name": {"value": "RG-X&period;NAF"}},
+                            "guestParams": {"name": "RG-X-NAF"}}},
+                        "content": [para("corps forge")]}
+    source = document([definition_forge])
+    inc = {"type": "inlineExtension",
+           "attrs": {"extensionKey": cle_inc, "localId": "l1", "parameters": {"guestParams": {
+               "name": "RG-X-NAF", "page": "SINAPSE:SF-X: Règles",
+               "pageWithExcerpt": "{\"content-title\":\"SF-X: Règles\"}"}}}}
+    echecs += check(mx.macro_nom(definition_forge) == "RG-X-NAF",
+                    "le nom de guestParams prime sur macroParams")
+    echecs += check(mx.macro_include_key(inc, "CU-X") == ("SF-X: Règles", "RG-X-NAF"),
+                    f"page lue dans pageWithExcerpt : {mx.macro_include_key(inc, 'CU-X')}")
+    sans_json = {"attrs": {"extensionKey": cle_inc, "parameters": {"guestParams": {
+        "name": "N", "page": "SINAPSE:SF-X: Règles"}}}, "type": "inlineExtension"}
+    echecs += check(mx.macro_page_source(sans_json, "CU-X")[0] == "SF-X: Règles",
+                    "sans pageWithExcerpt, la cle d'espace est retiree de `page`")
+    doc = document([{"type": "paragraph", "content": [inc]}])
+    resolu, faits = rs.resout_document(doc, "CU-X", "930",
+                                       Fournisseur([("931", "SF-X: Règles", source)]))
+    echecs += check([f["statut"] for f in faits] == ["resolue"],
+                    f"l'inclusion Forge se resout : {faits}")
+    echecs += check("corps forge" in textes(resolu), "le corps Forge est injecte")
     return echecs
 
 
@@ -1506,6 +1547,7 @@ def run():
     echecs += verifie_un_appel_par_source()
     echecs += verifie_non_resolues()
     echecs += verifie_extrait_sans_nom()
+    echecs += verifie_macros_forge()
     echecs += verifie_page_courante_et_ordre()
     echecs += verifie_forme_marqueur()
     echecs += verifie_nettoyage_libelle()

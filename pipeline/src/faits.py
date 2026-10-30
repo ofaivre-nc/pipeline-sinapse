@@ -2,7 +2,9 @@
 """
 Collecteur de faits — ADF brut d'une page -> faits de la page (contracts/faits.md).
 
-VERSION : 1.2 — type d'agregat des entites MCD (agregat), libelle « Description » retire
+VERSION : 1.3 — statut d'une inclusion sans localId : jointure de repli par (mecanisme, cle) quand
+                toutes les inclusions de meme cle de la page ont le meme statut
+          1.2 — type d'agregat des entites MCD (agregat), libelle « Description » retire
                 de la description (TEMPLATE_MCD du 2026-10-23)
           1.1 — description des entites MCD, whitelist de tri des SA (tri), tableaux du corps des RG
           1.0 — premiere version, schema 2 du contrat de faits
@@ -35,7 +37,7 @@ import multiexcerpt as mx
 from inventory import TIRETS_UNICODE
 from renderer import cible_de_lien
 
-VERSION = "1.2"
+VERSION = "1.3"
 SCHEMA_VERSION = 2
 CONFIG_DEFAUT = Path(__file__).resolve().parent.parent / "config" / "faits_types.json"
 BASE_URL = "https://sinapse-gie-nc.atlassian.net"
@@ -156,9 +158,15 @@ class Lecteur:
         self.page_titre = page_titre
         self.titres_par_id = titres_par_id or {}
         self.statuts = {}
+        # Repli pour un noeud sans localId (macros anciennes) : (mecanisme, cle) -> faits.
+        self.statuts_par_cle = {}
         for fait in faits_resolver or []:
-            if fait.get("local_id") and str(fait.get("page_id", self.page_id)) == self.page_id:
+            if str(fait.get("page_id", self.page_id)) != self.page_id:
+                continue
+            if fait.get("local_id"):
                 self.statuts[fait["local_id"]] = fait
+            elif fait.get("cle") is not None:
+                self.statuts_par_cle.setdefault((fait["mecanisme"], tuple(fait["cle"])), []).append(fait)
 
     # ------------------------------------------------------------------
 
@@ -299,15 +307,33 @@ class Lecteur:
                          "page_source": cible,
                          "forme": "inline" if mx.est_inclusion_inline(node) else "bloc"}
         local_id = attrs.get("localId")
-        if local_id and local_id in self.statuts:
-            inclusion["statut"] = self.statuts[local_id]["statut"]
+        fait = self.statuts.get(local_id) if local_id else self._statut_par_cle(node, nature)
+        if fait:
+            inclusion["statut"] = fait["statut"]
             # Page source hors du corpus exporte : pas une anomalie (decision du
             # 2026-10-21), K56 ne la signale pas.
-            if self.statuts[local_id].get("source_hors_perimetre"):
+            if fait.get("source_hors_perimetre"):
                 inclusion["hors_corpus"] = True
         if local_id:
             inclusion["local_id"] = local_id
         return inclusion
+
+    def _statut_par_cle(self, node, nature):
+        """Fait du resolver d'une inclusion sans localId, retrouve par sa cle.
+
+        Seulement si toutes les inclusions de meme cle sur la page ont le meme statut :
+        sinon on ne sait pas laquelle est laquelle, et le statut reste absent.
+        """
+        if nature == "sync_include":
+            return None
+        try:
+            cle = mx.macro_include_key(node, self.page_titre)
+        except mx.ResolutionError:
+            return None
+        faits = self.statuts_par_cle.get((mx.famille_macro(node), tuple(cle)), [])
+        if faits and len({f["statut"] for f in faits}) == 1:
+            return faits[0]
+        return None
 
     # ------------------------------------------------------------------
 

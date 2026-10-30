@@ -171,6 +171,30 @@ Relevé du 4 août 2026. **Trois définitions** (`bodiedExtension`, paramètres
 | `multiexcerpt-include-macro` | `inlineExtension` | inclusion (forme historique) | 3 |
 | `multiexcerpt-fast-inline-macro` | `bodiedExtension` | définition | 1 |
 
+**App Forge MultiExcerpt** (relevé du 30 octobre 2026, 8 pages). Mêmes suffixes de clé,
+préfixés d'un identifiant d'app (`47fa61b6-…/static/multiexcerpt-fast-include-inline-macro`),
+`extensionType` `com.atlassian.ecosystem`. Les paramètres sont dans
+**`parameters.guestParams`**, en valeurs nues : `name`, et pour une inclusion `page`
+(préfixé de la clé d'espace : `SINAPSE:Titre`), `pageId`, `pageWithExcerpt` (JSON,
+`content-title`). Règles :
+
+- `guestParams` **prime** sur `macroParams`. Le `macroParams` qui l'accompagne parfois est un
+  reste de migration ou de copier-coller, et peut porter un autre nom : `RG-X&period;NAF`
+  contre `RG-X-NAF`, voire une autre RG (SA-COORDONNEE-PAYS.MODIFIER). Les inclusions visent
+  le nom de `guestParams`, celui qu'affiche Confluence.
+- Page source d'une inclusion : `pageWithExcerpt.content-title`, sinon `page` sans sa clé
+  d'espace.
+
+**Macro au nom illisible** (resolver 1.6). Une inclusion dont la clé ne se construit pas est
+consignée `statut: nom_illisible` et marquée dans le `.md` ; une définition sans nom est
+ignorée (aucune inclusion ne peut la viser). Le reste de la page se résout normalement.
+Avant, une seule macro illisible arrêtait la résolution de toute la page : aucune de ses
+inclusions n'avait de statut.
+
+**Inclusion sans `localId`** (faits 1.3). Son statut se retrouve par sa clé
+`(mécanisme, (page, nom))`, si toutes les inclusions de même clé sur la page ont le même
+statut ; sinon le statut reste absent.
+
 Une **définition ne porte aucun paramètre `page`** : elle définit sur sa propre page. Sa
 clé se construit donc avec le titre de la page hôte, fourni par l'appelant. Une
 inclusion dont `page` est vide vise la page courante.

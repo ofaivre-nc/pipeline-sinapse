@@ -2,7 +2,9 @@
 """
 Resolution du contenu reutilise — les trois mecanismes, en un seul parcours.
 
-VERSION : 1.5 — une inclusion d'un nom defini deux fois est « definition absente », motif « nom
+VERSION : 1.6 — une macro au nom illisible n'arrete plus la resolution de la page : inclusion
+                consignee « nom_illisible », definition ignoree (contrat §1.5)
+          1.5 — une inclusion d'un nom defini deux fois est « definition absente », motif « nom
                 defini plusieurs fois sur la page source » (multiexcerpt 1.4)
           1.4 — `page_id` et `local_id` structures dans chaque fait (jointure des faits v2)
 
@@ -42,7 +44,7 @@ import copy
 
 import multiexcerpt as mx
 
-VERSION = "1.5"
+VERSION = "1.6"
 
 
 # ==========================================================================
@@ -61,12 +63,16 @@ MECANISME_SYNC = "sync"
 STATUT_RESOLUE = "resolue"
 STATUT_DEFINITION_ABSENTE = "definition_absente"
 STATUT_PAGE_SOURCE_ABSENTE = "page_source_absente"
+# Nom (ou page) de la macro illisible : la cle ne peut pas se construire. L'inclusion est
+# consignee et marquee dans le .md ; le reste de la page se resout normalement.
+STATUT_NOM_ILLISIBLE = "nom_illisible"
 
 # Ces motifs partent dans un .md : ils sont accentues, comme tout contenu ecrit dans un
 # fichier. Les valeurs de `statut` ci-dessus ne le sont pas — champs structures.
 MOTIFS = {
     STATUT_DEFINITION_ABSENTE: "définition introuvable sur la page source",
     STATUT_PAGE_SOURCE_ABSENTE: "page source introuvable",
+    STATUT_NOM_ILLISIBLE: "nom de l'extrait illisible",
 }
 # Un nom defini deux fois : meme statut que l'absence (contrat §1.8), motif distinct.
 MOTIF_AMBIGUE = "nom défini plusieurs fois sur la page source"
@@ -340,7 +346,12 @@ class Resolveur:
             self.sync[cle] = {"node": node, "page_title": titre, "page_id": page_id,
                               "emplacement": mx.emplacement(node, page_id, titre)}
         elif nature and nature.endswith("_definition"):
-            self.index.ajoute(node, titre, page_id)
+            try:
+                self.index.ajoute(node, titre, page_id)
+            except mx.ResolutionError:
+                # Definition sans nom lisible : aucune inclusion ne peut la viser. Elle
+                # n'arrete pas l'indexation des autres ; le collecteur releve son nom.
+                pass
         for enfant in (node.get("content") or []):
             self._collecte_definitions(enfant, titre, page_id)
 
@@ -628,7 +639,15 @@ class Resolveur:
     def _resout_macro(self, node, titre, page_id, guard):
         famille = mx.famille_macro(node)
         mecanisme = MECANISME_PAR_FAMILLE[famille]
-        cle = mx.macro_include_key(node, titre)
+        try:
+            cle = mx.macro_include_key(node, titre)
+        except mx.ResolutionError:
+            inline = mx.est_inclusion_inline(node)
+            self._consigne(mecanisme, None, STATUT_NOM_ILLISIBLE, False,
+                           mx.emplacement(node, page_id, titre),
+                           FORME_INLINE if inline else FORME_BLOC, node, page_id)
+            return [_marqueur(inline, libelle_non_resolue(
+                "?", titre, MOTIFS[STATUT_NOM_ILLISIBLE]))]
         cible, nom = cle[0], cle[1] or NOM_AFFICHE_PAR_DEFAUT   # libelle seulement
         ou = mx.emplacement(node, page_id, titre)
         hors = self._hors_perimetre_titre(cible)

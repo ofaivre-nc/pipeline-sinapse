@@ -259,6 +259,22 @@ def verifie_inclusions_et_definitions():
     echecs += check(faits["regles"][0]["cellules"]["regle"]["texte"] == "{inclusion:RG-A}",
                     f"{faits['regles'][0]}")
 
+    # Sans localId : jointure par (mecanisme, cle), si toutes les inclusions de meme cle
+    # ont le meme statut (faits 1.3).
+    adf = doc(titre(1, "Règles"), table(["Description"], [inclusion("RG-C", "SF-X: Règles")],
+                                        [inclusion("RG-D", "SF-X: Règles")],
+                                        [inclusion("RG-D", "SF-X: Règles")]))
+    resolver = [{"statut": "resolue", "mecanisme": "excerpt", "cle": ("SF-X: Règles", "RG-C"),
+                 "page_id": "100"},
+                {"statut": "resolue", "mecanisme": "excerpt", "cle": ("SF-X: Règles", "RG-D"),
+                 "page_id": "100"},
+                {"statut": "definition_absente", "mecanisme": "excerpt",
+                 "cle": ("SF-X: Règles", "RG-D"), "page_id": "100"}]
+    faits = collecte(adf, "CU", "CU-TEST", faits_resolver=resolver)
+    statuts = [(i["nom"], i.get("statut")) for i in faits["inclusions"]]
+    echecs += check(statuts == [("RG-C", "resolue"), ("RG-D", None), ("RG-D", None)],
+                    f"repli par cle, statut absent quand la cle est ambigue : {statuts}")
+
     rg = doc(titre(2, "Persistance"), titre(3, "RG-X-PERSISTANCE-CREATION"),
              definition("RG-X-PERSISTENCE-CREATION",
                         para(txt("Règle", "strong"), txt(" RG-X-PERSISTANCE-CREATION concernant la création")),
